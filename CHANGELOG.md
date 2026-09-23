@@ -18,3 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AGENTS.md` — design → implement → polish workflow, changelog routine, and
   references to the vendored design skills.
 - This changelog.
+- Vendored design skills under `.cursor/skills/` (ui-ux-pro-max, impeccable,
+  emilkowalski) with a provenance index.
+- Vite + React + TypeScript + Tailwind app scaffold.
+- Pure `src/core/` modules with unit tests: `parseFile` (.txt/.csv XYZ),
+  `geometry` (area/centroid/bbox/span), `projection` (geodesic true-scale
+  placement), `units`, and `format`.
+- MapLibre integration (`react-map-gl/maplibre`): `MapView`, MapTiler basemap
+  with keyless OpenFreeMap fallback (`basemap`), curated notable regions +
+  optional MapTiler geocoding (`regions`), and a draggable true-scale
+  `PolygonOverlay`.
+- UI: import panel (file drop/upload, unit selector, samples), true-shape
+  preview, scale readout, and region search.
+- Framed PNG snapshot export (`html-to-image`).
+- Two sample polygons in `public/samples/` and loadable in-app.
+- `.cursor/environment.json` (Cloud Agent) and `netlify.toml` (static SPA host).

@@ -33,3 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Framed PNG snapshot export (`html-to-image`).
 - Two sample polygons in `public/samples/` and loadable in-app.
 - `.cursor/environment.json` (Cloud Agent) and `netlify.toml` (static SPA host).
+
+### Docs
+
+- `AGENTS.md`: added a "Running & viewing in a Cloud Agent" section (auto-started
+  `dev` terminal, Forwarded Ports and remote-desktop preview, repo-managed
+  environment note) and corrected the geometry note — the geodesic math is
+  implemented in-repo (`src/core/projection.ts`), not via Turf.

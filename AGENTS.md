@@ -52,8 +52,9 @@ Vendored skills live in [`.cursor/skills/`](.cursor/skills/). Use them in order.
 ## Tech stack & key libraries
 
 - Vite, React 18, TypeScript, Tailwind CSS.
-- MapLibre GL JS via `react-map-gl/maplibre`; `@turf/turf` for geodesic geometry;
-  `html-to-image` for snapshot export.
+- MapLibre GL JS via `react-map-gl/maplibre`; `html-to-image` for snapshot export.
+- Geodesic geometry is implemented in-repo (`src/core/projection.ts`) with no
+  external geo dependency.
 - Basemap: MapTiler (`VITE_MAPTILER_KEY`) with a keyless OpenFreeMap dev fallback.
 
 ## Commands
@@ -67,6 +68,31 @@ Vendored skills live in [`.cursor/skills/`](.cursor/skills/). Use them in order.
 | `npm run test` | Run the Vitest suite once |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Type-check without emit |
+
+## Running & viewing in a Cloud Agent
+
+This repo is a **repository-managed** environment: config lives in
+`.cursor/environment.json`, which takes precedence over any dashboard/personal/
+team environment ([resolution order](https://cursor.com/docs/cloud-agent/setup)).
+Because of this, new agents do **not** show a dashboard "Environment" Save card —
+that is expected. The committed config applies to any agent started on a branch
+that contains it (you do not have to merge to the default branch first).
+
+The `dev` terminal (`npm run dev`) **auto-starts** on every agent boot and stays
+alive in the shared `tmux` session, so the Vite server is normally already
+running on `0.0.0.0:5173`. To view the app:
+
+- **Forwarded Ports (recommended):** in the Agents Window open the Forwarded
+  Ports menu, forward `5173` (or enable Auto-Forward), then "Open in internal
+  browser". Vite already binds to `0.0.0.0` (see `vite.config.ts`), which is
+  required for forwarding.
+- **Remote desktop:** take control of the agent's VM desktop and open Google
+  Chrome at `http://localhost:5173/`.
+- If the server isn't running, start it with `npm run dev` in a terminal.
+
+For the MapTiler basemap, set the `VITE_MAPTILER_KEY` secret (it persists across
+runs and is injected into new VMs); without it the app falls back to keyless
+OpenFreeMap.
 
 ## Testing expectations
 

@@ -9,10 +9,7 @@ interface Props {
 export default function PolygonPreview({ points, size = 220 }: Props) {
   if (points.length < 3) {
     return (
-      <div
-        className="flex items-center justify-center rounded-xl border border-white/10 bg-black/30 text-xs text-slate-400"
-        style={{ width: size, height: size }}
-      >
+      <div className="flex aspect-square w-full items-center justify-center rounded-xl border border-white/10 bg-black/30 text-sm text-slate-400">
         Polygon preview
       </div>
     )
@@ -39,12 +36,10 @@ export default function PolygonPreview({ points, size = 220 }: Props) {
 
   return (
     <svg
-      width={size}
-      height={size}
       viewBox={`0 0 ${size} ${size}`}
       role="img"
       aria-label="Field polygon preview"
-      className="rounded-xl border border-white/10 bg-black/30"
+      className="h-auto w-full rounded-xl border border-white/10 bg-black/30"
     >
       <polygon
         points={path}

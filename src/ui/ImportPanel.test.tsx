@@ -63,5 +63,22 @@ describe('ImportPanel', () => {
       />,
     )
     expect(screen.getByRole('alert')).toHaveTextContent('Bad file')
+    expect(screen.getByRole('alert')).toHaveTextContent(/try another file/i)
+  })
+
+  it('moves the unit with arrow keys', () => {
+    const onUnitChange = vi.fn()
+    render(
+      <ImportPanel
+        unit="m"
+        onUnitChange={onUnitChange}
+        onImport={() => {}}
+        onLoadSample={() => {}}
+        error={null}
+        sourceName={null}
+      />,
+    )
+    fireEvent.keyDown(screen.getByRole('radio', { name: 'm' }), { key: 'ArrowRight' })
+    expect(onUnitChange).toHaveBeenCalledWith('ft')
   })
 })

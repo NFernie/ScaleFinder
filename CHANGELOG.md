@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Polished the existing UI without changing the task: Inter is now actually
+  loaded, controls have press and keyboard-focus states, and secondary text
+  meets contrast on the dark surfaces.
+- The phone layout keeps a real map height instead of letting the canvas
+  collapse, and the shell respects the visible viewport, safe areas, and touch
+  (no sticky hover, no tap flash, 16px search field, larger drag target).
+- Scale figures read as a single list instead of three cramped cards. Import,
+  sample, and region controls show loaded, selected, empty, and error states,
+  including a reason when snapshot export is unavailable or fails.
+- Map labels use a solid chip so the framed PNG stays readable, and the
+  basemap picker sits clear of the zoom control and the scale bar.
+
 ### Added
 
 - `ScaleFinderPurpose.md` — version 1 product purpose and user journey.

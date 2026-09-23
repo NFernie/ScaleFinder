@@ -14,15 +14,12 @@ export default function ScaleReadout({ stats, vertexCount, hasZ }: Props) {
     { label: 'Characteristic length', value: formatLength(stats.characteristicLengthM) },
   ]
   return (
-    <div>
-      <dl className="grid grid-cols-3 gap-2">
+    <div className="w-full">
+      <dl className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-surface-overlay/60">
         {items.map((it) => (
-          <div
-            key={it.label}
-            className="rounded-lg border border-white/10 bg-surface-overlay/60 p-3"
-          >
-            <dt className="text-[11px] text-slate-400">{it.label}</dt>
-            <dd className="mt-1 text-lg font-semibold">{it.value}</dd>
+          <div key={it.label} className="flex items-baseline justify-between gap-3 px-3 py-2.5">
+            <dt className="text-xs text-slate-400">{it.label}</dt>
+            <dd className="shrink-0 text-base font-semibold tabular-nums tracking-tight">{it.value}</dd>
           </div>
         ))}
       </dl>

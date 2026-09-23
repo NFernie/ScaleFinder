@@ -37,11 +37,11 @@
 **Interfaces:**
 - Produces: `POLYGON_COLOURS`, `PolygonItem`, `nextColour`, `centreForNewPolygon`, `appendPolygon`, `reCentreSelected`, `stackSelectedOn`, `verticesForPolygon`
 
-- [ ] Write failing tests for next colour, new centre, append, re-centre, region stack, and feet-to-metres.
-- [ ] Run `npm run test -- src/core/polygonList.test.ts` and confirm failure.
-- [ ] Implement the module.
-- [ ] Re-run the test and confirm pass.
-- [ ] Commit.
+- [x] Write failing tests for next colour, new centre, append, re-centre, region stack, and feet-to-metres.
+- [x] Run `npm run test -- src/core/polygonList.test.ts` and confirm failure.
+- [x] Implement the module.
+- [x] Re-run the test and confirm pass.
+- [x] Commit.
 
 ### Task 2: Sidebar list and map drawing
 
@@ -60,11 +60,11 @@
 - Consumes: Task 1 functions
 - `PolygonOverlay` props: `id: string`, `ring: LngLat[]`, `anchor: LngLat`, `colour: string`, `sourceName: string`, `onAnchorChange: (next: LngLat) => void`
 
-- [ ] Write `App.test.tsx` covering add, bad file, sample twice, row contents, switch, Re-centre, export hints, remembered unit, and one figure note. Mock `MapView` and `PolygonOverlay`.
-- [ ] Run the new tests and confirm failure.
-- [ ] Implement the UI and wire `App`.
-- [ ] Run `npm run test`, `npm run lint`, `npm run typecheck`.
-- [ ] Commit.
+- [x] Write `App.test.tsx` covering add, bad file, sample twice, row contents, switch, Re-centre, export hints, remembered unit, and one figure note. Mock `MapView` and `PolygonOverlay`.
+- [x] Run the new tests and confirm failure.
+- [x] Implement the UI and wire `App`.
+- [x] Run `npm run test`, `npm run lint`, `npm run typecheck`.
+- [x] Commit.
 
 ### Task 3: Polish and manual check
 

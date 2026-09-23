@@ -54,6 +54,34 @@ describe('ImportPanel', () => {
     expect(onLoadSample).toHaveBeenCalledWith('small-field')
   })
 
+  it('names the file just added and hides that line while an error is showing', () => {
+    const { rerender } = render(
+      <ImportPanel
+        unit="m"
+        onUnitChange={() => {}}
+        onImport={() => {}}
+        onLoadSample={() => {}}
+        error={null}
+        sourceName="field-a.csv"
+      />,
+    )
+    expect(screen.getByText(/Loaded/)).toHaveTextContent('field-a.csv')
+    expect(screen.getByRole('button', { name: /delta lobe/i })).not.toHaveAttribute('aria-pressed')
+
+    rerender(
+      <ImportPanel
+        unit="m"
+        onUnitChange={() => {}}
+        onImport={() => {}}
+        onLoadSample={() => {}}
+        error="Bad file"
+        sourceName="field-a.csv"
+      />,
+    )
+    expect(screen.queryByText(/Loaded/)).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Bad file')
+  })
+
   it('shows an error message', () => {
     render(
       <ImportPanel

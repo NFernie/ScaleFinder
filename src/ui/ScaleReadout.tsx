@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { formatArea, formatLength } from '../core/format'
 import { PolygonStats } from '../core/types'
 
@@ -6,6 +6,9 @@ interface Props {
   stats: PolygonStats
   vertexCount: number
   hasZ: boolean
+  /** When set, the parent decides which figure note is open. */
+  openLabel?: string | null
+  onOpenLabelChange?: (label: string | null) => void
 }
 
 interface FigureNote {
@@ -93,9 +96,24 @@ function FigureRow({
   )
 }
 
-export default function ScaleReadout({ stats, vertexCount, hasZ }: Props) {
+export default function ScaleReadout({
+  stats,
+  vertexCount,
+  hasZ,
+  openLabel: openLabelProp,
+  onOpenLabelChange,
+}: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
-  const [openLabel, setOpenLabel] = useState<string | null>(null)
+  const [uncontrolledLabel, setUncontrolledLabel] = useState<string | null>(null)
+  const controlled = onOpenLabelChange !== undefined
+  const openLabel = controlled ? (openLabelProp ?? null) : uncontrolledLabel
+  const setOpenLabel = useCallback(
+    (label: string | null) => {
+      if (onOpenLabelChange) onOpenLabelChange(label)
+      else setUncontrolledLabel(label)
+    },
+    [onOpenLabelChange],
+  )
 
   useEffect(() => {
     if (!openLabel) return
@@ -111,7 +129,7 @@ export default function ScaleReadout({ stats, vertexCount, hasZ }: Props) {
       document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('keydown', onKey)
     }
-  }, [openLabel])
+  }, [openLabel, setOpenLabel])
 
   const figures: FigureNote[] = [
     {
@@ -143,9 +161,9 @@ export default function ScaleReadout({ stats, vertexCount, hasZ }: Props) {
             figure={figure}
             open={openLabel === figure.label}
             onOpen={() => setOpenLabel(figure.label)}
-            onClose={() =>
-              setOpenLabel((current) => (current === figure.label ? null : current))
-            }
+            onClose={() => {
+              if (openLabel === figure.label) setOpenLabel(null)
+            }}
           />
         ))}
       </div>

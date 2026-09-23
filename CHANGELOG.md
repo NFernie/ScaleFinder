@@ -24,8 +24,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/superpowers/plans/2026-09-23-scalefindr-copy-and-figure-notes.md` —
   implementation plan for that copy and figure-note spec.
 
+### Added
+
+- A session can hold several Polygons. Each one keeps its own centre, colour,
+  and the unit it was imported with. Import adds a Polygon. Switching one off
+  hides it on the map. Re-centre stacks the selected Polygons on the first
+  selected centre.
+
 ### Changed
 
+- A file that fails to parse leaves Polygons already imported in the list.
+- Choosing a region moves every selected Polygon onto that region. A Polygon
+  that is switched off stays where it is.
+- `ScaleFinderPurpose.md` now treats a session list of Polygons as in scope.
+  Saving that list as a project library stays out of scope.
 - The on-screen name is ScaleFindr. Visible sentences capitalise Polygon, and
   the import hint describes a two-column X and Y file from GIS software.
 - "Characteristic length" is now "Equivalent square side" (still the square

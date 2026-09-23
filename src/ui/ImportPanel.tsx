@@ -1,7 +1,6 @@
 import { KeyboardEvent, useId, useRef, useState } from 'react'
 import { LengthUnit } from '../core/types'
 import { LENGTH_UNITS } from '../core/units'
-import { SAMPLES } from '../data/samples'
 
 interface Props {
   unit: LengthUnit
@@ -10,6 +9,15 @@ interface Props {
   onLoadSample: (name: string) => void
   error: string | null
   sourceName: string | null
+}
+
+function readAsText(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
+    reader.onerror = () => reject(reader.error ?? new Error('Could not read that file.'))
+    reader.readAsText(file)
+  })
 }
 
 const SAMPLE_BUTTONS = [
@@ -34,7 +42,7 @@ export default function ImportPanel({
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return
     const file = files[0]
-    const text = await file.text()
+    const text = await readAsText(file)
     onImport(text, file.name)
     if (fileRef.current) fileRef.current.value = ''
   }
@@ -139,24 +147,16 @@ export default function ImportPanel({
       <div>
         <span className="mb-1.5 block text-xs text-slate-400">Or load a sample</span>
         <div className="flex flex-wrap gap-2">
-          {SAMPLE_BUTTONS.map((s) => {
-            const pressed = sourceName === SAMPLES[s.id]?.fileName
-            return (
-              <button
-                key={s.id}
-                type="button"
-                aria-pressed={pressed}
-                onClick={() => onLoadSample(s.id)}
-                className={`pressable min-h-11 rounded-lg border px-3 text-sm ${
-                  pressed
-                    ? 'border-accent-strong bg-accent-strong text-teal-50'
-                    : 'border-white/15 text-slate-200 hover:bg-white/5'
-                }`}
-              >
-                {s.label}
-              </button>
-            )
-          })}
+          {SAMPLE_BUTTONS.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => onLoadSample(s.id)}
+            className="pressable min-h-11 rounded-lg border border-white/15 px-3 text-sm text-slate-200 hover:bg-white/5"
+          >
+            {s.label}
+          </button>
+        ))}
         </div>
       </div>
 

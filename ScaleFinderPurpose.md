@@ -46,13 +46,16 @@ a river system such as the Ord or the Amazon.
 - MapLibre map with search/navigation and a MapTiler basemap (keyless
   OpenFreeMap fallback in development).
 - Draggable, true-scale polygon overlay.
+- Several Polygons in one session, each with its own centre, colour, and the
+  unit it was imported with. The list lasts for the browser session only.
 - Framed PNG snapshot export.
 
 ## Explicitly out of scope for v1 (candidate v2+)
 
 - User accounts, saving projects, and cloud-stored snapshots (a Backend-as-a-
   Service such as Supabase; the app is architected so this can be added later).
-- Multiple simultaneous polygons / project libraries.
+- Saving a Polygon list as a project library. A session can hold several
+  Polygons at once; they are not stored after the page closes.
 - Reprojection between named CRS/EPSG codes (v1 treats input as local metres).
 - Server-side rendering or collaborative features.
 

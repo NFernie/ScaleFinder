@@ -1,26 +1,24 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
-import { computeStats } from './core/geometry'
-import { parsePolygonFile, verticesToMetres } from './core/parseFile'
+import { parsePolygonFile } from './core/parseFile'
+import {
+  appendPolygon,
+  PolygonItem,
+  reCentreSelected,
+  stackSelectedOn,
+  verticesForPolygon,
+} from './core/polygonList'
 import { projectToGeographic } from './core/projection'
-import { LengthUnit, LngLat, Vertex } from './core/types'
+import { LengthUnit, LngLat } from './core/types'
 import { getBasemaps, hasMapTilerKey } from './map/basemap'
 import MapView from './map/MapView'
 import PolygonOverlay from './map/PolygonOverlay'
 import { Region } from './map/regions'
 import { downloadFramePng } from './map/snapshot'
 import ImportPanel from './ui/ImportPanel'
-import PolygonPreview from './ui/PolygonPreview'
+import PolygonList from './ui/PolygonList'
 import RegionSearch from './ui/RegionSearch'
-import ScaleReadout from './ui/ScaleReadout'
 import { SAMPLES } from './data/samples'
-
-interface LoadedPolygon {
-  raw: Vertex[]
-  unit: LengthUnit
-  sourceName: string
-  hasZ: boolean
-}
 
 const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY
 
@@ -47,9 +45,9 @@ function Mark() {
 
 export default function App() {
   const [unit, setUnit] = useState<LengthUnit>('m')
-  const [loaded, setLoaded] = useState<LoadedPolygon | null>(null)
+  const [items, setItems] = useState<PolygonItem[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [anchor, setAnchor] = useState<LngLat | null>(null)
+  const [loadedName, setLoadedName] = useState<string | null>(null)
   const [regionName, setRegionName] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
@@ -61,19 +59,10 @@ export default function App() {
   const mapRef = useRef<MapRef>(null)
   const frameRef = useRef<HTMLDivElement>(null)
 
-  const verticesM = useMemo<Vertex[]>(
-    () => (loaded ? verticesToMetres(loaded.raw, unit) : []),
-    [loaded, unit],
+  const canExport = items.some(
+    (item) => item.selected && verticesForPolygon(item).length >= 3,
   )
-  const stats = useMemo(
-    () => (verticesM.length >= 3 ? computeStats(verticesM) : null),
-    [verticesM],
-  )
-  const ring = useMemo<LngLat[]>(
-    () => (anchor && verticesM.length >= 3 ? projectToGeographic(verticesM, anchor) : []),
-    [anchor, verticesM],
-  )
-  const canExport = Boolean(stats && ring.length >= 3)
+  const anySelected = items.some((item) => item.selected)
 
   const currentCenter = useCallback((): LngLat => {
     const c = mapRef.current?.getCenter()
@@ -84,12 +73,20 @@ export default function App() {
     (text: string, fileName: string) => {
       try {
         const result = parsePolygonFile(text)
-        setLoaded({ raw: result.vertices, unit, sourceName: fileName, hasZ: result.hasZ })
+        setItems((prev) =>
+          appendPolygon(prev, {
+            id: crypto.randomUUID(),
+            sourceName: fileName,
+            raw: result.vertices,
+            unit,
+            hasZ: result.hasZ,
+            mapCentre: currentCenter(),
+          }),
+        )
         setError(null)
-        setAnchor((prev) => prev ?? currentCenter())
+        setLoadedName(fileName)
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
-        setLoaded(null)
       }
     },
     [unit, currentCenter],
@@ -102,9 +99,18 @@ export default function App() {
       setUnit(sample.unit)
       try {
         const result = parsePolygonFile(sample.text)
-        setLoaded({ raw: result.vertices, unit: sample.unit, sourceName: sample.fileName, hasZ: result.hasZ })
+        setItems((prev) =>
+          appendPolygon(prev, {
+            id: crypto.randomUUID(),
+            sourceName: sample.fileName,
+            raw: result.vertices,
+            unit: sample.unit,
+            hasZ: result.hasZ,
+            mapCentre: currentCenter(),
+          }),
+        )
         setError(null)
-        setAnchor((prev) => prev ?? currentCenter())
+        setLoadedName(sample.fileName)
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
       }
@@ -114,8 +120,26 @@ export default function App() {
 
   const handleSelectRegion = useCallback((region: Region) => {
     setRegionName(region.name)
-    setAnchor({ lng: region.lng, lat: region.lat })
+    setItems((prev) => stackSelectedOn(prev, { lng: region.lng, lat: region.lat }))
     mapRef.current?.flyTo({ center: [region.lng, region.lat], zoom: region.zoom, duration: 1200 })
+  }, [])
+
+  const handleToggle = useCallback((id: string) => {
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, selected: !item.selected } : item)),
+    )
+  }, [])
+
+  const handleColourChange = useCallback((id: string, colour: string) => {
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, colour } : item)))
+  }, [])
+
+  const handleReCentre = useCallback(() => {
+    setItems((prev) => reCentreSelected(prev))
+  }, [])
+
+  const handleAnchorChange = useCallback((id: string, next: LngLat) => {
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, anchor: next } : item)))
   }, [])
 
   const handleSnapshot = useCallback(async () => {
@@ -159,7 +183,7 @@ export default function App() {
           </button>
           {!canExport && (
             <p id="export-hint" className="max-w-[14rem] text-right text-xs leading-snug text-slate-400">
-              Import a Polygon to export
+              {items.length === 0 ? 'Import a Polygon to export' : 'Switch a Polygon on to export'}
             </p>
           )}
           {exportError && (
@@ -180,23 +204,17 @@ export default function App() {
               onImport={handleImport}
               onLoadSample={handleLoadSample}
               error={error}
-              sourceName={loaded?.sourceName ?? null}
+              sourceName={loadedName}
             />
           </section>
 
-          {stats && (
-            <section>
-              <h2 className="mb-3 text-sm font-semibold text-slate-100">2 · Scale</h2>
-              <div className="flex w-full flex-col gap-3">
-                <ScaleReadout stats={stats} vertexCount={verticesM.length} hasZ={loaded?.hasZ ?? false} />
-                <PolygonPreview points={verticesM} />
-                {ring.length >= 3 && (
-                  <p className="text-sm leading-relaxed text-slate-300">
-                    Drag the marker on the map to reposition the Polygon. It stays at true ground scale.
-                  </p>
-                )}
-              </div>
-            </section>
+          {items.length > 0 && (
+            <PolygonList
+              items={items}
+              onToggle={handleToggle}
+              onColourChange={handleColourChange}
+              onReCentre={handleReCentre}
+            />
           )}
 
           <section>
@@ -219,9 +237,23 @@ export default function App() {
         <main className="relative min-h-0">
           <div ref={frameRef} className="absolute inset-0">
             <MapView ref={mapRef} basemap={basemap}>
-              {anchor && (
-                <PolygonOverlay ring={ring} anchor={anchor} onAnchorChange={setAnchor} />
-              )}
+              {items.map((item) => {
+                if (!item.selected) return null
+                const verticesM = verticesForPolygon(item)
+                const ring =
+                  verticesM.length >= 3 ? projectToGeographic(verticesM, item.anchor) : []
+                return (
+                  <PolygonOverlay
+                    key={item.id}
+                    id={item.id}
+                    ring={ring}
+                    anchor={item.anchor}
+                    colour={item.colour}
+                    sourceName={item.sourceName}
+                    onAnchorChange={(next) => handleAnchorChange(item.id, next)}
+                  />
+                )
+              })}
             </MapView>
 
             <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3 pr-14">
@@ -237,10 +269,12 @@ export default function App() {
               </div>
             </div>
 
-            {!stats && (
+            {!anySelected && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
                 <p className="max-w-xs rounded-xl bg-surface/90 px-4 py-3 text-center text-sm leading-relaxed text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
-                  Import a Polygon to place it here at true ground scale.
+                  {items.length === 0
+                    ? 'Import a Polygon to place it here at true ground scale.'
+                    : 'Switch a Polygon on to show it here.'}
                 </p>
               </div>
             )}

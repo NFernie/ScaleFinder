@@ -22,8 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scale figures read as a single list instead of three cramped cards. Import,
   sample, and region controls show loaded, selected, empty, and error states,
   including a reason when snapshot export is unavailable or fails.
-- Map labels use a solid chip so the framed PNG stays readable, and the
-  basemap picker sits clear of the zoom control and the scale bar.
+- Map labels use a solid chip so the framed PNG stays readable.
+- The basemap menu sits at the top centre of the map. The scale bar is larger
+  and centred along the bottom edge.
 
 ### Added
 

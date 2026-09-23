@@ -246,7 +246,7 @@ export default function App() {
             )}
           </div>
 
-          <div className="pointer-events-none absolute right-3 top-[5.75rem] z-10">
+          <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2">
             <label className="sr-only" htmlFor="basemap-select">
               Basemap
             </label>

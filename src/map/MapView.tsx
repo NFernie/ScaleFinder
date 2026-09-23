@@ -36,7 +36,7 @@ const MapView = forwardRef<MapRef, Props>(function MapView(
       style={{ width: '100%', height: '100%' }}
     >
       <NavigationControl position="top-right" />
-      <ScaleControl position="bottom-left" unit="metric" />
+      <ScaleControl position="bottom-left" unit="metric" maxWidth={220} />
       {children}
     </Map>
   )

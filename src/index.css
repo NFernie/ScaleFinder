@@ -83,9 +83,33 @@
 }
 
 /* Keep MapLibre chrome clear of the home indicator and notch. */
-.maplibregl-ctrl-bottom-left,
 .maplibregl-ctrl-bottom-right {
   margin-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Centre the scale bar and draw it large enough to read on the map and in a PNG. */
+.maplibregl-ctrl-bottom-left {
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+}
+
+.maplibregl-ctrl-bottom-left .maplibregl-ctrl {
+  float: none;
+  margin: 0;
+}
+
+.maplibregl-ctrl-scale {
+  border-color: #1e293b;
+  border-style: none solid solid;
+  border-width: 0 3px 3px;
+  background-color: rgb(255 255 255 / 0.94);
+  padding: 3px 12px 4px;
+  color: #0f172a;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 .maplibregl-ctrl-top-right {

@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `.cursor/rules/subagent-models.mdc` — subagents may only run as Cursor Grok
+  or Composer models.
 - Each Polygon row has Delete, which removes that Polygon from the session list.
 - A session can hold several Polygons. Each one keeps its own centre, colour,
   and the unit it was imported with. Import adds a Polygon. Switching one off

@@ -1,0 +1,16 @@
+---
+description: Subagents may only run as Cursor Grok or Composer
+alwaysApply: true
+---
+
+# Subagent models
+
+When you launch a subagent, including with the Task tool, that subagent must run as a Cursor Grok model or a Composer model.
+
+Allowed model slugs are only those whose names start with `cursor-grok-`, `grok-`, or `composer-`.
+
+Do not launch a subagent on Claude, GPT, Gemini, Muse, or any other model family.
+
+Pass `model` explicitly as one of the allowed slugs. Do not omit `model` when that would inherit a parent model outside the allowed families.
+
+If the user names a model outside those families for a subagent, do not substitute a different model. Say that this rule only allows Cursor Grok and Composer, and name those families.

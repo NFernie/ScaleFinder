@@ -1,6 +1,6 @@
 # ScaleFindr copy and figure notes — Design Spec
 
-- **Status:** Draft (awaiting user review)
+- **Status:** Approved
 - **Date:** 2026-09-23
 - **Branch:** `cursor/impeccable-ui-polish-2528`
 - **Purpose doc:** [`ScaleFinderPurpose.md`](../../../ScaleFinderPurpose.md)

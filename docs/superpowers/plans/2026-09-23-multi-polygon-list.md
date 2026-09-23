@@ -68,7 +68,7 @@
 
 ### Task 3: Polish and manual check
 
-- [ ] Match existing press, focus, and 44px targets. Truncate long file names. Keep one note open across rows.
-- [ ] Run `npm run build`.
-- [ ] In the browser, load two Polygons, drag one, re-centre, switch one off, and confirm the empty and export sentences on a desktop width and a phone width.
-- [ ] Commit any polish fixes.
+- [x] Match existing press, focus, and 44px targets. Truncate long file names. Keep one note open across rows.
+- [x] Run `npm run build`.
+- [x] In the browser, load two Polygons, drag one, re-centre, switch one off, and confirm the empty and export sentences on a desktop width and a phone width.
+- [x] Commit any polish fixes.

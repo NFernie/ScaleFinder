@@ -52,8 +52,8 @@ export default function PolygonOverlay({ ring, anchor, onAnchorChange }: Props) 
         }
       >
         <div
-          title="Drag to reposition the polygon"
-          aria-label="Drag to reposition the polygon"
+          title="Drag to reposition the Polygon"
+          aria-label="Drag to reposition the Polygon"
           className="flex h-11 w-11 touch-none cursor-grab items-center justify-center active:cursor-grabbing"
         >
           <span className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-accent-strong shadow-[0_2px_6px_rgb(0_0_0/0.45)]">

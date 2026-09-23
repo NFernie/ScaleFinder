@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The on-screen name is ScaleFindr. Visible sentences capitalise Polygon, and
+  the import hint describes a two-column X and Y file from GIS software.
+- "Characteristic length" is now "Equivalent square side" (still the square
+  root of the planform area). Hovering or focusing a scale figure opens a note
+  above it with a short description and the equation.
 - Polished the existing UI without changing the task: Inter is now actually
   loaded, controls have press and keyboard-focus states, and secondary text
   meets contrast on the dark surfaces.

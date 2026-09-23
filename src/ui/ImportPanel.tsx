@@ -55,7 +55,7 @@ export default function ImportPanel({
   }
 
   return (
-    <section aria-label="Import polygon" className="space-y-4">
+    <section aria-label="Import Polygon" className="space-y-4">
       <div>
         <span id={`${inputId}-units`} className="mb-1.5 block text-xs text-slate-400">
           Coordinate units
@@ -107,13 +107,14 @@ export default function ImportPanel({
       >
         <p className="text-sm text-slate-300">
           Drop a <span className="font-mono">.txt</span> or{' '}
-          <span className="font-mono">.csv</span> polygon here
+          <span className="font-mono">.csv</span> Polygon here
         </p>
-        <p id={hintId} className="mt-1 text-xs text-slate-400">
-          Rows of X, Y[, Z] · comma, space, or tab separated
+        <p id={hintId} className="mt-1 text-xs leading-relaxed text-slate-400">
+          Use a two-column file of X and Y values exported from your GIS software. An optional Z
+          column is kept and not used for the planform.
         </p>
         <label htmlFor={inputId} className="sr-only">
-          Choose polygon file
+          Choose Polygon file
         </label>
         <input
           id={inputId}

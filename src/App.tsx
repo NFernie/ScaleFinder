@@ -124,8 +124,8 @@ export default function App() {
     setExportError(null)
     try {
       const name = regionName
-        ? `scalefinder-${regionName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`
-        : 'scalefinder-snapshot.png'
+        ? `scalefindr-${regionName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`
+        : 'scalefindr-snapshot.png'
       await downloadFramePng(frameRef.current, name)
     } catch {
       setExportError('The snapshot could not be saved. Try again.')
@@ -140,10 +140,10 @@ export default function App() {
         <div className="min-w-0">
           <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
             <Mark />
-            ScaleFinder
+            ScaleFindr
           </h1>
           <p className="mt-0.5 text-xs text-slate-400">
-            Superimpose a true-scale field polygon on a world map
+            Superimpose a true-scale field Polygon on a world map
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -159,7 +159,7 @@ export default function App() {
           </button>
           {!canExport && (
             <p id="export-hint" className="max-w-[14rem] text-right text-xs leading-snug text-slate-400">
-              Import a polygon to export
+              Import a Polygon to export
             </p>
           )}
           {exportError && (
@@ -173,7 +173,7 @@ export default function App() {
       <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(12rem,42dvh)] overflow-hidden lg:grid-cols-[380px_minmax(0,1fr)] lg:grid-rows-1">
         <aside className="flex min-h-0 flex-col gap-8 overflow-y-auto overscroll-contain border-b border-white/10 bg-surface-raised px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 lg:border-b-0 lg:border-r">
           <section>
-            <h2 className="mb-3 text-sm font-semibold text-slate-100">1 · Import polygon</h2>
+            <h2 className="mb-3 text-sm font-semibold text-slate-100">1 · Import Polygon</h2>
             <ImportPanel
               unit={unit}
               onUnitChange={setUnit}
@@ -192,7 +192,7 @@ export default function App() {
                 <PolygonPreview points={verticesM} />
                 {ring.length >= 3 && (
                   <p className="text-sm leading-relaxed text-slate-300">
-                    Drag the marker on the map to reposition the polygon. It stays at true ground scale.
+                    Drag the marker on the map to reposition the Polygon. It stays at true ground scale.
                   </p>
                 )}
               </div>
@@ -233,14 +233,14 @@ export default function App() {
                 <span />
               )}
               <div className="shrink-0 rounded-lg bg-surface/90 px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
-                ScaleFinder
+                ScaleFindr
               </div>
             </div>
 
             {!stats && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
                 <p className="max-w-xs rounded-xl bg-surface/90 px-4 py-3 text-center text-sm leading-relaxed text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
-                  Import a polygon to place it here at true ground scale.
+                  Import a Polygon to place it here at true ground scale.
                 </p>
               </div>
             )}

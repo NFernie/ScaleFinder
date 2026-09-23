@@ -38,7 +38,7 @@ export default function PolygonPreview({ points, size = 220 }: Props) {
     <svg
       viewBox={`0 0 ${size} ${size}`}
       role="img"
-      aria-label="Field polygon preview"
+      aria-label="Field Polygon preview"
       className="h-auto w-full rounded-xl border border-white/10 bg-black/30"
     >
       <polygon

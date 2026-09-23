@@ -33,25 +33,25 @@
 - Consumes: `PolygonStats.characteristicLengthM`, `formatArea`, `formatLength`
 - Produces: visible label `Equivalent square side`; a `role="tooltip"` with the figure equation while that row is open
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Expect `Equivalent square side`, reject `Characteristic length`, and expect the planform equation after `mouseEnter` on the Planform area row.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test -- src/ui/ScaleReadout.test.tsx`
 Expected: FAIL because the label is still Characteristic length and no tooltip exists.
 
-- [ ] **Step 3: Implement the scale list panel**
+- [x] **Step 3: Implement the scale list panel**
 
 Three static notes. One `openLabel`. Hover, focus, touch tap, Escape, and pointerdown outside. Flip below the row when `getBoundingClientRect().top` is above the sidebar.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npm run test -- src/ui/ScaleReadout.test.tsx`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ### Task 2: Site name, Polygon sentences, and import hint
 
@@ -67,25 +67,25 @@ Expected: PASS
 - Consumes: none from Task 1
 - Produces: visible strings listed in the spec; snapshot basename `scalefindr-`
 
-- [ ] **Step 1: Write the failing import test**
+- [x] **Step 1: Write the failing import test**
 
 Expect the two-column X and Y sentence and `Polygon here`.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm run test -- src/ui/ImportPanel.test.tsx`
 Expected: FAIL on the missing hint.
 
-- [ ] **Step 3: Update visible copy**
+- [x] **Step 3: Update visible copy**
 
 Header, title, map chip, snapshot names, import heading and hint, export hint, drag sentence, empty-map line, overlay label, preview label.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npm run test -- src/ui/ImportPanel.test.tsx`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ### Task 3: Changelog and full verification
 
@@ -93,7 +93,7 @@ Expected: PASS
 - Modify: `CHANGELOG.md`
 - Modify: `docs/superpowers/specs/2026-09-23-scalefindr-copy-and-figure-notes-design.md` (status Approved)
 
-- [ ] **Step 1: Record the behaviour change under `## [Unreleased]`**
-- [ ] **Step 2: Run `npm run lint`, `npm run typecheck`, `npm run test`, and `npm run build`**
-- [ ] **Step 3: Manually hover each figure and confirm the panel is not inside the map frame**
-- [ ] **Step 4: Commit**
+- [x] **Step 1: Record the behaviour change under `## [Unreleased]`**
+- [x] **Step 2: Run `npm run lint`, `npm run typecheck`, `npm run test`, and `npm run build`**
+- [x] **Step 3: Manually hover each figure and confirm the panel is not inside the map frame**
+- [x] **Step 4: Commit**

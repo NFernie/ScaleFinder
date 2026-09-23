@@ -5,6 +5,7 @@ import {
   centreForNewPolygon,
   nextColour,
   reCentreSelected,
+  removePolygon,
   stackSelectedOn,
   verticesForPolygon,
   type PolygonItem,
@@ -88,6 +89,14 @@ describe('appendPolygon', () => {
       colour: '#f59e0b',
       anchor: { lng: 4, lat: 5 },
     })
+  })
+})
+
+describe('removePolygon', () => {
+  it('removes one polygon and leaves the others in order', () => {
+    const items = [item({ id: 'a' }), item({ id: 'b' }), item({ id: 'c' })]
+    expect(removePolygon(items, 'b').map((polygon) => polygon.id)).toEqual(['a', 'c'])
+    expect(items).toHaveLength(3)
   })
 })
 

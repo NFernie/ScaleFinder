@@ -62,6 +62,11 @@ export function appendPolygon(items: readonly PolygonItem[], input: NewPolygonIn
   return [...items, item]
 }
 
+/** Drop one Polygon from the session list. Other rows stay in order. */
+export function removePolygon(items: readonly PolygonItem[], id: string): PolygonItem[] {
+  return items.filter((item) => item.id !== id)
+}
+
 /** Copy the uppermost selected centre onto every other selected Polygon. */
 export function reCentreSelected(items: readonly PolygonItem[]): PolygonItem[] {
   const selected = items.filter((item) => item.selected)

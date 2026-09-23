@@ -75,27 +75,32 @@ export default function RegionSearch({ mapTilerKey, selectedName, onSelect }: Pr
         </p>
       )}
 
-      <ul className="flex flex-wrap gap-2">
-        {results.map((r, i) => {
-          const selected = selectedName === r.name
-          return (
-            <li key={`${r.name}-${i}`}>
-              <button
-                type="button"
-                aria-pressed={selected}
-                onClick={() => onSelect(r)}
-                className={`pressable min-h-11 rounded-full border px-3 text-sm ${
-                  selected
-                    ? 'border-accent-strong bg-accent-strong text-teal-50'
-                    : 'border-white/15 text-slate-200 hover:bg-white/5'
-                }`}
-              >
-                {r.name}
-              </button>
-            </li>
-          )
-        })}
-      </ul>
+      {results.length > 0 && (
+        <ul
+          aria-label="Regions"
+          className="max-h-48 divide-y divide-white/10 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-surface-overlay/60"
+        >
+          {results.map((r, i) => {
+            const selected = selectedName === r.name
+            return (
+              <li key={`${r.name}-${i}`}>
+                <button
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => onSelect(r)}
+                  className={`pressable flex min-h-11 w-full items-center px-3 text-left text-sm ${
+                    selected
+                      ? 'bg-accent-strong text-teal-50'
+                      : 'text-slate-200 hover:bg-white/5'
+                  }`}
+                >
+                  {r.name}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </section>
   )
 }

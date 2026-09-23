@@ -88,6 +88,38 @@ describe('App polygon list', () => {
     expect(screen.getByRole('button', { name: /export snapshot/i })).toBeDisabled()
   })
 
+  it('hides the three figures and can show them again', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /small field/i }))
+    await screen.findByText('Planform area')
+    await user.click(screen.getByRole('button', { name: 'Hide figures' }))
+    expect(screen.queryByText('Planform area')).not.toBeInTheDocument()
+    expect(screen.queryByText('Max span')).not.toBeInTheDocument()
+    expect(screen.queryByText('Equivalent square side')).not.toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Field Polygon preview' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Show figures' }))
+    expect(screen.getByText('Planform area')).toBeInTheDocument()
+  })
+
+  it('deletes one Polygon and leaves the other', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /delta lobe/i }))
+    await user.click(screen.getByRole('button', { name: /small field/i }))
+    await screen.findByRole('switch', { name: 'sample-small-field.csv' })
+
+    await user.click(screen.getByRole('button', { name: 'Delete sample-delta-lobe.csv' }))
+    expect(screen.queryByRole('switch', { name: 'sample-delta-lobe.csv' })).not.toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'sample-small-field.csv' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Re-centre' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Delete sample-small-field.csv' }))
+    expect(screen.queryByRole('switch', { name: 'sample-small-field.csv' })).not.toBeInTheDocument()
+    expect(screen.getByText('Import a Polygon to place it here at true ground scale.')).toBeInTheDocument()
+  })
+
   it('keeps a Polygon in the unit it was imported with', async () => {
     const user = userEvent.setup()
     render(<App />)

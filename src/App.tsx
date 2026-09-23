@@ -5,6 +5,7 @@ import {
   appendPolygon,
   PolygonItem,
   reCentreSelected,
+  removePolygon,
   stackSelectedOn,
   verticesForPolygon,
 } from './core/polygonList'
@@ -138,6 +139,10 @@ export default function App() {
     setItems((prev) => reCentreSelected(prev))
   }, [])
 
+  const handleDelete = useCallback((id: string) => {
+    setItems((prev) => removePolygon(prev, id))
+  }, [])
+
   const handleAnchorChange = useCallback((id: string, next: LngLat) => {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, anchor: next } : item)))
   }, [])
@@ -214,6 +219,7 @@ export default function App() {
               onToggle={handleToggle}
               onColourChange={handleColourChange}
               onReCentre={handleReCentre}
+              onDelete={handleDelete}
             />
           )}
 

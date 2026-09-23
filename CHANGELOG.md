@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Each Polygon row has Delete, which removes that Polygon from the session list.
 - A session can hold several Polygons. Each one keeps its own centre, colour,
   and the unit it was imported with. Import adds a Polygon. Switching one off
   hides it on the map. Re-centre stacks the selected Polygons on the first
@@ -33,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Planform area, max span, and equivalent square side can be hidden per Polygon
+  with Show figures / Hide figures. The preview stays visible.
+- Region results sit in their own scrollable list. The region search field is
+  unchanged.
 - A file that fails to parse leaves Polygons already imported in the list.
 - Choosing a region moves every selected Polygon onto that region. A Polygon
   that is switched off stays where it is.

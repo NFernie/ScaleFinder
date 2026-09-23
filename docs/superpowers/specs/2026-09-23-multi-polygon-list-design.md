@@ -23,7 +23,8 @@ A map ruler is a separate design and is not part of this spec.
 | Bad file | The list is unchanged. The existing import error is shown |
 | Row | Switch, file name, colour control, three figures with the existing notes, small preview |
 | Selected | Drawn on the map in its colour, with a same-colour drag marker on its centre |
-| Deselected | Hidden on the map. The row stays. There is no delete control |
+| Deselected | Hidden on the map. The row stays |
+| Delete | Each row has Delete. It removes that Polygon from the list |
 | New Polygon | Appended, selected, and given the next unused colour |
 | New centre | Centre of the uppermost selected Polygon already in the list, or the map centre when none are selected |
 | Drag | Moves only that Polygon |
@@ -152,7 +153,6 @@ Manual check on the running map, because MapLibre does not run in the unit-test 
 
 ## 7. Out of scope
 
-- A control to delete a Polygon.
 - Saving the list, accounts, or a project library.
 - A map ruler for custom distances.
 - Reprojection between named CRS or EPSG codes.

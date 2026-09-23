@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-surface text-slate-100 antialiased;
+    margin: 0;
+  }
+}
+
+/* MapLibre attribution/controls readability on the dark theme. */
+.maplibregl-ctrl-attrib {
+  @apply text-[10px];
+}

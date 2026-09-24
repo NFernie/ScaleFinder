@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `docs/superpowers/specs/2026-09-24-polygon-rotation-design.md` —
+  rotate a movable Polygon around its centre. The row shows the compass
+  bearing of the edge chosen at import. Status is Awaiting review.
 - `docs/superpowers/plans/2026-09-24-gis-utm-columns-and-sidebar-resize.md` —
   implementation plan for the GIS columns and the draggable sidebar.
 - `docs/superpowers/specs/2026-09-24-gis-utm-columns-and-sidebar-resize-design.md` —

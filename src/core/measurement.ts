@@ -38,6 +38,10 @@ export function beginMeasurement(): Measurement {
 
 export function addCorner(measurement: Measurement, corner: LngLat): Measurement {
   if (measurement.status !== 'adding') return measurement
+  const last = measurement.corners[measurement.corners.length - 1]
+  if (last && haversineM(last, corner) < 1) {
+    return { ...measurement, message: null }
+  }
   return {
     status: 'adding',
     corners: [...measurement.corners, { lng: corner.lng, lat: corner.lat }],

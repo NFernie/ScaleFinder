@@ -44,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hides it on the map. Re-centre stacks the selected Polygons on the first
   selected centre.
 
+### Fixed
+
+- A double-click that closes a measurement does not store a second copy of the
+  last corner.
+
 ### Changed
 
 - Planform area, max span, and equivalent square side can be hidden per Polygon

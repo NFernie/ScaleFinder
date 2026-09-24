@@ -100,6 +100,11 @@ describe('measurement controls', () => {
     expect(next?.message).toBe('Add at least three corners to close a polygon.')
   })
 
+  it('does not store a second copy of the last corner', () => {
+    const once = addCorner(beginMeasurement(), origin)
+    expect(addCorner(once, origin).corners).toHaveLength(1)
+  })
+
   it('does not store a second copy of the last corner when closing', () => {
     const closed = applyDoubleClick(chain(), north)
     expect(closed?.corners).toHaveLength(4)

@@ -13,9 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `docs/superpowers/plans/2026-09-24-gis-utm-columns-and-sidebar-resize.md` —
+  implementation plan for the GIS columns and the draggable sidebar.
 - `docs/superpowers/specs/2026-09-24-gis-utm-columns-and-sidebar-resize-design.md` —
   UTM import and export use `Poly,Vert,X,Y,Z`, and the sidebar can be dragged
-  until the page is reloaded. Status is Awaiting review.
+  until the page is reloaded. Status is Approved.
 - `docs/superpowers/plans/2026-09-24-polygon-rename-utm-export.md` —
   implementation plan for rename and UTM export. The plan tasks are done.
 - `docs/superpowers/specs/2026-09-24-polygon-rename-utm-export-design.md` —
@@ -37,6 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and a hover note above each scale figure.
 - `docs/superpowers/plans/2026-09-23-scalefindr-copy-and-figure-notes.md` —
   implementation plan for that copy and figure-note spec.
+
+### Changed
+
+- UTM import and export use `Poly,Vert,X,Y,Z`. A column named `Vert` or
+  `Vertices` still counts, and a polyline with fewer than three points is
+  left out. The sidebar edge can be dragged on a wide screen until reload.
 
 ### Added
 

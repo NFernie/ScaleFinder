@@ -38,6 +38,8 @@ import PolygonOverlay from './map/PolygonOverlay'
 import { Region } from './map/regions'
 import { downloadFramePng } from './map/snapshot'
 import ImportPanel from './ui/ImportPanel'
+import SidebarResizeHandle from './ui/SidebarResizeHandle'
+import { MAP_MIN_PX, SIDEBAR_DEFAULT_PX } from './ui/sidebarWidth'
 import MeasureMenu from './ui/MeasureMenu'
 import PolygonList from './ui/PolygonList'
 import RegionSearch from './ui/RegionSearch'
@@ -77,6 +79,7 @@ export default function App() {
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
   const [measurement, setMeasurement] = useState<Measurement | null>(null)
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_PX)
 
   const basemaps = useMemo(() => getBasemaps(MAPTILER_KEY), [])
   const [basemapId, setBasemapId] = useState(basemaps[0].id)
@@ -84,6 +87,7 @@ export default function App() {
 
   const mapRef = useRef<MapRef>(null)
   const frameRef = useRef<HTMLDivElement>(null)
+  const layoutRef = useRef<HTMLDivElement>(null)
 
   const canExport = items.some(
     (item) => item.selected && verticesForPolygon(item).length >= 3,
@@ -372,8 +376,12 @@ export default function App() {
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(12rem,42dvh)] overflow-hidden lg:grid-cols-[380px_minmax(0,1fr)] lg:grid-rows-1">
-        <aside className="flex min-h-0 flex-col gap-8 overflow-y-auto overscroll-contain border-b border-white/10 bg-surface-raised px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 lg:border-b-0 lg:border-r">
+      <div
+        ref={layoutRef}
+        className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(12rem,42dvh)] overflow-hidden lg:grid-cols-[var(--sidebar-width)_minmax(0,1fr)] lg:grid-rows-1"
+        style={{ ['--sidebar-width' as string]: `${sidebarWidth}px` }}
+      >
+        <aside className="relative flex min-h-0 flex-col gap-8 overflow-y-auto overscroll-contain border-b border-white/10 bg-surface-raised px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 lg:border-b-0 lg:border-r">
           <section>
             <h2 className="mb-3 text-sm font-semibold text-slate-100">1 · Import Polygon</h2>
             <ImportPanel
@@ -420,6 +428,11 @@ export default function App() {
               to enable MapTiler basemaps and worldwide search.
             </p>
           )}
+          <SidebarResizeHandle
+            width={sidebarWidth}
+            containerWidth={() => layoutRef.current?.clientWidth || sidebarWidth + MAP_MIN_PX}
+            onWidth={setSidebarWidth}
+          />
         </aside>
 
         <main className="relative min-h-0">

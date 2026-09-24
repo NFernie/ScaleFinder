@@ -47,7 +47,7 @@ export function parseUtmTable(text: string): UtmImport | null {
   const rows = lines.filter((line) => line.length > 0 && !line.startsWith('#'))
   if (rows.length === 0) return null
   const header = splitRow(rows[0]).map((token) => token.toLowerCase())
-  const verticesCol = header.indexOf('vertices')
+  const verticesCol = header.findIndex((token) => token === 'vert' || token === 'vertices')
   if (verticesCol < 0) return null
   const xCol = header.indexOf('x')
   const yCol = header.indexOf('y')
@@ -73,7 +73,7 @@ export function parseUtmTable(text: string): UtmImport | null {
     }
     grouped.get(key)?.push(z === undefined ? { x, y } : { x, y, z })
   }
-  const parts = order.map((key) => grouped.get(key) ?? []).filter((part) => part.length > 0)
+  const parts = order.map((key) => grouped.get(key) ?? []).filter((part) => part.length >= 3)
   return { parts, hasZ, zone }
 }
 
@@ -89,14 +89,10 @@ export function exportPolygonText(parts: LngLat[][], anchor: LngLat): { ok: true
   if (!utmLatitudeAllowed(anchor.lat)) return { ok: false, message: POLE_MESSAGE }
   const zone = utmOf(anchor)
   const comment = `# UTM ${zoneLabel(zone)}`
-  if (usable.length === 1) {
-    const rows = usable[0].map((point, index) => vertexRow(index + 1, point, zone))
-    return { ok: true, text: [comment, 'Vertices,X,Y,Z', ...rows].join('\n') + '\n' }
-  }
   const rows = usable.flatMap((part, partIndex) =>
     part.map((point, index) => `${partIndex + 1},${vertexRow(index + 1, point, zone)}`),
   )
-  return { ok: true, text: [comment, 'Poly Number,Vertices,X,Y,Z', ...rows].join('\n') + '\n' }
+  return { ok: true, text: [comment, 'Poly,Vert,X,Y,Z', ...rows].join('\n') + '\n' }
 }
 
 export interface SelectedExportInput {
@@ -135,7 +131,7 @@ export function exportSelectedText(
   if (rows.length === 0) return { ok: false, message: EMPTY_MESSAGE, id: first.id }
   return {
     ok: true,
-    text: [`# UTM ${label}`, 'Poly Number,Vertices,X,Y,Z', ...rows].join('\n') + '\n',
+    text: [`# UTM ${label}`, 'Poly,Vert,X,Y,Z', ...rows].join('\n') + '\n',
     omitted,
   }
 }

@@ -37,19 +37,19 @@ describe('utm file text', () => {
     const result = exportPolygonText([square], anchor)
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.text.startsWith('# UTM 36N\nVertices,X,Y,Z\n')).toBe(true)
+    expect(result.text.startsWith('# UTM 36N\nPoly,Vert,X,Y,Z\n')).toBe(true)
     const data = result.text.trim().split('\n').slice(2)
     expect(data).toHaveLength(4)
-    expect(data[0].startsWith('1,')).toBe(true)
+    expect(data[0].startsWith('1,1,')).toBe(true)
     expect(data[0].endsWith(',0')).toBe(true)
-    expect(data[3].startsWith('4,')).toBe(true)
+    expect(data[3].startsWith('1,4,')).toBe(true)
   })
 
   it('restarts vertex numbers for each part', () => {
     const result = exportPolygonText([square.slice(0, 2), square.slice(2)], anchor)
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.text).toContain('Poly Number,Vertices,X,Y,Z')
+    expect(result.text).toContain('Poly,Vert,X,Y,Z')
     expect(result.text).toContain('\n1,1,')
     expect(result.text).toContain('\n2,1,')
   })
@@ -66,7 +66,7 @@ describe('utm file text', () => {
     ])
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.text.startsWith('# UTM 36N\n')).toBe(true)
+    expect(result.text.startsWith('# UTM 36N\nPoly,Vert,X,Y,Z\n')).toBe(true)
     expect(result.omitted.map((item) => item.id)).toEqual(['b'])
     expect(result.omitted[0].message).toContain('36N')
     expect(result.text).toContain('\n1,1,')
@@ -89,23 +89,28 @@ describe('utm import', () => {
   it('keeps several poly numbers as parts of one shape', () => {
     const text = [
       '# UTM 36N',
-      'Poly Number,Vertices,X,Y,Z',
+      'Poly,Vert,X,Y,Z',
       '1,1,500000,3000000,0',
       '1,2,501000,3000000,0',
+      '1,3,501000,3001000,0',
       '2,1,502000,3001000,5',
       '3,1,503000,3002000,0',
       '3,2,504000,3002000,0',
+      '3,3,504000,3003000,0',
     ].join('\n')
     const parsed = parseUtmTable(text)
-    expect(parsed?.parts.map((part) => part.length)).toEqual([2, 1, 2])
+    expect(parsed?.parts.map((part) => part.length)).toEqual([3, 3])
     expect(parsed?.hasZ).toBe(true)
     expect(parsed?.zone).toEqual({ zone: 36, hemisphere: 'N' })
   })
 
   it('returns null for a two-column file and a null zone when the comment is missing', () => {
     expect(parseUtmTable('0,0\n1000,0\n1000,1000\n0,1000\n')).toBeNull()
-    const parsed = parseUtmTable('Vertices,X,Y,Z\n1,500000,3000000,0\n2,501000,3000000,0\n')
+    const parsed = parseUtmTable(
+      'Vertices,X,Y,Z\n1,500000,3000000,0\n2,501000,3000000,0\n3,501000,3001000,0\n',
+    )
     expect(parsed?.zone).toBeNull()
-    expect(parsed?.parts[0]).toHaveLength(2)
+    expect(parsed?.parts[0]).toHaveLength(3)
+    expect(parseUtmTable('Poly,Vert,X,Y,Z\n1,1,1,1,0\n1,2,2,2,0\n')?.parts).toEqual([])
   })
 })

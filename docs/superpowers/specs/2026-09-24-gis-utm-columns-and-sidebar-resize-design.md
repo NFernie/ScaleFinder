@@ -1,6 +1,6 @@
 # GIS UTM columns and sidebar resize — Design Spec
 
-- **Status:** Awaiting review
+- **Status:** Approved
 - **Date:** 2026-09-24
 - **Branch:** `cursor/impeccable-ui-polish-2528`
 - **Purpose doc:** [`ScaleFinderPurpose.md`](../../../ScaleFinderPurpose.md)

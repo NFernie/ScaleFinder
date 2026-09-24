@@ -52,6 +52,10 @@ a river system such as the Ord or the Amazon.
   floating menu. Double-click closes the chain and adds the area. Add to list
   copies that closed shape into the session as a Polygon. The measurement is
   not kept after the page closes.
+- Rename a Polygon in the session list, and export it as UTM easting and
+  northing where it sits on the globe. Several switched-on Polygons in the
+  same zone can be exported as one file. Importing that file adds the usual
+  local Polygon and a fixed Polygon that stays at the original place.
 - Framed PNG snapshot export.
 
 ## Explicitly out of scope for v1 (candidate v2+)

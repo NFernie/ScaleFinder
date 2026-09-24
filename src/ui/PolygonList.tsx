@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { computeStats } from '../core/geometry'
-import { PolygonItem, verticesForPolygon } from '../core/polygonList'
+import { useRef, useState } from 'react'
+import { commitPolygonName } from '../core/polygonExport'
+import { displayStats, PolygonItem, verticesForPolygon } from '../core/polygonList'
 import PolygonPreview from './PolygonPreview'
 import ScaleReadout from './ScaleReadout'
 
@@ -10,6 +10,10 @@ interface Props {
   onColourChange: (id: string, colour: string) => void
   onReCentre: () => void
   onDelete: (id: string) => void
+  onRename: (id: string, name: string) => void
+  onExport: (id: string) => void
+  onExportSelected: () => void
+  exportNotes: Record<string, string>
 }
 
 function Chevron({ open }: { open: boolean }) {
@@ -39,9 +43,16 @@ export default function PolygonList({
   onColourChange,
   onReCentre,
   onDelete,
+  onRename,
+  onExport,
+  onExportSelected,
+  exportNotes,
 }: Props) {
   const [openNote, setOpenNote] = useState<{ id: string; label: string } | null>(null)
   const [figuresOpen, setFiguresOpen] = useState<Record<string, boolean>>({})
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [draftName, setDraftName] = useState('')
+  const cancelEdit = useRef(false)
   const selectedCount = items.filter((item) => item.selected).length
 
   return (
@@ -49,13 +60,22 @@ export default function PolygonList({
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-slate-100">2 · Polygons</h2>
         {selectedCount >= 2 && (
-          <button
-            type="button"
-            onClick={onReCentre}
-            className="pressable min-h-11 shrink-0 rounded-lg border border-white/15 px-3 text-sm text-slate-200 hover:bg-white/5"
-          >
-            Re-centre
-          </button>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={onExportSelected}
+              className="pressable min-h-11 rounded-lg border border-white/15 px-3 text-sm text-slate-200 hover:bg-white/5"
+            >
+              Export selected
+            </button>
+            <button
+              type="button"
+              onClick={onReCentre}
+              className="pressable min-h-11 rounded-lg border border-white/15 px-3 text-sm text-slate-200 hover:bg-white/5"
+            >
+              Re-centre
+            </button>
+          </div>
         )}
       </div>
       {selectedCount >= 1 && (
@@ -66,23 +86,27 @@ export default function PolygonList({
       <ul className="flex flex-col gap-8">
         {items.map((item) => {
           const verticesM = verticesForPolygon(item)
-          const stats = verticesM.length >= 3 ? computeStats(verticesM) : null
+          const stats = displayStats(item)
+          const saveName = () => {
+            onRename(item.id, commitPolygonName(draftName, item.sourceName))
+            setEditingId(null)
+          }
           const figuresShown = figuresOpen[item.id] ?? true
           const figuresId = `figures-${item.id}`
           return (
             <li key={item.id} className="flex min-w-0 flex-col gap-3">
-              <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <button
                   type="button"
                   role="switch"
                   aria-checked={item.selected}
                   aria-label={item.sourceName}
                   onClick={() => onToggle(item.id)}
-                  className="pressable flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-lg text-left"
+                  className="pressable flex h-11 w-11 shrink-0 items-center justify-center rounded-lg"
                 >
                   <span
                     aria-hidden="true"
-                    className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-150 ${
+                    className={`relative h-6 w-11 rounded-full transition-colors duration-150 ${
                       item.selected ? 'bg-accent-strong' : 'bg-white/15'
                     }`}
                   >
@@ -92,8 +116,42 @@ export default function PolygonList({
                       }`}
                     />
                   </span>
-                  <span className="truncate text-sm font-medium text-slate-100">{item.sourceName}</span>
                 </button>
+                {editingId === item.id ? (
+                  <input
+                    aria-label="Name"
+                    value={draftName}
+                    autoFocus
+                    onChange={(event) => setDraftName(event.target.value)}
+                    onBlur={() => {
+                      if (cancelEdit.current) {
+                        cancelEdit.current = false
+                        return
+                      }
+                      saveName()
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') event.currentTarget.blur()
+                      if (event.key === 'Escape') {
+                        cancelEdit.current = true
+                        setEditingId(null)
+                      }
+                    }}
+                    className="min-h-11 min-w-0 flex-1 rounded-lg border border-white/15 bg-surface px-3 text-sm text-white"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={`Rename ${item.sourceName}`}
+                    onClick={() => {
+                      setEditingId(item.id)
+                      setDraftName(item.sourceName)
+                    }}
+                    className="pressable min-h-11 min-w-0 flex-1 truncate rounded-lg px-1 text-left text-sm font-medium text-slate-100"
+                  >
+                    {item.sourceName}
+                  </button>
+                )}
                 <input
                   type="color"
                   aria-label={`Colour for ${item.sourceName}`}
@@ -103,6 +161,14 @@ export default function PolygonList({
                 />
                 <button
                   type="button"
+                  aria-label={`Export ${item.sourceName}`}
+                  onClick={() => onExport(item.id)}
+                  className="pressable min-h-11 shrink-0 rounded-lg border border-white/15 px-3 text-sm text-slate-200 hover:bg-white/5"
+                >
+                  Export
+                </button>
+                <button
+                  type="button"
                   aria-label={`Delete ${item.sourceName}`}
                   onClick={() => onDelete(item.id)}
                   className="pressable min-h-11 shrink-0 rounded-lg border border-white/15 px-3 text-sm text-red-400 hover:bg-white/5"
@@ -110,7 +176,12 @@ export default function PolygonList({
                   Delete
                 </button>
               </div>
-              {stats && (
+              {exportNotes[item.id] && (
+                <p role="status" className="text-xs leading-relaxed text-amber-200">
+                  {exportNotes[item.id]}
+                </p>
+              )}
+              {stats && verticesM.length > 0 && (
                 <div>
                   <button
                     type="button"

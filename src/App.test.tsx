@@ -187,4 +187,30 @@ describe('App polygon list', () => {
     expect(screen.getByRole('switch', { name: 'Measured polygon' })).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'sample-small-field.csv' })).toBeInTheDocument()
   })
+
+  it('renames a Polygon and imports a UTM file as a local row plus a fixed twin', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /small field/i }))
+    const rename = await screen.findByRole('button', { name: 'Rename sample-small-field.csv' })
+    await user.click(rename)
+    const field = screen.getByRole('textbox', { name: 'Name' })
+    await user.clear(field)
+    await user.type(field, 'Nile field')
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('switch', { name: 'Nile field' })).toBeInTheDocument()
+
+    const utm = [
+      '# UTM 36N',
+      'Vertices,X,Y,Z',
+      '1,500000.00,3320000.00,0',
+      '2,501000.00,3320000.00,0',
+      '3,501000.00,3321000.00,0',
+      '4,500000.00,3321000.00,0',
+    ].join('\n')
+    await user.upload(screen.getByLabelText('Choose Polygon file'), csv('utm-field.csv', utm))
+    expect(await screen.findByRole('switch', { name: 'utm-field.csv' })).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'utm-field.csv (fixed)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Export utm-field.csv (fixed)' })).toBeInTheDocument()
+  })
 })

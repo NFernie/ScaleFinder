@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/superpowers/specs/2026-09-24-polygon-rename-utm-export-design.md` —
   rename a Polygon, export UTM easting and northing, export several Polygons
   as one file, and import that file as a local Polygon plus a fixed twin.
-  Status is Draft.
+  Status is Approved.
 - `docs/superpowers/specs/2026-09-23-map-ruler-design.md` —
   map ruler that can close into a polygon, with the figures in a floating menu
   until Add to list. Status is Approved.
@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Each Polygon can be renamed. Export downloads a UTM CSV for where it sits
+  on the globe, with Z set to 0. Export selected writes the switched-on
+  Polygons that share the first selected zone into one file. Importing that
+  file adds a local Polygon and a fixed twin that stays on the globe.
 - A map measurement can be summed as ground segments and, once closed, as an
   area in square metres (`src/core/measurement.ts`).
 - Measure on the map draws a white chain. Done keeps a ruler. Double-click

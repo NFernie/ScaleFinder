@@ -1,5 +1,6 @@
+import { boundingBox, centroid, maxSpanM, polygonAreaM2 } from './geometry'
 import { verticesToMetres } from './parseFile'
-import { LengthUnit, LngLat, Vertex } from './types'
+import { LengthUnit, LngLat, PolygonStats, Vertex } from './types'
 
 /** Assignment order. Teal matches the original single-Polygon colour. */
 export const POLYGON_COLOURS = [
@@ -21,6 +22,10 @@ export interface PolygonItem {
   selected: boolean
   anchor: LngLat
   colour: string
+  /** When set, these parts are the shape. `raw` stays the vertices joined together. */
+  parts?: Vertex[][]
+  /** A UTM import twin. Drag, re-centre, and region search leave it in place. */
+  fixed?: boolean
 }
 
 export interface NewPolygonInput {
@@ -72,16 +77,39 @@ export function reCentreSelected(items: readonly PolygonItem[]): PolygonItem[] {
   const selected = items.filter((item) => item.selected)
   if (selected.length < 2) return items as PolygonItem[]
   const centre = copyLngLat(selected[0].anchor)
-  return items.map((item) => (item.selected ? { ...item, anchor: copyLngLat(centre) } : item))
+  return items.map((item) =>
+    item.selected && !item.fixed ? { ...item, anchor: copyLngLat(centre) } : item,
+  )
 }
 
 /** Move every selected Polygon onto one geographic centre. */
 export function stackSelectedOn(items: readonly PolygonItem[], centre: LngLat): PolygonItem[] {
   const target = copyLngLat(centre)
-  return items.map((item) => (item.selected ? { ...item, anchor: copyLngLat(target) } : item))
+  return items.map((item) =>
+    item.selected && !item.fixed ? { ...item, anchor: copyLngLat(target) } : item,
+  )
 }
 
 /** Raw vertices converted to metres with the unit stored on the Polygon. */
+export function partsForPolygon(item: PolygonItem): Vertex[][] {
+  const source = item.parts && item.parts.length > 0 ? item.parts : [item.raw]
+  return source.map((part) => verticesToMetres(part, item.unit))
+}
+
 export function verticesForPolygon(item: PolygonItem): Vertex[] {
-  return verticesToMetres(item.raw, item.unit)
+  return partsForPolygon(item).flat()
+}
+
+export function displayStats(item: PolygonItem): PolygonStats | null {
+  const parts = partsForPolygon(item)
+  const points = parts.flat()
+  if (points.length === 0) return null
+  const areaM2 = parts.reduce((sum, part) => sum + (part.length >= 3 ? polygonAreaM2(part) : 0), 0)
+  return {
+    areaM2,
+    centroid: centroid(points),
+    bbox: boundingBox(points),
+    maxSpanM: maxSpanM(points),
+    characteristicLengthM: Math.sqrt(areaM2),
+  }
 }

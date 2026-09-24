@@ -1,6 +1,16 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
+import { centroid } from './core/geometry'
 import { parsePolygonFile } from './core/parseFile'
+import {
+  downloadFileName,
+  exportPolygonText,
+  exportSelectedText,
+  fixedAnchor,
+  fixedName,
+  parseUtmTable,
+  ZONE_MESSAGE,
+} from './core/polygonExport'
 import {
   addCorner,
   applyDoubleClick,
@@ -14,6 +24,7 @@ import {
   nextColour,
   PolygonItem,
   reCentreSelected,
+  partsForPolygon,
   removePolygon,
   stackSelectedOn,
   verticesForPolygon,
@@ -60,6 +71,8 @@ export default function App() {
   const [items, setItems] = useState<PolygonItem[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loadedName, setLoadedName] = useState<string | null>(null)
+  const [importNote, setImportNote] = useState<string | null>(null)
+  const [exportNotes, setExportNotes] = useState<Record<string, string>>({})
   const [regionName, setRegionName] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
@@ -85,6 +98,45 @@ export default function App() {
   const handleImport = useCallback(
     (text: string, fileName: string) => {
       try {
+        const utm = parseUtmTable(text)
+        if (utm) {
+          if (utm.parts.length === 0) throw new Error('File contains no coordinate rows.')
+          const flat = utm.parts.flat()
+          setItems((prev) => {
+            let next = appendPolygon(prev, {
+              id: crypto.randomUUID(),
+              sourceName: fileName,
+              raw: flat,
+              unit,
+              hasZ: utm.hasZ,
+              mapCentre: currentCenter(),
+            })
+            next = next.map((item, index) =>
+              index === next.length - 1 ? { ...item, parts: utm.parts } : item,
+            )
+            if (utm.zone) {
+              const anchor = fixedAnchor(utm.parts, utm.zone)
+              next = appendPolygon(next, {
+                id: crypto.randomUUID(),
+                sourceName: fixedName(fileName),
+                raw: flat,
+                unit: 'm',
+                hasZ: utm.hasZ,
+                mapCentre: anchor,
+              })
+              next = next.map((item, index) =>
+                index === next.length - 1
+                  ? { ...item, parts: utm.parts, anchor, fixed: true }
+                  : item,
+              )
+            }
+            return next
+          })
+          setImportNote(utm.zone ? null : ZONE_MESSAGE)
+          setError(null)
+          setLoadedName(fileName)
+          return
+        }
         const result = parsePolygonFile(text)
         setItems((prev) =>
           appendPolygon(prev, {
@@ -96,6 +148,7 @@ export default function App() {
             mapCentre: currentCenter(),
           }),
         )
+        setImportNote(null)
         setError(null)
         setLoadedName(fileName)
       } catch (e) {
@@ -154,6 +207,68 @@ export default function App() {
   const handleDelete = useCallback((id: string) => {
     setItems((prev) => removePolygon(prev, id))
   }, [])
+
+  const handleRename = useCallback((id: string, name: string) => {
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, sourceName: name } : item)))
+  }, [])
+
+  const geographicParts = useCallback((item: PolygonItem) => {
+    const parts = partsForPolygon(item)
+    const origin = centroid(parts.flat())
+    return parts.map((part) => projectToGeographic(part, item.anchor, origin))
+  }, [])
+
+  const saveCsv = useCallback((fileName: string, text: string) => {
+    const blob = new Blob([text], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    link.click()
+    URL.revokeObjectURL(url)
+  }, [])
+
+  const handleExportPolygon = useCallback(
+    (id: string) => {
+      const item = items.find((entry) => entry.id === id)
+      if (!item) return
+      const result = exportPolygonText(geographicParts(item), item.anchor)
+      if (!result.ok) {
+        setExportNotes((prev) => ({ ...prev, [id]: result.message }))
+        return
+      }
+      setExportNotes((prev) => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+      saveCsv(downloadFileName(item.sourceName), result.text)
+    },
+    [items, geographicParts, saveCsv],
+  )
+
+  const handleExportSelected = useCallback(() => {
+    const selected = items.filter((item) => item.selected)
+    const result = exportSelectedText(
+      selected.map((item) => ({
+        id: item.id,
+        parts: geographicParts(item),
+        anchor: item.anchor,
+      })),
+    )
+    if (!result.ok) {
+      if (result.id) setExportNotes((prev) => ({ ...prev, [result.id]: result.message }))
+      return
+    }
+    setExportNotes((prev) => {
+      const next = { ...prev }
+      for (const item of selected) delete next[item.id]
+      for (const omitted of result.omitted) next[omitted.id] = omitted.message
+      return next
+    })
+    const first = selected.find((item) => !result.omitted.some((omitted) => omitted.id === item.id))
+    saveCsv(downloadFileName(first?.sourceName ?? 'polygons'), result.text)
+  }, [items, geographicParts, saveCsv])
 
   const handleAnchorChange = useCallback((id: string, next: LngLat) => {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, anchor: next } : item)))
@@ -269,6 +384,11 @@ export default function App() {
               error={error}
               sourceName={loadedName}
             />
+            {importNote && (
+              <p role="status" className="mt-3 text-xs leading-relaxed text-amber-200">
+                {importNote}
+              </p>
+            )}
           </section>
 
           {items.length > 0 && (
@@ -278,6 +398,10 @@ export default function App() {
               onColourChange={handleColourChange}
               onReCentre={handleReCentre}
               onDelete={handleDelete}
+              onRename={handleRename}
+              onExport={handleExportPolygon}
+              onExportSelected={handleExportSelected}
+              exportNotes={exportNotes}
             />
           )}
 
@@ -309,14 +433,15 @@ export default function App() {
             >
               {items.map((item) => {
                 if (!item.selected) return null
-                const verticesM = verticesForPolygon(item)
-                const ring =
-                  verticesM.length >= 3 ? projectToGeographic(verticesM, item.anchor) : []
+                const parts = partsForPolygon(item)
+                const origin = centroid(parts.flat())
+                const rings = parts.map((part) => projectToGeographic(part, item.anchor, origin))
                 return (
                   <PolygonOverlay
                     key={item.id}
                     id={item.id}
-                    ring={ring}
+                    rings={rings}
+                    fixed={item.fixed}
                     anchor={item.anchor}
                     colour={item.colour}
                     sourceName={item.sourceName}

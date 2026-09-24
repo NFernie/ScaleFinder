@@ -1,6 +1,6 @@
 # Polygon rename and UTM export — Design Spec
 
-- **Status:** Draft (awaiting review of this file)
+- **Status:** Approved
 - **Date:** 2026-09-24
 - **Branch:** `cursor/impeccable-ui-polish-2528`
 - **Purpose doc:** [`ScaleFinderPurpose.md`](../../../ScaleFinderPurpose.md)

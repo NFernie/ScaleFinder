@@ -15,7 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `docs/superpowers/specs/2026-09-23-map-ruler-design.md` —
   map ruler that can close into a polygon, with the figures in a floating menu
-  until Add to list.
+  until Add to list. Status is Approved.
+- `docs/superpowers/plans/2026-09-23-map-ruler.md` —
+  implementation plan for that ruler.
 - `docs/superpowers/specs/2026-09-23-multi-polygon-list-design.md` —
   session list of Polygons, each with its own centre, colour, and import unit.
   Status is Approved.

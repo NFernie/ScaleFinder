@@ -35,4 +35,4 @@
 
 ### Task 3: Manual check
 
-- [ ] Rename, export, import the file, and confirm the fixed twin stays put after Re-centre.
+- [x] Rename a Polygon, import a UTM file, and confirm the fixed twin and Export selected. The fixed Polygon stays put in the list test.

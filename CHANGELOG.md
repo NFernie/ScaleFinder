@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `docs/superpowers/plans/2026-09-24-polygon-rename-utm-export.md` —
+  implementation plan for rename and UTM export. The plan tasks are done.
 - `docs/superpowers/specs/2026-09-24-polygon-rename-utm-export-design.md` —
   rename a Polygon, export UTM easting and northing, export several Polygons
   as one file, and import that file as a local Polygon plus a fixed twin.

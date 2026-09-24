@@ -121,6 +121,20 @@ describe('reCentreSelected', () => {
   })
 })
 
+describe('fixed polygons', () => {
+  it('leaves a fixed Polygon in place when the others are re-centred or stacked', () => {
+    const items = [
+      item({ id: 'local', anchor: { lng: 1, lat: 2 } }),
+      item({ id: 'fixed', anchor: { lng: 31, lat: 30 }, fixed: true }),
+    ]
+    const recentred = reCentreSelected(items)
+    expect(recentred[1].anchor).toEqual({ lng: 31, lat: 30 })
+    const stacked = stackSelectedOn(items, { lng: 9, lat: 8 })
+    expect(stacked[0].anchor).toEqual({ lng: 9, lat: 8 })
+    expect(stacked[1].anchor).toEqual({ lng: 31, lat: 30 })
+  })
+})
+
 describe('stackSelectedOn', () => {
   it('moves every selected polygon onto the region and leaves the others', () => {
     const items = [

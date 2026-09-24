@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `docs/superpowers/specs/2026-09-24-polygon-rename-utm-export-design.md` —
+  rename a Polygon in the list, and export it as UTM easting and northing
+  for where it sits on the globe. Status is Draft.
 - `docs/superpowers/specs/2026-09-23-map-ruler-design.md` —
   map ruler that can close into a polygon, with the figures in a floating menu
   until Add to list. Status is Approved.

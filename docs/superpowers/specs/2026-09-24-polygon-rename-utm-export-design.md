@@ -5,6 +5,7 @@
 - **Branch:** `cursor/impeccable-ui-polish-2528`
 - **Purpose doc:** [`ScaleFinderPurpose.md`](../../../ScaleFinderPurpose.md)
 - **Parent spec:** [`2026-09-23-multi-polygon-list-design.md`](2026-09-23-multi-polygon-list-design.md)
+- **Column headers:** Amended by [`2026-09-24-gis-utm-columns-and-sidebar-resize-design.md`](2026-09-24-gis-utm-columns-and-sidebar-resize-design.md). Where the two differ on `Poly,Vert,X,Y,Z`, the amendment wins.
 
 ## 1. Goal
 
@@ -25,11 +26,11 @@ This is an agreed expansion. Implementation adds rename, UTM export, and the fix
 | Coordinates | X and Y are UTM easting and northing, in metres, where each vertex sits now. Z is always 0 on export |
 | Zone | The zone of that Polygon’s current centre. Every vertex of that Polygon uses that one zone |
 | Hemisphere | `N` when the centre latitude is zero or north. `S` when it is south |
-| One part | `# UTM 36N`, then the header `Vertices,X,Y,Z`, then one row per vertex. `Vertices` starts at 1 |
-| Several parts | `# UTM 36N`, then the header `Poly Number,Vertices,X,Y,Z`. `Vertices` restarts at 1 for each part |
-| Export selected | One five-column file for the switched-on Polygons in the first selected Polygon’s zone. Each included Polygon is the next Poly Number, in list order |
+| One part | `# UTM 36N`, then the header `Poly,Vert,X,Y,Z`. Poly is `1`. Vert starts at 1 |
+| Several parts | The same header. Each part is the next Poly number. Vert restarts at 1 for that part |
+| Export selected | The same header, in the first selected Polygon’s zone. Each included Polygon is the next Poly number, in list order |
 | Other zones | A switched-on Polygon in another zone is left out, and its row says so |
-| Two-column import | A file with no `Vertices` header adds only today’s local Polygon |
+| Two-column import | A file with no `Vert` or `Vertices` column adds only today’s local Polygon |
 | UTM import | A four-column or five-column UTM file adds the local Polygon and a fixed twin. Poly Numbers are parts of that one shape. Parts may be open |
 | Fixed Polygon | Named with ` (fixed)`. No drag marker. Drag, Re-centre, and choosing a region do not move it. Switching it off hides it |
 | Library | No new projection library. The maths lives in `src/core/` |
@@ -42,7 +43,7 @@ Enter, Tab, or a click elsewhere saves the trimmed name and closes the field. Es
 
 **Export** sits on every row, next to Delete. Its accessible name is `Export ${name}`. It downloads one `.csv`. If the name already ends in `.csv`, in any letter case, that is the file name, so `Field.CSV` stays `Field.CSV`. Otherwise `.csv` is added, so `Nile field` downloads as `Nile field.csv`. Characters that cannot appear in a file name (`/ \ : * ? " < > |`) become a hyphen. A name that becomes empty once those characters are replaced downloads as `polygon.csv`. The name on the row stays as typed.
 
-A one-part Polygon writes `# UTM 36N` or `# UTM 36S`, the header `Vertices,X,Y,Z`, and one row per vertex. A several-part Polygon writes the header `Poly Number,Vertices,X,Y,Z`. Z is 0. Values are in metres, to two decimal places, in ring order.
+A one-part Polygon writes `# UTM 36N` or `# UTM 36S`, the header `Poly,Vert,X,Y,Z`, and one row per vertex with Poly `1`. A several-part Polygon writes that same header. Each part is the next Poly number, and Vert restarts at 1. Z is 0. Values are in metres, to two decimal places, in ring order.
 
 **Export selected** appears when two or more Polygons are switched on. It writes one five-column file in the zone of the first switched-on Polygon. Each switched-on Polygon in that zone becomes the next Poly Number, in list order. Parts of that Polygon stay in order inside that number. A switched-on Polygon in another zone is left out, and that row says “This Polygon is outside UTM zone 36N, so it was left out of the export.”
 
@@ -77,7 +78,7 @@ A centre at latitude exactly −80° or exactly 84° still exports. A centre sou
 
 A part with one or two vertices is written and drawn. It adds no area. A Polygon with no vertices does not download. The row says “A Polygon needs at least one vertex to export.”
 
-A two-column file with no `Vertices` header adds only the local Polygon. A UTM file with a missing or unreadable zone line adds the local Polygon and does not add the fixed twin. The import message says “No fixed Polygon was added because the file has no UTM zone.” Z is kept on the Polygon and is ignored for the planform. Export always writes Z as 0.
+A two-column file with no `Vert` or `Vertices` column adds only the local Polygon. A UTM file with a missing or unreadable zone line adds the local Polygon and does not add the fixed twin. The import message says “No fixed Polygon was added because the file has no UTM zone.” Z is kept on the Polygon and is ignored for the planform. Export always writes Z as 0.
 
 A fixed Polygon can be the first selected Polygon. Re-centre and choosing a region still do not move it. Importing an Export selected file again adds one local Polygon and one fixed twin.
 
@@ -87,8 +88,8 @@ Pure tests in Vitest, with no React:
 
 - A centre at longitude 31°E and latitude 30°N is zone `36N`. A centre at 31°E and 30°S is `36S`. Longitude 180 is zone 1. A centre on a zone boundary uses the zone to the east. Equator is `N`. Latitude exactly −80° and exactly 84° still export. A centre south of 80°S or north of 84°N does not produce a file.
 - A published WGS84 UTM reference point converts to that point’s easting and northing, within 1 metre. Inverse UTM of those metres returns the same geographic point, within 1 metre.
-- A one-part Polygon writes `# UTM 36N`, the header `Vertices,X,Y,Z`, and one row per vertex in ring order. `Vertices` starts at 1. Z is 0. X and Y are the UTM metres where the corners sit now.
-- A several-part Polygon writes the header `Poly Number,Vertices,X,Y,Z`. `Vertices` restarts at 1 for each part. A part with two vertices is included and adds no area.
+- A one-part Polygon writes `# UTM 36N`, the header `Poly,Vert,X,Y,Z`, and one row per vertex in ring order. Poly is `1`. Vert starts at 1. Z is 0. X and Y are the UTM metres where the corners sit now.
+- A several-part Polygon writes that same header. Each part is the next Poly number. Vert restarts at 1 for each part. A part with two vertices is included and adds no area.
 - Export selected writes one five-column file in the first selected Polygon’s zone. Selected Polygons in another zone are omitted. Order follows the list.
 - A blank or whitespace name is refused and the previous name is kept.
 - `Nile field` downloads as `Nile field.csv`. `Field.CSV` stays `Field.CSV`. A slash in the name becomes a hyphen in the file name. A name that sanitises to nothing downloads as `polygon.csv`.

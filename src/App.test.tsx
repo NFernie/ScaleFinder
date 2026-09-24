@@ -170,10 +170,10 @@ describe('App polygon list', () => {
     await user.click(screen.getByTestId('map'))
     await user.click(screen.getByTestId('map-double'))
     expect(screen.getByText('Area')).toBeInTheDocument()
-    expect(screen.queryByRole('switch', { name: 'Measured polygon' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('switch', { name: 'Measured Polygon' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Add to list' }))
-    expect(await screen.findByRole('switch', { name: 'Measured polygon' })).toBeInTheDocument()
+    expect(await screen.findByRole('switch', { name: 'Measured Polygon' })).toBeInTheDocument()
     expect(screen.queryByText('Segment 1')).not.toBeInTheDocument()
     expect(screen.getAllByText('Planform area')).toHaveLength(2)
     expect(screen.getByRole('switch', { name: 'sample-small-field.csv' })).toBeInTheDocument()
@@ -184,7 +184,7 @@ describe('App polygon list', () => {
     await user.click(screen.getByRole('button', { name: 'Done' }))
     await user.click(screen.getByRole('button', { name: 'Delete measurement' }))
     expect(screen.queryByText('Segment 1')).not.toBeInTheDocument()
-    expect(screen.getByRole('switch', { name: 'Measured polygon' })).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'Measured Polygon' })).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'sample-small-field.csv' })).toBeInTheDocument()
   })
 

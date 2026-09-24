@@ -43,6 +43,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/superpowers/plans/2026-09-23-scalefindr-copy-and-figure-notes.md` —
   implementation plan for that copy and figure-note spec.
 
+### Changed
+
+- Map labels for the selected region and ScaleFindr sit along the bottom of
+  the map, clear of the zoom controls and the basemap menu. Headings use
+  tighter letter-spacing than body text. Scale figures and bearings use
+  tabular numbers. Surfaces use a shade instead of a hard border, and pure
+  black fills are gone. Visible sentences keep Polygon capitalised.
+
 ### Fixed
 
 - A tab-separated `.txt` UTM file, such as `# UTM 54S` then `Poly`, `Vert`,

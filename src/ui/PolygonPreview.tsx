@@ -27,7 +27,7 @@ export default function PolygonPreview({
 }: Props) {
   if (points.length < 3) {
     return (
-      <div className="flex aspect-square w-full items-center justify-center rounded-xl border border-white/10 bg-black/30 text-sm text-slate-400">
+      <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-surface-overlay text-sm text-slate-400">
         Polygon preview
       </div>
     )
@@ -57,7 +57,7 @@ export default function PolygonPreview({
       viewBox={`0 0 ${size} ${size}`}
       role="img"
       aria-label="Field Polygon preview"
-      className={`h-auto rounded-xl border border-white/10 bg-black/30 ${className}`}
+      className={`h-auto rounded-lg bg-surface-overlay ${className}`}
     >
       <polygon
         points={path}

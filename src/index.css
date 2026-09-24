@@ -22,6 +22,13 @@
     @apply bg-surface text-slate-100 antialiased;
     margin: 0;
     font-synthesis: none;
+    letter-spacing: 0;
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.02em;
   }
 
   ::selection {
@@ -109,6 +116,7 @@
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   font-size: 15px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   line-height: 1.35;
 }
 

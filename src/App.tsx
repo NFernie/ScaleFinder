@@ -402,9 +402,9 @@ export default function App() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-white/10 pb-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:pl-[max(1.25rem,env(safe-area-inset-left))] sm:pr-[max(1.25rem,env(safe-area-inset-right))]">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-surface-raised pb-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:pl-[max(1.25rem,env(safe-area-inset-left))] sm:pr-[max(1.25rem,env(safe-area-inset-right))]">
         <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+          <h1 className="flex items-center gap-2 text-lg font-semibold">
             <Mark />
             ScaleFindr
           </h1>
@@ -441,7 +441,7 @@ export default function App() {
         className="relative grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(12rem,42dvh)] overflow-hidden lg:grid-cols-[var(--sidebar-width)_minmax(0,1fr)] lg:grid-rows-1"
         style={{ ['--sidebar-width' as string]: `${sidebarWidth}px` }}
       >
-        <aside className="relative flex min-h-0 flex-col gap-8 overflow-y-auto overscroll-contain border-b border-white/10 bg-surface-raised px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 lg:border-b-0 lg:border-r">
+        <aside className="relative flex min-h-0 flex-col gap-8 overflow-y-auto overscroll-contain bg-surface-raised px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 lg:px-6">
           <section>
             <h2 className="mb-3 text-sm font-semibold text-slate-100">1 · Import Polygon</h2>
             <ImportPanel
@@ -484,7 +484,7 @@ export default function App() {
           </section>
 
           {!hasMapTilerKey(MAPTILER_KEY) && (
-            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
+            <p className="rounded-lg bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
               Using the keyless OpenFreeMap basemap. Set <span className="font-mono">VITE_MAPTILER_KEY</span>{' '}
               to enable MapTiler basemaps and worldwide search.
             </p>
@@ -539,17 +539,13 @@ export default function App() {
               )}
             </MapView>
 
-            <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3 pr-14">
-              {regionName ? (
-                <div className="max-w-[min(100%,18rem)] rounded-lg bg-surface/90 px-3 py-1.5 text-sm font-medium leading-snug text-white shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
-                  {regionName}
-                </div>
-              ) : (
-                <span />
-              )}
-              <div className="shrink-0 rounded-lg bg-surface/90 px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
-                ScaleFindr
+            {regionName && (
+              <div className="pointer-events-none absolute bottom-16 left-3 z-10 max-w-[14rem] rounded-lg bg-surface/90 px-3 py-2 text-sm font-medium leading-snug text-white shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
+                {regionName}
               </div>
+            )}
+            <div className="pointer-events-none absolute bottom-16 right-3 z-10 rounded-lg bg-surface/90 px-3 py-2 text-xs font-medium tracking-tight text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
+              ScaleFindr
             </div>
 
             {!anySelected && (
@@ -568,10 +564,8 @@ export default function App() {
               type="button"
               aria-pressed={measurement !== null}
               onClick={handleMeasure}
-              className={`pressable pointer-events-auto min-h-11 rounded-lg border px-3 text-sm font-medium shadow-[0_2px_8px_rgb(0_0_0/0.35)] ${
-                measurement
-                  ? 'border-accent bg-accent-strong text-teal-50'
-                  : 'border-white/15 bg-surface/95 text-white'
+              className={`pressable pointer-events-auto min-h-11 rounded-lg px-3 text-sm font-medium shadow-[0_2px_8px_rgb(0_0_0/0.35)] ${
+                measurement ? 'bg-accent-strong text-teal-50' : 'bg-surface/95 text-white'
               }`}
             >
               Measure
@@ -596,7 +590,7 @@ export default function App() {
               id="basemap-select"
               value={basemapId}
               onChange={(e) => setBasemapId(e.target.value)}
-              className="pointer-events-auto min-h-11 rounded-lg border border-white/15 bg-surface/95 px-3 text-base text-white shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
+              className="pointer-events-auto min-h-11 max-w-[12rem] rounded-lg bg-surface/95 px-3 text-base text-white shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
             >
               {basemaps.map((b) => (
                 <option key={b.id} value={b.id}>

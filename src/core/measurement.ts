@@ -25,7 +25,7 @@ export interface MeasurementReadout {
 }
 
 export interface MeasuredPolygonDraft {
-  sourceName: 'Measured polygon'
+  sourceName: 'Measured Polygon'
   raw: Vertex[]
   unit: 'm'
   hasZ: false
@@ -72,7 +72,7 @@ export function applyDoubleClick(measurement: Measurement, corner: LngLat): Meas
     return {
       status: 'adding',
       corners,
-      message: 'Add at least three corners to close a polygon.',
+      message: 'Add at least three corners to close a Polygon.',
     }
   }
   return { status: 'polygon', corners, message: null }
@@ -103,7 +103,7 @@ export function measuredPolygonDraft(measurement: Measurement): MeasuredPolygonD
   if (measurement.status !== 'polygon' || measurement.corners.length < 3) return null
   const raw = localMetres(measurement.corners)
   return {
-    sourceName: 'Measured polygon',
+    sourceName: 'Measured Polygon',
     raw,
     unit: 'm',
     hasZ: false,

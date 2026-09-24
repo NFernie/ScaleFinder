@@ -83,7 +83,7 @@ function FigureRow({
           ref={panelRef}
           id={tipId}
           role="tooltip"
-          className={`absolute left-0 z-20 w-full rounded-lg border border-white/10 bg-surface px-3 py-2 text-left shadow-[0_2px_8px_rgb(0_0_0/0.35)] ${
+          className={`absolute left-0 z-20 w-full rounded-lg bg-surface px-3 py-2 text-left shadow-[0_2px_8px_rgb(0_0_0/0.35)] ${
             below ? 'top-full mt-1' : 'bottom-full mb-1'
           }`}
         >
@@ -154,7 +154,7 @@ export default function ScaleReadout({
 
   return (
     <div ref={rootRef} className="w-full">
-      <div className="divide-y divide-white/10 rounded-xl border border-white/10 bg-surface-overlay/60">
+      <div className="divide-y divide-white/10 overflow-hidden rounded-lg bg-surface-overlay/60">
         {figures.map((figure) => (
           <FigureRow
             key={figure.label}

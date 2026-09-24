@@ -40,7 +40,7 @@ export function parsePolygonFile(text: string): ParseResult {
 
   const dataRows = hadHeader ? rows.slice(1) : rows
   if (dataRows.length < 3) {
-    throw new Error('A polygon needs at least three coordinate rows.')
+    throw new Error('A Polygon needs at least three coordinate rows.')
   }
 
   let hasZ = true

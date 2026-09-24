@@ -48,13 +48,13 @@ export default function RegionSearch({ mapTilerKey, selectedName, onSelect }: Pr
           enterKeyHint="search"
           autoCapitalize="off"
           autoCorrect="off"
-          className="min-h-11 w-full rounded-lg border border-white/10 bg-black/30 px-3 text-base focus:border-accent"
+          className="min-h-11 w-full rounded-lg bg-surface-overlay px-3 text-base focus:outline-none"
         />
         {mapTilerKey && (
           <button
             type="submit"
             disabled={searching || !trimmed}
-            className="pressable min-h-11 min-w-[7.5rem] whitespace-nowrap rounded-lg border border-white/15 px-3 text-sm text-slate-200 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+            className="pressable min-h-11 min-w-[7.5rem] whitespace-nowrap rounded-lg bg-surface-overlay px-3 text-sm text-slate-200 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {searching ? 'Searching' : 'Worldwide'}
           </button>
@@ -78,7 +78,7 @@ export default function RegionSearch({ mapTilerKey, selectedName, onSelect }: Pr
       {results.length > 0 && (
         <ul
           aria-label="Regions"
-          className="max-h-48 divide-y divide-white/10 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-surface-overlay/60"
+          className="max-h-48 divide-y divide-white/10 overflow-y-auto overscroll-contain rounded-lg bg-surface-overlay/60"
         >
           {results.map((r, i) => {
             const selected = selectedName === r.name

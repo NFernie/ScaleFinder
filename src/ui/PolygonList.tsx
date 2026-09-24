@@ -70,14 +70,14 @@ export default function PolygonList({
             <button
               type="button"
               onClick={onExportSelected}
-              className="pressable min-h-11 rounded-lg border border-white/15 px-3 text-sm text-slate-200 hover:bg-white/5"
+              className="pressable min-h-11 rounded-lg bg-surface-overlay px-3 text-sm text-slate-200 hover:bg-white/10"
             >
               Export selected
             </button>
             <button
               type="button"
               onClick={onReCentre}
-              className="pressable min-h-11 rounded-lg border border-white/15 px-3 text-sm text-slate-200 hover:bg-white/5"
+              className="pressable min-h-11 rounded-lg bg-surface-overlay px-3 text-sm text-slate-200 hover:bg-white/10"
             >
               Re-centre
             </button>
@@ -160,7 +160,7 @@ export default function PolygonList({
                         setEditingId(null)
                       }
                     }}
-                    className="min-h-11 min-w-0 flex-1 rounded-lg border border-white/15 bg-surface px-3 text-sm text-white"
+                    className="min-h-11 min-w-0 flex-1 rounded-lg bg-surface-overlay px-3 text-sm text-white"
                   />
                 ) : (
                   <button
@@ -180,13 +180,13 @@ export default function PolygonList({
                   aria-label={`Colour for ${item.sourceName}`}
                   value={item.colour}
                   onChange={(event) => onColourChange(item.id, event.target.value.toLowerCase())}
-                  className="h-11 w-11 shrink-0 cursor-pointer rounded-lg border border-white/15 bg-transparent p-1"
+                  className="h-11 w-11 shrink-0 cursor-pointer rounded-lg bg-surface-overlay p-1"
                 />
                 <button
                   type="button"
                   aria-label={`Export ${item.sourceName}`}
                   onClick={() => onExport(item.id)}
-                  className="pressable min-h-11 shrink-0 rounded-lg border border-white/15 px-3 text-sm text-slate-200 hover:bg-white/5"
+                  className="pressable min-h-11 shrink-0 rounded-lg bg-surface-overlay px-3 text-sm text-slate-200 hover:bg-white/10"
                 >
                   Export
                 </button>
@@ -194,7 +194,7 @@ export default function PolygonList({
                   type="button"
                   aria-label={`Delete ${item.sourceName}`}
                   onClick={() => onDelete(item.id)}
-                  className="pressable min-h-11 shrink-0 rounded-lg border border-white/15 px-3 text-sm text-red-400 hover:bg-white/5"
+                  className="pressable min-h-11 shrink-0 rounded-lg bg-surface-overlay px-3 text-sm text-red-400 hover:bg-white/10"
                 >
                   Delete
                 </button>
@@ -221,7 +221,7 @@ export default function PolygonList({
                         setBearingId(null)
                       }
                     }}
-                    className="min-h-11 w-28 rounded-lg border border-white/15 bg-surface px-3 text-sm text-white"
+                    className="min-h-11 w-28 rounded-lg bg-surface-overlay px-3 text-sm tabular-nums text-white"
                   />
                 ) : (
                   <button
@@ -231,7 +231,7 @@ export default function PolygonList({
                       setBearingId(item.id)
                       setDraftBearing(bearing.toFixed(1))
                     }}
-                    className="pressable min-h-11 w-28 rounded-lg border border-white/15 px-3 text-left text-sm text-slate-200 hover:bg-white/5"
+                    className="pressable min-h-11 w-28 rounded-lg bg-surface-overlay px-3 text-left text-sm tabular-nums text-slate-200 hover:bg-white/10"
                   >
                     {bearing.toFixed(1)}°
                   </button>
@@ -250,7 +250,7 @@ export default function PolygonList({
                     onClick={() =>
                       setFiguresOpen((current) => ({ ...current, [item.id]: !figuresShown }))
                     }
-                    className="pressable flex min-h-11 w-full items-center justify-between rounded-lg border border-white/15 px-3 text-sm text-slate-200 hover:bg-white/5"
+                    className="pressable flex min-h-11 w-full items-center justify-between rounded-lg bg-surface-overlay px-3 text-sm text-slate-200 hover:bg-white/10"
                   >
                     {figuresShown ? 'Hide figures' : 'Show figures'}
                     <Chevron open={figuresShown} />

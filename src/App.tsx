@@ -2,7 +2,16 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
 import { parsePolygonFile } from './core/parseFile'
 import {
+  addCorner,
+  applyDoubleClick,
+  beginMeasurement,
+  finishRuler,
+  measuredPolygonDraft,
+  Measurement,
+} from './core/measurement'
+import {
   appendPolygon,
+  nextColour,
   PolygonItem,
   reCentreSelected,
   removePolygon,
@@ -13,10 +22,12 @@ import { projectToGeographic } from './core/projection'
 import { LengthUnit, LngLat } from './core/types'
 import { getBasemaps, hasMapTilerKey } from './map/basemap'
 import MapView from './map/MapView'
+import MeasurementOverlay from './map/MeasurementOverlay'
 import PolygonOverlay from './map/PolygonOverlay'
 import { Region } from './map/regions'
 import { downloadFramePng } from './map/snapshot'
 import ImportPanel from './ui/ImportPanel'
+import MeasureMenu from './ui/MeasureMenu'
 import PolygonList from './ui/PolygonList'
 import RegionSearch from './ui/RegionSearch'
 import { SAMPLES } from './data/samples'
@@ -52,6 +63,7 @@ export default function App() {
   const [regionName, setRegionName] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
+  const [measurement, setMeasurement] = useState<Measurement | null>(null)
 
   const basemaps = useMemo(() => getBasemaps(MAPTILER_KEY), [])
   const [basemapId, setBasemapId] = useState(basemaps[0].id)
@@ -145,6 +157,52 @@ export default function App() {
 
   const handleAnchorChange = useCallback((id: string, next: LngLat) => {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, anchor: next } : item)))
+  }, [])
+
+  const handleMeasure = useCallback(() => {
+    setMeasurement((current) => current ?? beginMeasurement())
+  }, [])
+
+  const handleMapClick = useCallback((event: { lngLat: { lng: number; lat: number }; originalEvent: { target: EventTarget | null } }) => {
+    const target = event.originalEvent.target
+    if (target instanceof Element && target.closest('.maplibregl-marker')) return
+    const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
+    setMeasurement((current) => (current ? addCorner(current, corner) : current))
+  }, [])
+
+  const handleMapDoubleClick = useCallback((event: { lngLat: { lng: number; lat: number } }) => {
+    const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
+    setMeasurement((current) => (current ? applyDoubleClick(current, corner) : current))
+  }, [])
+
+  const handleMeasureDone = useCallback(() => {
+    setMeasurement((current) => (current ? finishRuler(current) : current))
+  }, [])
+
+  const handleMeasureDelete = useCallback(() => {
+    setMeasurement(null)
+  }, [])
+
+  const handleMeasureAdd = useCallback(() => {
+    setMeasurement((current) => {
+      if (!current) return current
+      const draft = measuredPolygonDraft(current)
+      if (!draft) return current
+      setItems((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          sourceName: draft.sourceName,
+          raw: draft.raw,
+          unit: draft.unit,
+          hasZ: draft.hasZ,
+          selected: true,
+          anchor: draft.anchor,
+          colour: nextColour(prev.map((item) => item.colour)),
+        },
+      ])
+      return null
+    })
   }, [])
 
   const handleSnapshot = useCallback(async () => {
@@ -242,7 +300,13 @@ export default function App() {
 
         <main className="relative min-h-0">
           <div ref={frameRef} className="absolute inset-0">
-            <MapView ref={mapRef} basemap={basemap}>
+            <MapView
+              ref={mapRef}
+              basemap={basemap}
+              onMapClick={measurement?.status === 'adding' ? handleMapClick : undefined}
+              onMapDoubleClick={measurement ? handleMapDoubleClick : undefined}
+              doubleClickZoom={measurement?.status !== 'adding'}
+            >
               {items.map((item) => {
                 if (!item.selected) return null
                 const verticesM = verticesForPolygon(item)
@@ -260,6 +324,12 @@ export default function App() {
                   />
                 )
               })}
+              {measurement && (
+                <MeasurementOverlay
+                  corners={measurement.corners}
+                  closed={measurement.status === 'polygon'}
+                />
+              )}
             </MapView>
 
             <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3 pr-14">
@@ -282,6 +352,31 @@ export default function App() {
                     ? 'Import a Polygon to place it here at true ground scale.'
                     : 'Switch a Polygon on to show it here.'}
                 </p>
+              </div>
+            )}
+          </div>
+
+          <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-h-[calc(100%-1.5rem)] w-[min(18rem,calc(100%-5.5rem))] flex-col items-start gap-2">
+            <button
+              type="button"
+              aria-pressed={measurement !== null}
+              onClick={handleMeasure}
+              className={`pressable pointer-events-auto min-h-11 rounded-lg border px-3 text-sm font-medium shadow-[0_2px_8px_rgb(0_0_0/0.35)] ${
+                measurement
+                  ? 'border-accent bg-accent-strong text-teal-50'
+                  : 'border-white/15 bg-surface/95 text-white'
+              }`}
+            >
+              Measure
+            </button>
+            {measurement && (
+              <div className="pointer-events-auto min-h-0 w-full">
+                <MeasureMenu
+                  measurement={measurement}
+                  onDone={handleMeasureDone}
+                  onDelete={handleMeasureDelete}
+                  onAdd={handleMeasureAdd}
+                />
               </div>
             )}
           </div>

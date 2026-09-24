@@ -48,6 +48,10 @@ a river system such as the Ord or the Amazon.
 - Draggable, true-scale polygon overlay.
 - Several Polygons in one session, each with its own centre, colour, and the
   unit it was imported with. The list lasts for the browser session only.
+- A map ruler: a chain of clicks shows each ground segment and the total in a
+  floating menu. Double-click closes the chain and adds the area. Add to list
+  copies that closed shape into the session as a Polygon. The measurement is
+  not kept after the page closes.
 - Framed PNG snapshot export.
 
 ## Explicitly out of scope for v1 (candidate v2+)

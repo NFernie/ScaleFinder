@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A map measurement can be summed as ground segments and, once closed, as an
+  area in square metres (`src/core/measurement.ts`).
+- Measure on the map draws a white chain. Done keeps a ruler. Double-click
+  closes a polygon and shows its area in a floating menu. Add to list copies
+  that shape into the Polygon list as "Measured polygon".
 - `.cursor/rules/subagent-models.mdc` — subagents may only run as Cursor Grok
   or Composer models.
 - Each Polygon row has Delete, which removes that Polygon from the session list.

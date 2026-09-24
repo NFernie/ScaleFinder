@@ -9,6 +9,10 @@ vi.mock('./map/PolygonOverlay', () => ({
   default: () => null,
 }))
 
+vi.mock('./map/MeasurementOverlay', () => ({
+  default: () => null,
+}))
+
 const SQUARE = '0,0\n1000,0\n1000,1000\n0,1000\n'
 
 function csv(name: string, text: string) {
@@ -130,5 +134,57 @@ describe('App polygon list', () => {
     await user.click(screen.getByRole('radio', { name: 'km' }))
     expect(screen.getByText('9.3 ha')).toBeInTheDocument()
     expect(screen.queryByText('1.00 km²')).not.toBeInTheDocument()
+  })
+
+  it('keeps measurement figures out of the sidebar until Add to list', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Measure' }))
+    await user.click(screen.getByTestId('map'))
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+    expect(screen.getByRole('status')).toHaveTextContent('Add at least two corners.')
+    expect(screen.queryByText('Planform area')).not.toBeInTheDocument()
+
+    await user.click(screen.getByTestId('map'))
+    await user.click(screen.getByTestId('map'))
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+    expect(screen.getByText('Segment 1')).toBeInTheDocument()
+    expect(screen.getByText('Total')).toBeInTheDocument()
+    expect(screen.queryByText('Area')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add to list' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Planform area')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Measure' }))
+    expect(screen.getByText('Segment 1')).toBeInTheDocument()
+  })
+
+  it('adds a closed measurement to the list and delete leaves an existing row', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /small field/i }))
+    await screen.findByRole('switch', { name: 'sample-small-field.csv' })
+
+    await user.click(screen.getByRole('button', { name: 'Measure' }))
+    await user.click(screen.getByTestId('map'))
+    await user.click(screen.getByTestId('map'))
+    await user.click(screen.getByTestId('map'))
+    await user.click(screen.getByTestId('map-double'))
+    expect(screen.getByText('Area')).toBeInTheDocument()
+    expect(screen.queryByRole('switch', { name: 'Measured polygon' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Add to list' }))
+    expect(await screen.findByRole('switch', { name: 'Measured polygon' })).toBeInTheDocument()
+    expect(screen.queryByText('Segment 1')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Planform area')).toHaveLength(2)
+    expect(screen.getByRole('switch', { name: 'sample-small-field.csv' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Measure' }))
+    await user.click(screen.getByTestId('map'))
+    await user.click(screen.getByTestId('map'))
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+    await user.click(screen.getByRole('button', { name: 'Delete measurement' }))
+    expect(screen.queryByText('Segment 1')).not.toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'Measured polygon' })).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'sample-small-field.csv' })).toBeInTheDocument()
   })
 })

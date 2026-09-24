@@ -3,19 +3,22 @@ import { filterNotableRegions, geocodeMapTiler, Region } from '../map/regions'
 
 interface Props {
   mapTilerKey?: string
+  selectedName: string | null
   onSelect: (region: Region) => void
 }
 
-export default function RegionSearch({ mapTilerKey, onSelect }: Props) {
+export default function RegionSearch({ mapTilerKey, selectedName, onSelect }: Props) {
   const [query, setQuery] = useState('')
   const [remote, setRemote] = useState<Region[]>([])
   const [searching, setSearching] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
   const local = filterNotableRegions(query)
+  const results = [...remote, ...local].slice(0, 12)
+  const trimmed = query.trim()
 
   async function searchWorldwide() {
-    if (!mapTilerKey || !query.trim()) return
+    if (!mapTilerKey || !trimmed) return
     setSearching(true)
     setErr(null)
     try {
@@ -42,34 +45,62 @@ export default function RegionSearch({ mapTilerKey, onSelect }: Props) {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search regions (e.g. Nile Delta)"
           aria-label="Search regions"
-          className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-accent"
+          enterKeyHint="search"
+          autoCapitalize="off"
+          autoCorrect="off"
+          className="min-h-11 w-full rounded-lg bg-surface-overlay px-3 text-base focus:outline-none"
         />
         {mapTilerKey && (
           <button
             type="submit"
-            disabled={searching || !query.trim()}
-            className="whitespace-nowrap rounded-lg border border-white/15 px-3 py-2 text-sm text-slate-200 hover:bg-white/5 disabled:opacity-40"
+            disabled={searching || !trimmed}
+            className="pressable min-h-11 min-w-[7.5rem] whitespace-nowrap rounded-lg bg-surface-overlay px-3 text-sm text-slate-200 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {searching ? '…' : 'Worldwide'}
+            {searching ? 'Searching' : 'Worldwide'}
           </button>
         )}
       </form>
 
-      {err && <p className="text-xs text-red-400">{err}</p>}
+      {err && (
+        <p role="alert" className="text-sm leading-relaxed text-red-400">
+          {err}. Check the connection and try the search again.
+        </p>
+      )}
 
-      <ul className="flex flex-wrap gap-2">
-        {[...remote, ...local].slice(0, 12).map((r, i) => (
-          <li key={`${r.name}-${i}`}>
-            <button
-              type="button"
-              onClick={() => onSelect(r)}
-              className="rounded-full border border-white/15 px-3 py-1 text-xs text-slate-200 hover:bg-white/5"
-            >
-              {r.name}
-            </button>
-          </li>
-        ))}
-      </ul>
+      {trimmed && !searching && results.length === 0 && !err && (
+        <p role="status" className="text-sm leading-relaxed text-slate-300">
+          {mapTilerKey
+            ? `No region matches "${trimmed}". Try another name, or search worldwide.`
+            : `No curated region matches "${trimmed}". Clear the search to see notable deltas and rivers.`}
+        </p>
+      )}
+
+      {results.length > 0 && (
+        <ul
+          aria-label="Regions"
+          className="max-h-48 divide-y divide-white/10 overflow-y-auto overscroll-contain rounded-lg bg-surface-overlay/60"
+        >
+          {results.map((r, i) => {
+            const selected = selectedName === r.name
+            return (
+              <li key={`${r.name}-${i}`}>
+                <button
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => onSelect(r)}
+                  className={`pressable flex min-h-11 w-full items-center px-3 text-left text-sm ${
+                    selected
+                      ? 'bg-accent-strong text-teal-50'
+                      : 'text-slate-200 hover:bg-white/5'
+                  }`}
+                >
+                  {r.name}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </section>
   )
 }

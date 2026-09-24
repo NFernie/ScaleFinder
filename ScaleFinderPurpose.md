@@ -45,14 +45,28 @@ a river system such as the Ord or the Amazon.
   the overlay is true-scale at any latitude.
 - MapLibre map with search/navigation and a MapTiler basemap (keyless
   OpenFreeMap fallback in development).
-- Draggable, true-scale polygon overlay.
+- Draggable, true-scale polygon overlay. A movable Polygon can also be rotated
+  around its centre without stretching. The bearing shown is the compass
+  direction of the edge chosen when it was added. Re-centre restores that
+  bearing. A fixed Polygon cannot rotate.
+- Several Polygons in one session, each with its own centre, colour, and the
+  unit it was imported with. The list lasts for the browser session only.
+- A map ruler: a chain of clicks shows each ground segment and the total in a
+  floating menu. Double-click closes the chain and adds the area. Add to list
+  copies that closed shape into the session as a Polygon. The measurement is
+  not kept after the page closes.
+- Rename a Polygon in the session list, and export it as UTM easting and
+  northing where it sits on the globe. Several switched-on Polygons in the
+  same zone can be exported as one file. Importing that file adds the usual
+  local Polygon and a fixed Polygon that stays at the original place.
 - Framed PNG snapshot export.
 
 ## Explicitly out of scope for v1 (candidate v2+)
 
 - User accounts, saving projects, and cloud-stored snapshots (a Backend-as-a-
   Service such as Supabase; the app is architected so this can be added later).
-- Multiple simultaneous polygons / project libraries.
+- Saving a Polygon list as a project library. A session can hold several
+  Polygons at once; they are not stored after the page closes.
 - Reprojection between named CRS/EPSG codes (v1 treats input as local metres).
 - Server-side rendering or collaborative features.
 

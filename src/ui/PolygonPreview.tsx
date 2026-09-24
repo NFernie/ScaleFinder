@@ -3,16 +3,31 @@ import { Vertex } from '../core/types'
 interface Props {
   points: Vertex[]
   size?: number
+  colour?: string
+  className?: string
+}
+
+function withAlpha(hex: string, alpha: number): string {
+  const value = hex.replace('#', '')
+  const r = Number.parseInt(value.slice(0, 2), 16)
+  const g = Number.parseInt(value.slice(2, 4), 16)
+  const b = Number.parseInt(value.slice(4, 6), 16)
+  if (![r, g, b].every((channel) => Number.isFinite(channel))) {
+    return `rgba(45,212,191,${alpha})`
+  }
+  return `rgba(${r},${g},${b},${alpha})`
 }
 
 /** Renders the polygon normalised to fit a square viewport, preserving aspect ratio. */
-export default function PolygonPreview({ points, size = 220 }: Props) {
+export default function PolygonPreview({
+  points,
+  size = 220,
+  colour = '#2dd4bf',
+  className = 'w-full',
+}: Props) {
   if (points.length < 3) {
     return (
-      <div
-        className="flex items-center justify-center rounded-xl border border-white/10 bg-black/30 text-xs text-slate-400"
-        style={{ width: size, height: size }}
-      >
+      <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-surface-overlay text-sm text-slate-400">
         Polygon preview
       </div>
     )
@@ -39,17 +54,15 @@ export default function PolygonPreview({ points, size = 220 }: Props) {
 
   return (
     <svg
-      width={size}
-      height={size}
       viewBox={`0 0 ${size} ${size}`}
       role="img"
-      aria-label="Field polygon preview"
-      className="rounded-xl border border-white/10 bg-black/30"
+      aria-label="Field Polygon preview"
+      className={`h-auto rounded-lg bg-surface-overlay ${className}`}
     >
       <polygon
         points={path}
-        fill="rgba(45,212,191,0.18)"
-        stroke="#2dd4bf"
+        fill={withAlpha(colour, 0.18)}
+        stroke={colour}
         strokeWidth={2}
         strokeLinejoin="round"
       />

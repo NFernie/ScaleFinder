@@ -1,36 +1,99 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
-import { computeStats } from './core/geometry'
-import { parsePolygonFile, verticesToMetres } from './core/parseFile'
+import { centroid } from './core/geometry'
+import { parsePolygonFile } from './core/parseFile'
+import {
+  downloadFileName,
+  exportPolygonText,
+  exportSelectedText,
+  fixedAnchor,
+  fixedName,
+  parseUtmTable,
+  ZONE_MESSAGE,
+} from './core/polygonExport'
+import {
+  addCorner,
+  applyDoubleClick,
+  beginMeasurement,
+  finishRuler,
+  measuredPolygonDraft,
+  Measurement,
+} from './core/measurement'
+import {
+  appendPolygon,
+  nextColour,
+  PolygonItem,
+  reCentreSelected,
+  partsForPolygon,
+  removePolygon,
+  stackSelectedOn,
+  verticesForPolygon,
+} from './core/polygonList'
 import { projectToGeographic } from './core/projection'
-import { LengthUnit, LngLat, Vertex } from './core/types'
+import {
+  bearingDelta,
+  initialBearing,
+  rotationForBearing,
+  rotationState,
+  turnedParts,
+  wrapBearing,
+} from './core/rotation'
+import { LengthUnit, LngLat } from './core/types'
 import { getBasemaps, hasMapTilerKey } from './map/basemap'
 import MapView from './map/MapView'
-import PolygonOverlay from './map/PolygonOverlay'
+import MeasurementOverlay from './map/MeasurementOverlay'
+import PlacedPolygon from './map/PlacedPolygon'
 import { Region } from './map/regions'
 import { downloadFramePng } from './map/snapshot'
 import ImportPanel from './ui/ImportPanel'
-import PolygonPreview from './ui/PolygonPreview'
+import SidebarResizeHandle from './ui/SidebarResizeHandle'
+import { MAP_MIN_PX, SIDEBAR_DEFAULT_PX } from './ui/sidebarWidth'
+import MeasureMenu from './ui/MeasureMenu'
+import PolygonList from './ui/PolygonList'
 import RegionSearch from './ui/RegionSearch'
-import ScaleReadout from './ui/ScaleReadout'
 import { SAMPLES } from './data/samples'
-
-interface LoadedPolygon {
-  raw: Vertex[]
-  unit: LengthUnit
-  sourceName: string
-  hasZ: boolean
-}
 
 const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY
 
+function Mark() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      aria-hidden="true"
+      className="shrink-0 text-accent"
+    >
+      <polygon
+        points="2.5,14.5 6.5,3.5 15.5,7.5 12,15.5"
+        fill="currentColor"
+        fillOpacity="0.22"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function stampRotation(item: PolygonItem): PolygonItem {
+  if (item.fixed) return item
+  const state = rotationState(partsForPolygon(item), item.anchor)
+  return state ? { ...item, ...state } : item
+}
+
 export default function App() {
   const [unit, setUnit] = useState<LengthUnit>('m')
-  const [loaded, setLoaded] = useState<LoadedPolygon | null>(null)
+  const [items, setItems] = useState<PolygonItem[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [anchor, setAnchor] = useState<LngLat | null>(null)
+  const [loadedName, setLoadedName] = useState<string | null>(null)
+  const [importNote, setImportNote] = useState<string | null>(null)
+  const [exportNotes, setExportNotes] = useState<Record<string, string>>({})
   const [regionName, setRegionName] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const [measurement, setMeasurement] = useState<Measurement | null>(null)
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_PX)
 
   const basemaps = useMemo(() => getBasemaps(MAPTILER_KEY), [])
   const [basemapId, setBasemapId] = useState(basemaps[0].id)
@@ -38,19 +101,12 @@ export default function App() {
 
   const mapRef = useRef<MapRef>(null)
   const frameRef = useRef<HTMLDivElement>(null)
+  const layoutRef = useRef<HTMLDivElement>(null)
 
-  const verticesM = useMemo<Vertex[]>(
-    () => (loaded ? verticesToMetres(loaded.raw, unit) : []),
-    [loaded, unit],
+  const canExport = items.some(
+    (item) => item.selected && verticesForPolygon(item).length >= 3,
   )
-  const stats = useMemo(
-    () => (verticesM.length >= 3 ? computeStats(verticesM) : null),
-    [verticesM],
-  )
-  const ring = useMemo<LngLat[]>(
-    () => (anchor && verticesM.length >= 3 ? projectToGeographic(verticesM, anchor) : []),
-    [anchor, verticesM],
-  )
+  const anySelected = items.some((item) => item.selected)
 
   const currentCenter = useCallback((): LngLat => {
     const c = mapRef.current?.getCenter()
@@ -60,13 +116,61 @@ export default function App() {
   const handleImport = useCallback(
     (text: string, fileName: string) => {
       try {
+        const utm = parseUtmTable(text)
+        if (utm) {
+          if (utm.parts.length === 0) throw new Error('File contains no coordinate rows.')
+          const flat = utm.parts.flat()
+          setItems((prev) => {
+            let next = appendPolygon(prev, {
+              id: crypto.randomUUID(),
+              sourceName: fileName,
+              raw: flat,
+              unit,
+              hasZ: utm.hasZ,
+              mapCentre: currentCenter(),
+            })
+            next = next.map((item, index) =>
+              index === next.length - 1 ? stampRotation({ ...item, parts: utm.parts }) : item,
+            )
+            if (utm.zone) {
+              const anchor = fixedAnchor(utm.parts, utm.zone)
+              next = appendPolygon(next, {
+                id: crypto.randomUUID(),
+                sourceName: fixedName(fileName),
+                raw: flat,
+                unit: 'm',
+                hasZ: utm.hasZ,
+                mapCentre: anchor,
+              })
+              next = next.map((item, index) =>
+                index === next.length - 1
+                  ? { ...item, parts: utm.parts, anchor, fixed: true }
+                  : item,
+              )
+            }
+            return next
+          })
+          setImportNote(utm.zone ? null : ZONE_MESSAGE)
+          setError(null)
+          setLoadedName(fileName)
+          return
+        }
         const result = parsePolygonFile(text)
-        setLoaded({ raw: result.vertices, unit, sourceName: fileName, hasZ: result.hasZ })
+        setItems((prev) =>
+          appendPolygon(prev, {
+            id: crypto.randomUUID(),
+            sourceName: fileName,
+            raw: result.vertices,
+            unit,
+            hasZ: result.hasZ,
+            mapCentre: currentCenter(),
+          }).map((item, index, all) => (index === all.length - 1 ? stampRotation(item) : item)),
+        )
+        setImportNote(null)
         setError(null)
-        setAnchor((prev) => prev ?? currentCenter())
+        setLoadedName(fileName)
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
-        setLoaded(null)
       }
     },
     [unit, currentCenter],
@@ -79,9 +183,18 @@ export default function App() {
       setUnit(sample.unit)
       try {
         const result = parsePolygonFile(sample.text)
-        setLoaded({ raw: result.vertices, unit: sample.unit, sourceName: sample.fileName, hasZ: result.hasZ })
+        setItems((prev) =>
+          appendPolygon(prev, {
+            id: crypto.randomUUID(),
+            sourceName: sample.fileName,
+            raw: result.vertices,
+            unit: sample.unit,
+            hasZ: result.hasZ,
+            mapCentre: currentCenter(),
+          }).map((item, index, all) => (index === all.length - 1 ? stampRotation(item) : item)),
+        )
         setError(null)
-        setAnchor((prev) => prev ?? currentCenter())
+        setLoadedName(sample.fileName)
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
       }
@@ -91,105 +204,369 @@ export default function App() {
 
   const handleSelectRegion = useCallback((region: Region) => {
     setRegionName(region.name)
-    setAnchor({ lng: region.lng, lat: region.lat })
+    setItems((prev) => stackSelectedOn(prev, { lng: region.lng, lat: region.lat }))
     mapRef.current?.flyTo({ center: [region.lng, region.lat], zoom: region.zoom, duration: 1200 })
   }, [])
 
+  const handleToggle = useCallback((id: string) => {
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, selected: !item.selected } : item)),
+    )
+  }, [])
+
+  const handleColourChange = useCallback((id: string, colour: string) => {
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, colour } : item)))
+  }, [])
+
+  const handleReCentre = useCallback(() => {
+    setItems((prev) =>
+      reCentreSelected(prev).map((item) => {
+        if (!item.selected || item.fixed || !item.referenceEdge || item.originalBearing == null) return item
+        const rotationDeg = rotationForBearing(
+          partsForPolygon(item),
+          item.anchor,
+          item.rotationDeg ?? 0,
+          item.referenceEdge,
+          item.originalBearing,
+        )
+        return { ...item, rotationDeg }
+      }),
+    )
+  }, [])
+
+  const handleDelete = useCallback((id: string) => {
+    setItems((prev) => removePolygon(prev, id))
+  }, [])
+
+  const handleRename = useCallback((id: string, name: string) => {
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, sourceName: name } : item)))
+  }, [])
+
+  const geographicParts = useCallback((item: PolygonItem) => {
+    const parts = turnedParts(partsForPolygon(item), item.fixed ? 0 : item.rotationDeg ?? 0)
+    const origin = centroid(parts.flat())
+    return parts.map((part) => projectToGeographic(part, item.anchor, origin))
+  }, [])
+
+  const handleBearing = useCallback((id: string, bearing: number) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id || item.fixed || !item.referenceEdge) return item
+        const rotationDeg = rotationForBearing(
+          partsForPolygon(item),
+          item.anchor,
+          item.rotationDeg ?? 0,
+          item.referenceEdge,
+          bearing,
+        )
+        return { ...item, rotationDeg }
+      }),
+    )
+  }, [])
+
+  const handleRotatePointer = useCallback((id: string, pointer: LngLat) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id || item.fixed || !item.referenceEdge) return item
+        const rings = geographicParts(item)
+        const ring = rings[item.referenceEdge.part]
+        const start = ring?.[item.referenceEdge.edge]
+        const end = ring?.[item.referenceEdge.edge + 1]
+        if (!start || !end) return item
+        const mid = { lng: (start.lng + end.lng) / 2, lat: (start.lat + end.lat) / 2 }
+        const rotationDeg = wrapBearing(
+          (item.rotationDeg ?? 0) + bearingDelta(initialBearing(item.anchor, mid), initialBearing(item.anchor, pointer)),
+        )
+        return { ...item, rotationDeg }
+      }),
+    )
+  }, [geographicParts])
+
+  const saveCsv = useCallback((fileName: string, text: string) => {
+    const blob = new Blob([text], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    link.click()
+    URL.revokeObjectURL(url)
+  }, [])
+
+  const handleExportPolygon = useCallback(
+    (id: string) => {
+      const item = items.find((entry) => entry.id === id)
+      if (!item) return
+      const result = exportPolygonText(geographicParts(item), item.anchor)
+      if (!result.ok) {
+        setExportNotes((prev) => ({ ...prev, [id]: result.message }))
+        return
+      }
+      setExportNotes((prev) => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+      saveCsv(downloadFileName(item.sourceName), result.text)
+    },
+    [items, geographicParts, saveCsv],
+  )
+
+  const handleExportSelected = useCallback(() => {
+    const selected = items.filter((item) => item.selected)
+    const result = exportSelectedText(
+      selected.map((item) => ({
+        id: item.id,
+        parts: geographicParts(item),
+        anchor: item.anchor,
+      })),
+    )
+    if (!result.ok) {
+      if (result.id) setExportNotes((prev) => ({ ...prev, [result.id]: result.message }))
+      return
+    }
+    setExportNotes((prev) => {
+      const next = { ...prev }
+      for (const item of selected) delete next[item.id]
+      for (const omitted of result.omitted) next[omitted.id] = omitted.message
+      return next
+    })
+    const first = selected.find((item) => !result.omitted.some((omitted) => omitted.id === item.id))
+    saveCsv(downloadFileName(first?.sourceName ?? 'polygons'), result.text)
+  }, [items, geographicParts, saveCsv])
+
+  const handleAnchorChange = useCallback((id: string, next: LngLat) => {
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, anchor: next } : item)))
+  }, [])
+
+  const handleMeasure = useCallback(() => {
+    setMeasurement((current) => current ?? beginMeasurement())
+  }, [])
+
+  const handleMapClick = useCallback((event: { lngLat: { lng: number; lat: number }; originalEvent: { target: EventTarget | null } }) => {
+    const target = event.originalEvent.target
+    if (target instanceof Element && target.closest('.maplibregl-marker')) return
+    const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
+    setMeasurement((current) => (current ? addCorner(current, corner) : current))
+  }, [])
+
+  const handleMapDoubleClick = useCallback((event: { lngLat: { lng: number; lat: number } }) => {
+    const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
+    setMeasurement((current) => (current ? applyDoubleClick(current, corner) : current))
+  }, [])
+
+  const handleMeasureDone = useCallback(() => {
+    setMeasurement((current) => (current ? finishRuler(current) : current))
+  }, [])
+
+  const handleMeasureDelete = useCallback(() => {
+    setMeasurement(null)
+  }, [])
+
+  const handleMeasureAdd = useCallback(() => {
+    setMeasurement((current) => {
+      if (!current) return current
+      const draft = measuredPolygonDraft(current)
+      if (!draft) return current
+      setItems((prev) => [
+        ...prev,
+        stampRotation({
+          id: crypto.randomUUID(),
+          sourceName: draft.sourceName,
+          raw: draft.raw,
+          unit: draft.unit,
+          hasZ: draft.hasZ,
+          selected: true,
+          anchor: draft.anchor,
+          colour: nextColour(prev.map((item) => item.colour)),
+        }),
+      ])
+      return null
+    })
+  }, [])
+
   const handleSnapshot = useCallback(async () => {
-    if (!frameRef.current) return
+    if (!frameRef.current || !canExport) return
     setExporting(true)
+    setExportError(null)
     try {
       const name = regionName
-        ? `scalefinder-${regionName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`
-        : 'scalefinder-snapshot.png'
+        ? `scalefindr-${regionName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`
+        : 'scalefindr-snapshot.png'
       await downloadFramePng(frameRef.current, name)
+    } catch {
+      setExportError('The snapshot could not be saved. Try again.')
     } finally {
       setExporting(false)
     }
-  }, [regionName])
+  }, [regionName, canExport])
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-center justify-between border-b border-white/10 px-5 py-3">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">
-            <span className="text-accent">▰</span> ScaleFinder
+    <div className="flex h-full min-h-0 flex-col">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-surface-raised pb-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:pl-[max(1.25rem,env(safe-area-inset-left))] sm:pr-[max(1.25rem,env(safe-area-inset-right))]">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2 text-lg font-semibold">
+            <Mark />
+            ScaleFindr
           </h1>
-          <p className="text-xs text-slate-400">
-            Superimpose a true-scale field polygon on a world map
+          <p className="mt-0.5 text-xs text-slate-400">
+            Superimpose a true-scale field Polygon on a world map
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void handleSnapshot()}
-          disabled={!stats || ring.length < 3 || exporting}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-teal-950 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {exporting ? 'Exporting…' : 'Export snapshot (PNG)'}
-        </button>
+        <div className="flex flex-col items-end gap-1">
+          <button
+            type="button"
+            onClick={() => void handleSnapshot()}
+            disabled={!canExport || exporting}
+            aria-busy={exporting}
+            aria-describedby={!canExport ? 'export-hint' : exportError ? 'export-error' : undefined}
+            className="pressable min-h-11 shrink-0 rounded-lg bg-accent px-4 text-sm font-semibold text-teal-950 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {exporting ? 'Exporting…' : 'Export snapshot (PNG)'}
+          </button>
+          {!canExport && (
+            <p id="export-hint" className="max-w-[14rem] text-right text-xs leading-snug text-slate-400">
+              {items.length === 0 ? 'Import a Polygon to export' : 'Switch a Polygon on to export'}
+            </p>
+          )}
+          {exportError && (
+            <p id="export-error" role="alert" className="max-w-[14rem] text-right text-xs leading-snug text-red-400">
+              {exportError}
+            </p>
+          )}
+        </div>
       </header>
 
-      <div className="grid flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[380px_1fr]">
-        <aside className="space-y-6 overflow-y-auto border-r border-white/10 bg-surface-raised p-5">
-          <div>
-            <h2 className="mb-3 text-sm font-semibold text-slate-200">1 · Import polygon</h2>
+      <div
+        ref={layoutRef}
+        className="relative grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(12rem,42dvh)] overflow-hidden lg:grid-cols-[var(--sidebar-width)_minmax(0,1fr)] lg:grid-rows-1"
+        style={{ ['--sidebar-width' as string]: `${sidebarWidth}px` }}
+      >
+        <aside className="relative flex min-h-0 flex-col gap-8 overflow-y-auto overscroll-contain bg-surface-raised px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 lg:px-6">
+          <section>
+            <h2 className="mb-3 text-sm font-semibold text-slate-100">1 · Import Polygon</h2>
             <ImportPanel
               unit={unit}
               onUnitChange={setUnit}
               onImport={handleImport}
               onLoadSample={handleLoadSample}
               error={error}
-              sourceName={loaded?.sourceName ?? null}
+              sourceName={loadedName}
             />
-          </div>
-
-          {stats && (
-            <div>
-              <h2 className="mb-3 text-sm font-semibold text-slate-200">2 · Scale</h2>
-              <div className="flex flex-col items-start gap-3">
-                <ScaleReadout stats={stats} vertexCount={verticesM.length} hasZ={loaded?.hasZ ?? false} />
-                <PolygonPreview points={verticesM} />
-              </div>
-            </div>
-          )}
-
-          <div>
-            <h2 className="mb-3 text-sm font-semibold text-slate-200">3 · Find a region</h2>
-            <RegionSearch mapTilerKey={MAPTILER_KEY} onSelect={handleSelectRegion} />
-            {stats && ring.length >= 3 && (
-              <p className="mt-3 text-xs text-slate-400">
-                Drag the marker on the map to reposition the polygon. It stays at true ground scale.
+            {importNote && (
+              <p role="status" className="mt-3 text-xs leading-relaxed text-amber-200">
+                {importNote}
               </p>
             )}
-          </div>
+          </section>
+
+          {items.length > 0 && (
+            <PolygonList
+              items={items}
+              onToggle={handleToggle}
+              onColourChange={handleColourChange}
+              onReCentre={handleReCentre}
+              onDelete={handleDelete}
+              onRename={handleRename}
+              onBearing={handleBearing}
+              onExport={handleExportPolygon}
+              onExportSelected={handleExportSelected}
+              exportNotes={exportNotes}
+            />
+          )}
+
+          <section>
+            <h2 className="mb-3 text-sm font-semibold text-slate-100">3 · Find a region</h2>
+            <RegionSearch
+              mapTilerKey={MAPTILER_KEY}
+              selectedName={regionName}
+              onSelect={handleSelectRegion}
+            />
+          </section>
 
           {!hasMapTilerKey(MAPTILER_KEY) && (
-            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+            <p className="rounded-lg bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
               Using the keyless OpenFreeMap basemap. Set <span className="font-mono">VITE_MAPTILER_KEY</span>{' '}
               to enable MapTiler basemaps and worldwide search.
             </p>
           )}
         </aside>
+        <SidebarResizeHandle
+          width={sidebarWidth}
+          containerWidth={() => layoutRef.current?.clientWidth || sidebarWidth + MAP_MIN_PX}
+          onWidth={setSidebarWidth}
+        />
 
-        <main className="relative">
-          <div ref={frameRef} className="relative h-full w-full">
-            <MapView ref={mapRef} basemap={basemap}>
-              {anchor && (
-                <PolygonOverlay ring={ring} anchor={anchor} onAnchorChange={setAnchor} />
+        <main className="relative min-h-0">
+          <div ref={frameRef} className="absolute inset-0">
+            <MapView
+              ref={mapRef}
+              basemap={basemap}
+              onMapClick={measurement?.status === 'adding' ? handleMapClick : undefined}
+              onMapDoubleClick={measurement ? handleMapDoubleClick : undefined}
+              doubleClickZoom={measurement?.status !== 'adding'}
+            >
+              {items.map((item) =>
+                item.selected ? (
+                  <PlacedPolygon
+                    key={item.id}
+                    item={item}
+                    onAnchorChange={(next) => handleAnchorChange(item.id, next)}
+                    onRotate={(pointer) => handleRotatePointer(item.id, pointer)}
+                  />
+                ) : null,
+              )}
+              {measurement && (
+                <MeasurementOverlay
+                  corners={measurement.corners}
+                  closed={measurement.status === 'polygon'}
+                />
               )}
             </MapView>
 
             {regionName && (
-              <div className="pointer-events-none absolute left-3 top-3 rounded-lg bg-black/60 px-3 py-1.5 text-sm font-medium text-white backdrop-blur">
+              <div className="pointer-events-none absolute bottom-16 left-3 z-10 max-w-[14rem] rounded-lg bg-surface/90 px-3 py-2 text-sm font-medium leading-snug text-white shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
                 {regionName}
               </div>
             )}
-            <div className="pointer-events-none absolute bottom-2 right-3 text-[11px] text-white/70">
-              ScaleFinder
+            <div className="pointer-events-none absolute bottom-16 right-3 z-10 rounded-lg bg-surface/90 px-3 py-2 text-xs font-medium tracking-tight text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
+              ScaleFindr
             </div>
+
+            {!anySelected && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+                <p className="max-w-xs rounded-xl bg-surface/90 px-4 py-3 text-center text-sm leading-relaxed text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
+                  {items.length === 0
+                    ? 'Import a Polygon to place it here at true ground scale.'
+                    : 'Switch a Polygon on to show it here.'}
+                </p>
+              </div>
+            )}
           </div>
 
-          <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2">
+          <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-h-[calc(100%-1.5rem)] w-[min(18rem,calc(100%-5.5rem))] flex-col items-start gap-2">
+            <button
+              type="button"
+              aria-pressed={measurement !== null}
+              onClick={handleMeasure}
+              className={`pressable pointer-events-auto min-h-11 rounded-lg px-3 text-sm font-medium shadow-[0_2px_8px_rgb(0_0_0/0.35)] ${
+                measurement ? 'bg-accent-strong text-teal-50' : 'bg-surface/95 text-white'
+              }`}
+            >
+              Measure
+            </button>
+            {measurement && (
+              <div className="pointer-events-auto min-h-0 w-full">
+                <MeasureMenu
+                  measurement={measurement}
+                  onDone={handleMeasureDone}
+                  onDelete={handleMeasureDelete}
+                  onAdd={handleMeasureAdd}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2">
             <label className="sr-only" htmlFor="basemap-select">
               Basemap
             </label>
@@ -197,7 +574,7 @@ export default function App() {
               id="basemap-select"
               value={basemapId}
               onChange={(e) => setBasemapId(e.target.value)}
-              className="pointer-events-auto rounded-lg border border-white/15 bg-black/60 px-2 py-1 text-xs text-white backdrop-blur"
+              className="pointer-events-auto min-h-11 max-w-[12rem] rounded-lg bg-surface/95 px-3 text-base text-white shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
             >
               {basemaps.map((b) => (
                 <option key={b.id} value={b.id}>

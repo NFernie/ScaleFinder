@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `docs/superpowers/specs/2026-09-24-polygon-rotation-design.md` —
   rotate a movable Polygon around its centre. The row shows the compass
-  bearing of the edge chosen at import. Status is Awaiting review.
+  bearing of the edge chosen at import. Status is Approved.
 - `docs/superpowers/plans/2026-09-24-gis-utm-columns-and-sidebar-resize.md` —
   implementation plan for the GIS columns and the draggable sidebar.
 - `docs/superpowers/specs/2026-09-24-gis-utm-columns-and-sidebar-resize-design.md` —
@@ -56,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A movable Polygon can be rotated around its centre by dragging a bar on
+  the reference edge or by typing that edge’s compass bearing. Re-centre
+  restores the bearing from when the Polygon was added. A fixed Polygon
+  does not rotate.
 - Each Polygon can be renamed. Export downloads a UTM CSV for where it sits
   on the globe, with Z set to 0. Export selected writes the switched-on
   Polygons that share the first selected zone into one file. Importing that

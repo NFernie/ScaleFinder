@@ -45,7 +45,10 @@ a river system such as the Ord or the Amazon.
   the overlay is true-scale at any latitude.
 - MapLibre map with search/navigation and a MapTiler basemap (keyless
   OpenFreeMap fallback in development).
-- Draggable, true-scale polygon overlay.
+- Draggable, true-scale polygon overlay. A movable Polygon can also be rotated
+  around its centre without stretching. The bearing shown is the compass
+  direction of the edge chosen when it was added. Re-centre restores that
+  bearing. A fixed Polygon cannot rotate.
 - Several Polygons in one session, each with its own centre, colour, and the
   unit it was imported with. The list lasts for the browser session only.
 - A map ruler: a chain of clicks shows each ground segment and the total in a

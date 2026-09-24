@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { commitPolygonName } from '../core/polygonExport'
-import { displayStats, PolygonItem, verticesForPolygon } from '../core/polygonList'
+import { displayStats, partsForPolygon, PolygonItem, verticesForPolygon } from '../core/polygonList'
+import { commitBearing, measureEdgeBearing, turnedParts } from '../core/rotation'
 import PolygonPreview from './PolygonPreview'
 import ScaleReadout from './ScaleReadout'
 
@@ -11,6 +12,7 @@ interface Props {
   onReCentre: () => void
   onDelete: (id: string) => void
   onRename: (id: string, name: string) => void
+  onBearing: (id: string, bearing: number) => void
   onExport: (id: string) => void
   onExportSelected: () => void
   exportNotes: Record<string, string>
@@ -44,6 +46,7 @@ export default function PolygonList({
   onReCentre,
   onDelete,
   onRename,
+  onBearing,
   onExport,
   onExportSelected,
   exportNotes,
@@ -52,7 +55,10 @@ export default function PolygonList({
   const [figuresOpen, setFiguresOpen] = useState<Record<string, boolean>>({})
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
+  const [bearingId, setBearingId] = useState<string | null>(null)
+  const [draftBearing, setDraftBearing] = useState('')
   const cancelEdit = useRef(false)
+  const cancelBearing = useRef(false)
   const selectedCount = items.filter((item) => item.selected).length
 
   return (
@@ -80,13 +86,30 @@ export default function PolygonList({
       </div>
       {selectedCount >= 1 && (
         <p className="mb-3 text-sm leading-relaxed text-slate-300">
-          Drag a marker on the map to reposition that Polygon. It stays at true ground scale.
+          Drag the round marker to reposition a Polygon. Drag the bar on its edge to rotate it. It stays at true ground scale.
         </p>
       )}
       <ul className="flex flex-col gap-8">
         {items.map((item) => {
           const verticesM = verticesForPolygon(item)
+          const previewPoints = item.fixed
+            ? verticesM
+            : turnedParts(partsForPolygon(item), item.rotationDeg ?? 0).flat()
           const stats = displayStats(item)
+          const bearing =
+            !item.fixed && item.referenceEdge
+              ? measureEdgeBearing(
+                  partsForPolygon(item),
+                  item.anchor,
+                  item.rotationDeg ?? 0,
+                  item.referenceEdge,
+                )
+              : null
+          const saveBearing = () => {
+            const next = commitBearing(draftBearing)
+            if (next !== null) onBearing(item.id, next)
+            setBearingId(null)
+          }
           const saveName = () => {
             onRename(item.id, commitPolygonName(draftName, item.sourceName))
             setEditingId(null)
@@ -176,6 +199,43 @@ export default function PolygonList({
                   Delete
                 </button>
               </div>
+              {bearing !== null &&
+                (bearingId === item.id ? (
+                  <input
+                    aria-label={`Bearing for ${item.sourceName}`}
+                    value={draftBearing}
+                    autoFocus
+                    inputMode="decimal"
+                    onChange={(event) => setDraftBearing(event.target.value)}
+                    onBlur={() => {
+                      if (cancelBearing.current) {
+                        cancelBearing.current = false
+                        return
+                      }
+                      saveBearing()
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') event.currentTarget.blur()
+                      if (event.key === 'Escape') {
+                        cancelBearing.current = true
+                        setBearingId(null)
+                      }
+                    }}
+                    className="min-h-11 w-28 rounded-lg border border-white/15 bg-surface px-3 text-sm text-white"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={`Bearing for ${item.sourceName}`}
+                    onClick={() => {
+                      setBearingId(item.id)
+                      setDraftBearing(bearing.toFixed(1))
+                    }}
+                    className="pressable min-h-11 w-28 rounded-lg border border-white/15 px-3 text-left text-sm text-slate-200 hover:bg-white/5"
+                  >
+                    {bearing.toFixed(1)}°
+                  </button>
+                ))}
               {exportNotes[item.id] && (
                 <p role="status" className="text-xs leading-relaxed text-amber-200">
                   {exportNotes[item.id]}
@@ -210,7 +270,7 @@ export default function PolygonList({
                   )}
                 </div>
               )}
-              <PolygonPreview points={verticesM} colour={item.colour} size={96} className="w-24" />
+              <PolygonPreview points={previewPoints} colour={item.colour} size={96} className="w-24" />
             </li>
           )
         })}

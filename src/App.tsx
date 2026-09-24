@@ -30,6 +30,14 @@ import {
   verticesForPolygon,
 } from './core/polygonList'
 import { projectToGeographic } from './core/projection'
+import {
+  bearingDelta,
+  initialBearing,
+  rotationForBearing,
+  rotationState,
+  turnedParts,
+  wrapBearing,
+} from './core/rotation'
 import { LengthUnit, LngLat } from './core/types'
 import { getBasemaps, hasMapTilerKey } from './map/basemap'
 import MapView from './map/MapView'
@@ -66,6 +74,12 @@ function Mark() {
       />
     </svg>
   )
+}
+
+function stampRotation(item: PolygonItem): PolygonItem {
+  if (item.fixed) return item
+  const state = rotationState(partsForPolygon(item), item.anchor)
+  return state ? { ...item, ...state } : item
 }
 
 export default function App() {
@@ -116,7 +130,7 @@ export default function App() {
               mapCentre: currentCenter(),
             })
             next = next.map((item, index) =>
-              index === next.length - 1 ? { ...item, parts: utm.parts } : item,
+              index === next.length - 1 ? stampRotation({ ...item, parts: utm.parts }) : item,
             )
             if (utm.zone) {
               const anchor = fixedAnchor(utm.parts, utm.zone)
@@ -150,7 +164,7 @@ export default function App() {
             unit,
             hasZ: result.hasZ,
             mapCentre: currentCenter(),
-          }),
+          }).map((item, index, all) => (index === all.length - 1 ? stampRotation(item) : item)),
         )
         setImportNote(null)
         setError(null)
@@ -177,7 +191,7 @@ export default function App() {
             unit: sample.unit,
             hasZ: result.hasZ,
             mapCentre: currentCenter(),
-          }),
+          }).map((item, index, all) => (index === all.length - 1 ? stampRotation(item) : item)),
         )
         setError(null)
         setLoadedName(sample.fileName)
@@ -205,7 +219,19 @@ export default function App() {
   }, [])
 
   const handleReCentre = useCallback(() => {
-    setItems((prev) => reCentreSelected(prev))
+    setItems((prev) =>
+      reCentreSelected(prev).map((item) => {
+        if (!item.selected || item.fixed || !item.referenceEdge || item.originalBearing == null) return item
+        const rotationDeg = rotationForBearing(
+          partsForPolygon(item),
+          item.anchor,
+          item.rotationDeg ?? 0,
+          item.referenceEdge,
+          item.originalBearing,
+        )
+        return { ...item, rotationDeg }
+      }),
+    )
   }, [])
 
   const handleDelete = useCallback((id: string) => {
@@ -217,10 +243,44 @@ export default function App() {
   }, [])
 
   const geographicParts = useCallback((item: PolygonItem) => {
-    const parts = partsForPolygon(item)
+    const parts = turnedParts(partsForPolygon(item), item.fixed ? 0 : item.rotationDeg ?? 0)
     const origin = centroid(parts.flat())
     return parts.map((part) => projectToGeographic(part, item.anchor, origin))
   }, [])
+
+  const handleBearing = useCallback((id: string, bearing: number) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id || item.fixed || !item.referenceEdge) return item
+        const rotationDeg = rotationForBearing(
+          partsForPolygon(item),
+          item.anchor,
+          item.rotationDeg ?? 0,
+          item.referenceEdge,
+          bearing,
+        )
+        return { ...item, rotationDeg }
+      }),
+    )
+  }, [])
+
+  const handleRotatePointer = useCallback((id: string, pointer: LngLat) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id || item.fixed || !item.referenceEdge) return item
+        const rings = geographicParts(item)
+        const ring = rings[item.referenceEdge.part]
+        const start = ring?.[item.referenceEdge.edge]
+        const end = ring?.[item.referenceEdge.edge + 1]
+        if (!start || !end) return item
+        const mid = { lng: (start.lng + end.lng) / 2, lat: (start.lat + end.lat) / 2 }
+        const rotationDeg = wrapBearing(
+          (item.rotationDeg ?? 0) + bearingDelta(initialBearing(item.anchor, mid), initialBearing(item.anchor, pointer)),
+        )
+        return { ...item, rotationDeg }
+      }),
+    )
+  }, [geographicParts])
 
   const saveCsv = useCallback((fileName: string, text: string) => {
     const blob = new Blob([text], { type: 'text/csv;charset=utf-8' })
@@ -309,7 +369,7 @@ export default function App() {
       if (!draft) return current
       setItems((prev) => [
         ...prev,
-        {
+        stampRotation({
           id: crypto.randomUUID(),
           sourceName: draft.sourceName,
           raw: draft.raw,
@@ -318,7 +378,7 @@ export default function App() {
           selected: true,
           anchor: draft.anchor,
           colour: nextColour(prev.map((item) => item.colour)),
-        },
+        }),
       ])
       return null
     })
@@ -407,6 +467,7 @@ export default function App() {
               onReCentre={handleReCentre}
               onDelete={handleDelete}
               onRename={handleRename}
+              onBearing={handleBearing}
               onExport={handleExportPolygon}
               onExportSelected={handleExportSelected}
               exportNotes={exportNotes}
@@ -446,19 +507,27 @@ export default function App() {
             >
               {items.map((item) => {
                 if (!item.selected) return null
-                const parts = partsForPolygon(item)
-                const origin = centroid(parts.flat())
-                const rings = parts.map((part) => projectToGeographic(part, item.anchor, origin))
+                const rings = geographicParts(item)
+                const edge = item.referenceEdge
+                const ring = edge ? rings[edge.part] : undefined
+                const start = ring?.[edge?.edge ?? -1]
+                const end = ring && edge ? ring[edge.edge + 1] : undefined
+                const rotateAt =
+                  !item.fixed && start && end
+                    ? { lng: (start.lng + end.lng) / 2, lat: (start.lat + end.lat) / 2 }
+                    : null
                 return (
                   <PolygonOverlay
                     key={item.id}
                     id={item.id}
                     rings={rings}
                     fixed={item.fixed}
+                    rotateAt={rotateAt}
                     anchor={item.anchor}
                     colour={item.colour}
                     sourceName={item.sourceName}
                     onAnchorChange={(next) => handleAnchorChange(item.id, next)}
+                    onRotate={(pointer) => handleRotatePointer(item.id, pointer)}
                   />
                 )
               })}

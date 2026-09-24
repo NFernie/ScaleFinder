@@ -108,7 +108,7 @@ export default function PolygonOverlay({
           longitude={anchor.lng}
           latitude={anchor.lat}
           draggable
-          onDragEnd={(e: MarkerDragEvent) =>
+          onDrag={(e: MarkerDragEvent) =>
             onAnchorChange({ lng: e.lngLat.lng, lat: e.lngLat.lat })
           }
         >

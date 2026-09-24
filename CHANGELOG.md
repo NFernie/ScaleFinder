@@ -45,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The Polygon on/off control keeps its white knob inside the oval. A Polygon
+  follows the pointer while it is dragged, and a turn eases into place over
+  220ms.
 - Map labels for the selected region and ScaleFindr sit along the bottom of
   the map, clear of the zoom controls and the basemap menu. Headings use
   tighter letter-spacing than body text. Scale figures and bearings use

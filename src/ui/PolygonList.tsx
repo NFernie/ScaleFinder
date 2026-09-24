@@ -125,17 +125,17 @@ export default function PolygonList({
                   aria-checked={item.selected}
                   aria-label={item.sourceName}
                   onClick={() => onToggle(item.id)}
-                  className="pressable flex h-11 w-11 shrink-0 items-center justify-center rounded-lg"
+                  className="pressable relative h-11 w-14 shrink-0"
                 >
                   <span
                     aria-hidden="true"
-                    className={`relative h-6 w-11 rounded-full transition-colors duration-150 ${
+                    className={`absolute left-1/2 top-1/2 h-6 w-11 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full ${
                       item.selected ? 'bg-accent-strong' : 'bg-white/15'
                     }`}
                   >
                     <span
-                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-[0_1px_2px_rgb(0_0_0/0.35)] transition-transform duration-150 ${
-                        item.selected ? 'translate-x-5' : 'translate-x-0.5'
+                      className={`switch-knob absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-[0_1px_2px_rgb(0_0_0/0.35)] ${
+                        item.selected ? 'translate-x-4' : 'translate-x-0'
                       }`}
                     />
                   </span>

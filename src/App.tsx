@@ -42,7 +42,7 @@ import { LengthUnit, LngLat } from './core/types'
 import { getBasemaps, hasMapTilerKey } from './map/basemap'
 import MapView from './map/MapView'
 import MeasurementOverlay from './map/MeasurementOverlay'
-import PolygonOverlay from './map/PolygonOverlay'
+import PlacedPolygon from './map/PlacedPolygon'
 import { Region } from './map/regions'
 import { downloadFramePng } from './map/snapshot'
 import ImportPanel from './ui/ImportPanel'
@@ -505,32 +505,16 @@ export default function App() {
               onMapDoubleClick={measurement ? handleMapDoubleClick : undefined}
               doubleClickZoom={measurement?.status !== 'adding'}
             >
-              {items.map((item) => {
-                if (!item.selected) return null
-                const rings = geographicParts(item)
-                const edge = item.referenceEdge
-                const ring = edge ? rings[edge.part] : undefined
-                const start = ring?.[edge?.edge ?? -1]
-                const end = ring && edge ? ring[edge.edge + 1] : undefined
-                const rotateAt =
-                  !item.fixed && start && end
-                    ? { lng: (start.lng + end.lng) / 2, lat: (start.lat + end.lat) / 2 }
-                    : null
-                return (
-                  <PolygonOverlay
+              {items.map((item) =>
+                item.selected ? (
+                  <PlacedPolygon
                     key={item.id}
-                    id={item.id}
-                    rings={rings}
-                    fixed={item.fixed}
-                    rotateAt={rotateAt}
-                    anchor={item.anchor}
-                    colour={item.colour}
-                    sourceName={item.sourceName}
+                    item={item}
                     onAnchorChange={(next) => handleAnchorChange(item.id, next)}
                     onRotate={(pointer) => handleRotatePointer(item.id, pointer)}
                   />
-                )
-              })}
+                ) : null,
+              )}
               {measurement && (
                 <MeasurementOverlay
                   corners={measurement.corners}

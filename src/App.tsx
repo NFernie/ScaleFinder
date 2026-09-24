@@ -378,7 +378,7 @@ export default function App() {
 
       <div
         ref={layoutRef}
-        className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(12rem,42dvh)] overflow-hidden lg:grid-cols-[var(--sidebar-width)_minmax(0,1fr)] lg:grid-rows-1"
+        className="relative grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(12rem,42dvh)] overflow-hidden lg:grid-cols-[var(--sidebar-width)_minmax(0,1fr)] lg:grid-rows-1"
         style={{ ['--sidebar-width' as string]: `${sidebarWidth}px` }}
       >
         <aside className="relative flex min-h-0 flex-col gap-8 overflow-y-auto overscroll-contain border-b border-white/10 bg-surface-raised px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 lg:border-b-0 lg:border-r">
@@ -428,12 +428,12 @@ export default function App() {
               to enable MapTiler basemaps and worldwide search.
             </p>
           )}
-          <SidebarResizeHandle
-            width={sidebarWidth}
-            containerWidth={() => layoutRef.current?.clientWidth || sidebarWidth + MAP_MIN_PX}
-            onWidth={setSidebarWidth}
-          />
         </aside>
+        <SidebarResizeHandle
+          width={sidebarWidth}
+          containerWidth={() => layoutRef.current?.clientWidth || sidebarWidth + MAP_MIN_PX}
+          onWidth={setSidebarWidth}
+        />
 
         <main className="relative min-h-0">
           <div ref={frameRef} className="absolute inset-0">

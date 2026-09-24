@@ -21,8 +21,11 @@ export default function SidebarResizeHandle({ width, containerWidth, onWidth }: 
       aria-valuenow={Math.round(width)}
       aria-valuemax={max}
       tabIndex={0}
-      className="absolute right-0 top-0 z-20 hidden h-full w-11 translate-x-1/2 cursor-col-resize items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent lg:flex"
+      style={{ left: width }}
+      className="absolute top-0 z-50 hidden h-full w-11 -translate-x-1/2 cursor-col-resize touch-none items-center justify-center hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent lg:flex"
       onPointerDown={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
         event.currentTarget.setPointerCapture(event.pointerId)
         drag.current = { startX: event.clientX, startWidth: width }
       }}
@@ -47,7 +50,7 @@ export default function SidebarResizeHandle({ width, containerWidth, onWidth }: 
         }
       }}
     >
-      <span aria-hidden="true" className="h-10 w-1 rounded-full bg-white/25" />
+      <span aria-hidden="true" className="h-12 w-1.5 rounded-full border border-white/30 bg-slate-300 shadow-[0_2px_6px_rgb(0_0_0/0.45)]" />
     </div>
   )
 }

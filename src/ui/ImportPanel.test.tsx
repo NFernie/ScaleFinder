@@ -17,7 +17,7 @@ describe('ImportPanel', () => {
     expect(screen.getByRole('radio', { name: 'm' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('radio', { name: 'ft' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /delta lobe/i })).toBeInTheDocument()
-    expect(screen.getByText(/two-column file of X and Y/i)).toBeInTheDocument()
+    expect(screen.getByText(/Poly, Vert, X, Y, Z/i)).toBeInTheDocument()
     expect(screen.getByText(/Polygon here/)).toBeInTheDocument()
     expect(screen.getByLabelText('Choose Polygon file')).toBeInTheDocument()
   })

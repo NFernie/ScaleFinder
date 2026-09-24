@@ -104,6 +104,26 @@ describe('utm import', () => {
     expect(parsed?.zone).toEqual({ zone: 36, hemisphere: 'N' })
   })
 
+  it('reads a tab-separated southern UTM text file', () => {
+    const text = [
+      '# UTM 54S\t\t\t\t',
+      'Poly\tVert\tX\tY\tZ',
+      '1\t1\t419276\t6874687\t0',
+      '1\t2\t420233\t6874263\t0',
+      '1\t3\t421355\t6873501\t0',
+      '1\t19\t426041\t6877963\t0',
+    ].join('\n')
+    const parsed = parseUtmTable(text)
+    expect(parsed?.zone).toEqual({ zone: 54, hemisphere: 'S' })
+    expect(parsed?.parts).toHaveLength(1)
+    expect(parsed?.parts[0]).toHaveLength(4)
+    expect(parsed?.parts[0][0]).toEqual({ x: 419276, y: 6874687, z: 0 })
+    if (!parsed?.zone) throw new Error('expected a zone')
+    const centre = fixedAnchor(parsed.parts, parsed.zone)
+    expect(centre.lat).toBeLessThan(0)
+    expect(centre.lng).toBeGreaterThan(100)
+  })
+
   it('returns null for a two-column file and a null zone when the comment is missing', () => {
     expect(parseUtmTable('0,0\n1000,0\n1000,1000\n0,1000\n')).toBeNull()
     const parsed = parseUtmTable(

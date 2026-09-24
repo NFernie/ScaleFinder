@@ -118,8 +118,8 @@ export default function ImportPanel({
           <span className="font-mono">.csv</span> Polygon here
         </p>
         <p id={hintId} className="mt-1 text-xs leading-relaxed text-slate-400">
-          Use a two-column file of X and Y values exported from your GIS software. An optional Z
-          column is kept and not used for the planform.
+          Use a two-column X and Y file, or a UTM table of Poly, Vert, X, Y, Z. Commas or tabs
+          both work. A UTM file starts with a line like # UTM 54S.
         </p>
         <label htmlFor={inputId} className="sr-only">
           Choose Polygon file

@@ -18,6 +18,7 @@ This amends the column-header rules in the parent spec. Rename, the fixed twin, 
 | --- | --- |
 | Zone line | The first zone line is `# UTM 36N` or `# UTM 36S`. The hash is required |
 | Header we write | `Poly,Vert,X,Y,Z` for one Polygon and for Export selected |
+| Separators | Import accepts commas, tabs, or semicolons between columns |
 | One part | Every row has Poly `1`. Vert starts at 1 |
 | Several parts of one Polygon | Each part is the next Poly number. Vert restarts at 1 for that part |
 | Export selected | Each switched-on Polygon in the zone is the next Poly number, in list order. Vert runs through that Polygon’s vertices in part order and does not restart between parts |

@@ -146,5 +146,8 @@ function vertexRow(index: number, point: LngLat, zone: UtmZone): string {
 }
 
 function splitRow(row: string): string[] {
-  return row.split(',').map((token) => token.trim()).filter(Boolean)
+  return row
+    .split(/[,\t;]/)
+    .map((token) => token.trim())
+    .filter(Boolean)
 }

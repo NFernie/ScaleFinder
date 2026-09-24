@@ -40,6 +40,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/superpowers/plans/2026-09-23-scalefindr-copy-and-figure-notes.md` —
   implementation plan for that copy and figure-note spec.
 
+### Fixed
+
+- A tab-separated `.txt` UTM file, such as `# UTM 54S` then `Poly`, `Vert`,
+  `X`, `Y`, `Z`, imports as a local Polygon and a fixed twin.
+
 ### Changed
 
 - UTM import and export use `Poly,Vert,X,Y,Z`. A column named `Vert` or

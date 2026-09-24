@@ -2,7 +2,7 @@
 
 - **Status:** Awaiting review
 - **Date:** 2026-09-24
-- **Branch:** `cursor/gis-columns-sidebar-resize-2528`
+- **Branch:** `cursor/impeccable-ui-polish-2528`
 - **Purpose doc:** [`ScaleFinderPurpose.md`](../../../ScaleFinderPurpose.md)
 - **Parent spec:** [`2026-09-24-polygon-rename-utm-export-design.md`](2026-09-24-polygon-rename-utm-export-design.md)
 

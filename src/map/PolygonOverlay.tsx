@@ -88,7 +88,7 @@ export default function PolygonOverlay({
           longitude={rotateAt.lng}
           latitude={rotateAt.lat}
           draggable
-          onDrag={(e: MarkerDragEvent) => onRotate({ lng: e.lngLat.lng, lat: e.lngLat.lat })}
+          onDragEnd={(e: MarkerDragEvent) => onRotate({ lng: e.lngLat.lng, lat: e.lngLat.lat })}
         >
           <div
             title={`Rotate ${sourceName}`}

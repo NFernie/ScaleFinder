@@ -12,13 +12,16 @@ import {
   ZONE_MESSAGE,
 } from './core/polygonExport'
 import {
-  addCorner,
-  applyDoubleClick,
-  beginMeasurement,
-  finishRuler,
-  measuredPolygonDraft,
-  Measurement,
-} from './core/measurement'
+  acceptClick,
+  acceptDoubleClick,
+  closedSession,
+  chooseTool,
+  doneDraft,
+  overlayOf,
+  takeDraft,
+  toggleMenu,
+  ToolboxSession,
+} from './core/toolboxSession'
 import {
   appendPolygon,
   nextColour,
@@ -40,6 +43,7 @@ import { downloadFramePng } from './map/snapshot'
 import ImportPanel from './ui/ImportPanel'
 import MeasureMenu from './ui/MeasureMenu'
 import PolygonList from './ui/PolygonList'
+import Toolbox from './ui/Toolbox'
 import RegionSearch from './ui/RegionSearch'
 import { SAMPLES } from './data/samples'
 
@@ -76,7 +80,7 @@ export default function App() {
   const [regionName, setRegionName] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
-  const [measurement, setMeasurement] = useState<Measurement | null>(null)
+  const [session, setSession] = useState<ToolboxSession>(closedSession())
 
   const basemaps = useMemo(() => getBasemaps(MAPTILER_KEY), [])
   const [basemapId, setBasemapId] = useState(basemaps[0].id)
@@ -204,7 +208,7 @@ export default function App() {
     setItems((prev) => reCentreSelected(prev))
   }, [])
 
-  const handleDelete = useCallback((id: string) => {
+  const handleRemovePolygon = useCallback((id: string) => {
     setItems((prev) => removePolygon(prev, id))
   }, [])
 
@@ -274,35 +278,38 @@ export default function App() {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, anchor: next } : item)))
   }, [])
 
-  const handleMeasure = useCallback(() => {
-    setMeasurement((current) => current ?? beginMeasurement())
-  }, [])
+  const mapAcceptsPoints =
+    session.polygon?.status === 'adding' ||
+    session.ruler?.status === 'adding' ||
+    session.circle?.status === 'centre' ||
+    session.square?.status === 'origin' ||
+    session.lasso?.status === 'aim'
 
   const handleMapClick = useCallback((event: { lngLat: { lng: number; lat: number }; originalEvent: { target: EventTarget | null } }) => {
     const target = event.originalEvent.target
     if (target instanceof Element && target.closest('.maplibregl-marker')) return
     const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
-    setMeasurement((current) => (current ? addCorner(current, corner) : current))
+    setSession((current) => acceptClick(current, corner).session)
   }, [])
 
   const handleMapDoubleClick = useCallback((event: { lngLat: { lng: number; lat: number } }) => {
     const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
-    setMeasurement((current) => (current ? applyDoubleClick(current, corner) : current))
+    setSession((current) => acceptDoubleClick(current, corner))
   }, [])
 
-  const handleMeasureDone = useCallback(() => {
-    setMeasurement((current) => (current ? finishRuler(current) : current))
+  const handleDone = useCallback(() => {
+    setSession((current) => doneDraft(current))
   }, [])
 
-  const handleMeasureDelete = useCallback(() => {
-    setMeasurement(null)
+  const handleDelete = useCallback(() => {
+    setSession(closedSession())
   }, [])
 
-  const handleMeasureAdd = useCallback(() => {
-    setMeasurement((current) => {
-      if (!current) return current
-      const draft = measuredPolygonDraft(current)
-      if (!draft) return current
+  const handleAdd = useCallback(() => {
+    setSession((current) => {
+      const taken = takeDraft(current)
+      if (!taken.draft) return current
+      const draft = taken.draft
       setItems((prev) => [
         ...prev,
         {
@@ -316,9 +323,11 @@ export default function App() {
           colour: nextColour(prev.map((item) => item.colour)),
         },
       ])
-      return null
+      return taken.session
     })
   }, [])
+
+  const measurementOverlay = overlayOf(session)
 
   const handleSnapshot = useCallback(async () => {
     if (!frameRef.current || !canExport) return
@@ -397,7 +406,7 @@ export default function App() {
               onToggle={handleToggle}
               onColourChange={handleColourChange}
               onReCentre={handleReCentre}
-              onDelete={handleDelete}
+              onDelete={handleRemovePolygon}
               onRename={handleRename}
               onExport={handleExportPolygon}
               onExportSelected={handleExportSelected}
@@ -427,9 +436,9 @@ export default function App() {
             <MapView
               ref={mapRef}
               basemap={basemap}
-              onMapClick={measurement?.status === 'adding' ? handleMapClick : undefined}
-              onMapDoubleClick={measurement ? handleMapDoubleClick : undefined}
-              doubleClickZoom={measurement?.status !== 'adding'}
+              onMapClick={mapAcceptsPoints ? handleMapClick : undefined}
+              onMapDoubleClick={session.polygon || session.ruler ? handleMapDoubleClick : undefined}
+              doubleClickZoom={!mapAcceptsPoints}
             >
               {items.map((item) => {
                 if (!item.selected) return null
@@ -449,10 +458,10 @@ export default function App() {
                   />
                 )
               })}
-              {measurement && (
+              {(measurementOverlay.corners.length > 0 || session.polygon || session.ruler) && (
                 <MeasurementOverlay
-                  corners={measurement.corners}
-                  closed={measurement.status === 'polygon'}
+                  corners={measurementOverlay.corners}
+                  closed={measurementOverlay.closed}
                 />
               )}
             </MapView>
@@ -482,25 +491,18 @@ export default function App() {
           </div>
 
           <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-h-[calc(100%-1.5rem)] w-[min(18rem,calc(100%-5.5rem))] flex-col items-start gap-2">
-            <button
-              type="button"
-              aria-pressed={measurement !== null}
-              onClick={handleMeasure}
-              className={`pressable pointer-events-auto min-h-11 rounded-lg border px-3 text-sm font-medium shadow-[0_2px_8px_rgb(0_0_0/0.35)] ${
-                measurement
-                  ? 'border-accent bg-accent-strong text-teal-50'
-                  : 'border-white/15 bg-surface/95 text-white'
-              }`}
-            >
-              Measure
-            </button>
-            {measurement && (
+            <Toolbox
+              session={session}
+              onToggle={() => setSession((current) => toggleMenu(current))}
+              onChoose={(tool) => setSession((current) => chooseTool(current, tool))}
+            />
+            {session.polygon && (
               <div className="pointer-events-auto min-h-0 w-full">
                 <MeasureMenu
-                  measurement={measurement}
-                  onDone={handleMeasureDone}
-                  onDelete={handleMeasureDelete}
-                  onAdd={handleMeasureAdd}
+                  measurement={session.polygon}
+                  onDone={handleDone}
+                  onDelete={handleDelete}
+                  onAdd={handleAdd}
                 />
               </div>
             )}

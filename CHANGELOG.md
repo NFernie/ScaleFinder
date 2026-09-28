@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The map Measure button is now Toolbox. Polygon keeps the previous measure behaviour.
+
 ### Fixed
 
 - Lasso no longer rejects a same-colour fill that reaches the raster edge (`src/core/lasso.ts`).

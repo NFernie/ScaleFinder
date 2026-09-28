@@ -13,6 +13,7 @@ interface Props {
   onLoad?: () => void
   onMapClick?: (event: MapLayerMouseEvent) => void
   onMapDoubleClick?: (event: MapLayerMouseEvent) => void
+  onMapMouseMove?: (event: MapLayerMouseEvent) => void
   doubleClickZoom?: boolean
 }
 
@@ -27,7 +28,7 @@ const INITIAL_VIEW = {
  * can be read back for the PNG snapshot.
  */
 const MapView = forwardRef<MapRef, Props>(function MapView(
-  { basemap, children, onLoad, onMapClick, onMapDoubleClick, doubleClickZoom = true },
+  { basemap, children, onLoad, onMapClick, onMapDoubleClick, onMapMouseMove, doubleClickZoom = true },
   ref,
 ) {
   return (
@@ -39,6 +40,7 @@ const MapView = forwardRef<MapRef, Props>(function MapView(
       onLoad={onLoad}
       onClick={onMapClick}
       onDblClick={onMapDoubleClick}
+      onMouseMove={onMapMouseMove}
       doubleClickZoom={doubleClickZoom}
       style={{ width: '100%', height: '100%' }}
     >

@@ -21,9 +21,9 @@ The Toolbox is an agreed expansion. Task 2 updates `PRODUCT.md` and `ScaleFinder
 | Polygon | Keeps today's Measure behaviour, including Done, double-click close, area, and Add to list. The list name stays `Measured polygon` |
 | Ruler | Distances only. Many clicks are allowed. It never closes and never shows area. Done or double-click finishes the open chain |
 | Ruler minimum | Fewer than two points stays adding and shows `Add at least two points.` |
-| Circle | Two clicks: centre, then rim. 64 vertices. A radius under one metre shows `The radius is too small.` |
+| Circle | Two clicks: centre, then rim. 64 vertices. A radius under one metre shows `The radius is too small.` List name is `Circle` |
 | Square / Rectangle | Two clicks with a Rectangle or Square toggle, default Rectangle, sides along local east and north. A square uses the longer side. List names are `Rectangle` and `Square`. A box that is too small shows `The box is too small.` |
-| Lasso | Flood-fills 4-connected canvas pixels whose red, green, or blue channel differs from the clicked pixel by at most `maxChannelDelta` (default 32, range 0–255), inside a radius (default 48 CSS pixels, range 8–128). List name is `Lasso`. No server |
+| Lasso | Flood-fills 4-connected canvas pixels that are inside the fill only when the maximum of the absolute red, green, and blue differences from the clicked pixel is at most `maxChannelDelta` (default 32, range 0–255)—every channel must be within the limit—inside a radius (default 48 CSS pixels, range 8–128). List name is `Lasso`. No server |
 | Lasso failure | Fewer than 8 filled pixels, or a simplified ring under 3 points, shows `No feature found at that contrast.` |
 | Lasso canvas | If the canvas cannot be read, the menu says `This basemap does not allow colour sampling.` |
 | One drawing | One drawing at a time. Choosing another tool does not replace it and shows `Delete the current drawing before choosing another tool.` |
@@ -50,7 +50,7 @@ The floating readout lists each segment and a total length only. **Add to list**
 
 ### Circle
 
-Circle uses two clicks: centre, then a point on the rim. A preview follows the pointer after the centre is set. The finished shape is a 64-vertex geographic ring. The readout shows radius and area. **Add to list** and **Delete** appear when the circle is complete.
+Circle uses two clicks: centre, then a point on the rim. A preview follows the pointer after the centre is set. The finished shape is a 64-vertex geographic ring. The readout shows radius and area. **Add to list** and **Delete** appear when the circle is complete. **Add to list** names the row `Circle`.
 
 If the geodesic radius is under one metre, the circle is not committed and the readout shows `The radius is too small.`
 
@@ -64,9 +64,9 @@ When the box is too small to be valid, the readout shows `The box is too small.`
 
 ### Lasso
 
-Lasso samples the MapLibre canvas at the click. It flood-fills 4-connected pixels where any of red, green, or blue differs from the clicked pixel by at most `maxChannelDelta` (default 32, adjustable 0–255), constrained to a circle of radius in CSS pixels (default 48, range 8–128). Pixels are not sent off the device.
+Lasso samples the MapLibre canvas at the click. It flood-fills 4-connected pixels that are inside the fill only when the maximum of the absolute red, green, and blue differences from the clicked pixel is at most `maxChannelDelta` (default 32, adjustable 0–255)—every channel must be within the limit—constrained to a circle of radius in CSS pixels (default 48, range 8–128). Pixels are not sent off the device.
 
-The fill boundary is simplified to an ordered geographic ring. Controls on the readout adjust radius and contrast while a result is shown or before retry.
+The fill boundary is simplified to an ordered geographic ring. Radius and contrast controls on the readout change only while lasso status is **aim**. A **ready** ring is unchanged by those controls; changing the numbers does not re-run the fill.
 
 If fewer than 8 pixels are filled, or simplification yields fewer than 3 ring points, the readout shows `No feature found at that contrast.`
 
@@ -78,7 +78,7 @@ The draft line uses `#ffffff` at 2px with a 4px `#0f172a` casing. Closed shapes 
 
 The Toolbox button, tool popup, and tool readout sit outside the snapshot frame. The white line and closed fill are map layers inside the frame.
 
-Closed outlines become sidebar Polygons only through **Add to list**, same as today's measured polygon. **Add to list** assigns the next unused swatch and stores geometry in metres. The draft UI then clears.
+Closed outlines become sidebar Polygons only through **Add to list**, same as today's measured polygon. **Add to list** assigns the next unused swatch, stores the outline in metres at the drawn centre, and does not use the import rule that aligns a new Polygon to the first selected centre. List names are `Measured polygon`, `Circle`, `Rectangle`, `Square`, and `Lasso` as above. The draft UI then clears.
 
 ## 4. Components and data flow
 
@@ -124,7 +124,7 @@ Polygon validation messages remain those of the existing Measure menu (for examp
 - Rectangle and square east–north geometry; square uses longer side; too-small box rejected.
 - Lasso flood fill connectivity and channel delta; outline simplification; failure when under 8 pixels or under 3 ring points.
 - `ToolboxSession`: one draft at a time; tool switch blocked with correct message; delete clears draft.
-- `ringDraft` and Add to list produce Polygons consistent with existing import placement rules where applicable.
+- `ringDraft` and **Add to list** store the outline in metres at the drawn centre; they do not use the import rule that aligns a new Polygon to the first selected centre.
 
 Unit tests do not mount the real map.
 

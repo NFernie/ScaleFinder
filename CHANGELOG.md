@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `docs/superpowers/specs/2026-09-28-map-toolbox-design.md` — align Toolbox spec with locked lasso delta, aim-only controls, Circle list name, and Add to list centre placement.
 - `docs/superpowers/specs/2026-09-28-map-toolbox-design.md` — map Toolbox that replaces Measure with Polygon, Ruler, Lasso, Circle, and Square. Status is Approved.
 - `feature/toolbox.md` is the plan for a map Toolbox that replaces Measure
   with Polygon, Ruler, Lasso, Circle, and Square. Implementation waits on

@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Lasso traces pixels of a similar colour inside a radius into an ordered ring (`src/core/lasso.ts`).
 - Square draws a local east-north rectangle, or a square on the longer side (`src/core/square.ts`).
 - A circle tool builds a 64-vertex ground ring from a centre and a rim (`src/core/circle.ts`).
 - A distance ruler sums open ground segments and does not close into an area (`src/core/ruler.ts`).

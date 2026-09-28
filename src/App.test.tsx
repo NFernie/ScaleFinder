@@ -193,6 +193,20 @@ describe('App polygon list', () => {
     expect(screen.getByRole('switch', { name: 'sample-small-field.csv' })).toBeInTheDocument()
   })
 
+  it('measures a ruler without adding it to the Polygon list', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Toolbox' }))
+    await user.click(screen.getByRole('button', { name: 'Ruler' }))
+    await user.click(screen.getByTestId('map'))
+    await user.click(screen.getByTestId('map'))
+    expect(screen.getByText('Segment 1')).toBeInTheDocument()
+    expect(screen.queryByText('Area')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+    await user.click(screen.getByTestId('map'))
+    expect(screen.getAllByText(/Segment/)).toHaveLength(1)
+  })
+
   it('renames a Polygon and imports a UTM file as a local row plus a fixed twin', async () => {
     const user = userEvent.setup()
     render(<App />)

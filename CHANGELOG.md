@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Ruler, Circle, and Square can be chosen from the Toolbox. Circle and Square can be added to the Polygon list.
 - Lasso can read the map canvas locally, or report that the basemap cannot be sampled (`src/map/sampleCanvas.ts`).
 - The Toolbox session holds one Polygon, Ruler, Lasso, Circle, or Square draft (`src/core/toolboxSession.ts`).
 - Lasso traces pixels of a similar colour inside a radius into an ordered ring (`src/core/lasso.ts`).

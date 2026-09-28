@@ -11,13 +11,20 @@ import {
   parseUtmTable,
   ZONE_MESSAGE,
 } from './core/polygonExport'
+import { circleRadiusM, circleRing } from './core/circle'
+import { polygonAreaM2 } from './core/geometry'
+import { haversineM } from './core/projection'
+import { ringToDraft } from './core/ringDraft'
+import { squareCorners } from './core/square'
 import {
   acceptClick,
   acceptDoubleClick,
+  acceptHover,
   closedSession,
   chooseTool,
   doneDraft,
   overlayOf,
+  setSquareMode,
   takeDraft,
   toggleMenu,
   ToolboxSession,
@@ -42,6 +49,8 @@ import { Region } from './map/regions'
 import { downloadFramePng } from './map/snapshot'
 import ImportPanel from './ui/ImportPanel'
 import MeasureMenu from './ui/MeasureMenu'
+import RulerMenu from './ui/RulerMenu'
+import ShapeMenu from './ui/ShapeMenu'
 import PolygonList from './ui/PolygonList'
 import Toolbox from './ui/Toolbox'
 import RegionSearch from './ui/RegionSearch'
@@ -297,6 +306,11 @@ export default function App() {
     setSession((current) => acceptDoubleClick(current, corner))
   }, [])
 
+  const handleMapMouseMove = useCallback((event: { lngLat: { lng: number; lat: number } }) => {
+    const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
+    setSession((current) => acceptHover(current, corner))
+  }, [])
+
   const handleDone = useCallback(() => {
     setSession((current) => doneDraft(current))
   }, [])
@@ -328,6 +342,32 @@ export default function App() {
   }, [])
 
   const measurementOverlay = overlayOf(session)
+  const shapeCanAdd = takeDraft(session).draft !== null
+
+  const circleLengthM =
+    session.circle?.status === 'ready' && session.circle.centre && session.circle.edge
+      ? circleRadiusM(session.circle.centre, session.circle.edge)
+      : null
+  const circleAreaM2 = (() => {
+    if (!session.circle?.centre || circleLengthM === null) return null
+    const draft = ringToDraft(circleRing(session.circle.centre, circleLengthM), 'Circle')
+    return draft ? polygonAreaM2(draft.raw) : null
+  })()
+
+  const squareRing =
+    session.square?.status === 'ready' && session.square.origin && session.square.opposite
+      ? squareCorners(session.square.origin, session.square.opposite, session.square.shape)
+      : null
+  const squareLengthM =
+    squareRing && squareRing.length >= 4
+      ? Math.max(haversineM(squareRing[0], squareRing[1]), haversineM(squareRing[0], squareRing[3]))
+      : null
+  const squareAreaM2 = (() => {
+    if (!squareRing) return null
+    const name = session.square?.shape === 'square' ? 'Square' : 'Rectangle'
+    const draft = ringToDraft(squareRing, name)
+    return draft ? polygonAreaM2(draft.raw) : null
+  })()
 
   const handleSnapshot = useCallback(async () => {
     if (!frameRef.current || !canExport) return
@@ -438,6 +478,7 @@ export default function App() {
               basemap={basemap}
               onMapClick={mapAcceptsPoints ? handleMapClick : undefined}
               onMapDoubleClick={session.polygon || session.ruler ? handleMapDoubleClick : undefined}
+              onMapMouseMove={handleMapMouseMove}
               doubleClickZoom={!mapAcceptsPoints}
             >
               {items.map((item) => {
@@ -458,7 +499,11 @@ export default function App() {
                   />
                 )
               })}
-              {(measurementOverlay.corners.length > 0 || session.polygon || session.ruler) && (
+              {(measurementOverlay.corners.length > 0 ||
+                session.polygon ||
+                session.ruler ||
+                session.circle ||
+                session.square) && (
                 <MeasurementOverlay
                   corners={measurementOverlay.corners}
                   closed={measurementOverlay.closed}
@@ -503,6 +548,45 @@ export default function App() {
                   onDone={handleDone}
                   onDelete={handleDelete}
                   onAdd={handleAdd}
+                />
+              </div>
+            )}
+            {session.ruler && (
+              <div className="pointer-events-auto min-h-0 w-full">
+                <RulerMenu ruler={session.ruler} onDone={handleDone} onDelete={handleDelete} />
+              </div>
+            )}
+            {session.circle && (
+              <div className="pointer-events-auto min-h-0 w-full">
+                <ShapeMenu
+                  title="Circle"
+                  lengthLabel="Radius"
+                  lengthM={circleLengthM}
+                  areaM2={circleAreaM2}
+                  message={session.circle.message}
+                  canAdd={shapeCanAdd}
+                  onAdd={handleAdd}
+                  onDelete={handleDelete}
+                />
+              </div>
+            )}
+            {session.square && (
+              <div className="pointer-events-auto min-h-0 w-full">
+                <ShapeMenu
+                  title="Square"
+                  lengthLabel="Side"
+                  lengthM={squareLengthM}
+                  areaM2={squareAreaM2}
+                  message={session.square.message}
+                  canAdd={shapeCanAdd}
+                  shape={session.square.status === 'origin' ? session.square.shape : undefined}
+                  onShape={
+                    session.square.status === 'origin'
+                      ? (shape) => setSession((current) => setSquareMode(current, shape))
+                      : undefined
+                  }
+                  onAdd={handleAdd}
+                  onDelete={handleDelete}
                 />
               </div>
             )}

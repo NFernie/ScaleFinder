@@ -77,6 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The product record allows a map Toolbox: Polygon, Ruler, Lasso, Circle, and Square. Drawings still end when the page closes.
 - Planform area, max span, and equivalent square side can be hidden per Polygon
   with Show figures / Hide figures. The preview stays visible.
 - Region results sit in their own scrollable list. The region search field is

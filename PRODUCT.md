@@ -35,7 +35,7 @@ Confirmed for v1:
 - MapLibre map, search, and a MapTiler basemap. Development can fall back to keyless OpenFreeMap.
 - A draggable true-scale Polygon overlay.
 - Several Polygons in one browser session, each with its own centre, colour, and import unit. The list is gone after the page closes.
-- A map ruler. Clicks show each ground segment and the total. Double-click closes the chain and adds the area. Add to list copies that closed shape into the session. The measurement is not kept after the page closes.
+- A Toolbox on the map, in place of the Measure button. Polygon keeps the previous ruler behaviour: clicks show each ground segment and the total, Done keeps the chain open, double-click closes it and adds the area, and Add to list copies that closed shape into the session. Ruler measures ground distance across many clicks and does not close. Circle and Square draw a closed outline from two clicks. Lasso traces a similar colour inside a radius of a click. Nothing drawn here is kept after the page closes.
 - Rename a Polygon. Export it as UTM easting and northing where it sits. Several switched-on Polygons in the same zone can be one file. Importing that file adds a local Polygon and a fixed Polygon that stays at the original place.
 - Framed PNG snapshot export.
 
@@ -61,6 +61,6 @@ The product name in the interface is ScaleFindr. Use Polygon with a capital P wh
 ## Product Principles
 
 - The ground measurement wins over how large the shape looks in pixels.
-- Compare the outline with a real region. Do not grow the tool into a general GIS editor.
+- Compare the outline with a real region. The Toolbox draws a comparison outline or a ground distance on the map the user is looking at. It does not edit the basemap, reproject a named CRS, or store work after the page closes.
 - A session may hold several Polygons. Nothing is stored after the page closes.
 - State only geology and places the user supplied. Do not invent studies, customers, or saved work.

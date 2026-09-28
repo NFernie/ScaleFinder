@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-28T01:32:00Z",
+  "title": "Design System: ScaleFindr",
+  "extensions": {
+    "colorMeta": {
+      "surface": {
+        "role": "neutral",
+        "displayName": "Night",
+        "canonical": "#0b1220",
+        "tonalRamp": ["#090f19", "#0a101c", "#0a111e", "#0b121f", "#0b1220", "#484d58", "#858990", "#c2c4c7"]
+      },
+      "surface-raised": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "canonical": "#131c2e",
+        "tonalRamp": ["#0d1320", "#0f1625", "#111929", "#121b2c", "#131c2e", "#4e5562", "#898e97", "#c4c6cb"]
+      },
+      "surface-overlay": {
+        "role": "neutral",
+        "displayName": "Inset",
+        "canonical": "#1b273d",
+        "tonalRamp": ["#111826", "#141e2f", "#182236", "#19253a", "#1b273d", "#545d6e", "#8d939e", "#c6c9cf"]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Signal teal",
+        "canonical": "#2dd4bf",
+        "tonalRamp": ["#196661", "#208e83", "#26b0a0", "#2ac4b1", "#2dd4bf", "#62dfcf", "#96eadf", "#cbf4ef"]
+      },
+      "accent-strong": {
+        "role": "primary",
+        "displayName": "Selected teal",
+        "canonical": "#0f766e",
+        "tonalRamp": ["#0b3c3c", "#0d514f", "#0e635e", "#0e6e67", "#0f766e", "#4b9892", "#87bbb7", "#c3dddb"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Body ink",
+        "canonical": "#f1f5f9",
+        "tonalRamp": ["#71757b", "#9fa3a9", "#c7cbd0", "#dee2e7", "#f1f5f9", "#f5f8fb", "#f8fafc", "#fcfdfe"]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "canonical": "#94a3b8",
+        "tonalRamp": ["#47505e", "#636e7f", "#7b889a", "#8997ab", "#94a3b8", "#afbaca", "#cad1dc", "#e4e8ed"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The ScaleFindr wordmark in the header." },
+      "title": { "displayName": "Title", "purpose": "Numbered sidebar section titles." },
+      "body": { "displayName": "Body", "purpose": "Instructions, results, and button labels." },
+      "label": { "displayName": "Label", "purpose": "Hints, the tagline, and figure names." },
+      "mono": { "displayName": "Mono", "purpose": "File names and the equation in a figure note." }
+    },
+    "shadows": [
+      { "name": "float", "value": "0 2px 8px rgb(0 0 0 / 0.35)", "purpose": "Labels, notes, and controls that sit on the map." },
+      { "name": "marker", "value": "0 2px 6px rgb(0 0 0 / 0.45)", "purpose": "The Polygon drag handle." },
+      { "name": "knob", "value": "0 1px 2px rgb(0 0 0 / 0.35)", "purpose": "The switch knob." }
+    ],
+    "motion": [
+      { "name": "press", "value": "120ms ease-out", "purpose": "Pressable controls scale to 0.97 on active. Reduced motion removes the scale." },
+      { "name": "switch", "value": "150ms", "purpose": "The switch knob slides and the track changes colour." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Export, import, and the measure actions that commit.",
+      "html": "<button class=\"ds-btn-primary\">Export snapshot (PNG)</button>",
+      "css": ".ds-btn-primary { background: #2dd4bf; color: #042f2a; height: 44px; padding: 0 16px; border: none; border-radius: 8px; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; transition: transform 120ms ease-out, filter 120ms ease-out; } .ds-btn-primary:hover { filter: brightness(1.05); } .ds-btn-primary:focus-visible { outline: 2px solid #5eead4; outline-offset: 2px; } .ds-btn-primary:active { transform: scale(0.97); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Sample files, rename, export, and other quiet actions.",
+      "html": "<button class=\"ds-btn-secondary\">Load sample</button>",
+      "css": ".ds-btn-secondary { background: transparent; color: #e2e8f0; height: 44px; padding: 0 12px; border: 1px solid rgb(255 255 255 / 0.15); border-radius: 8px; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; font-weight: 400; transition: transform 120ms ease-out, background-color 120ms ease-out; } .ds-btn-secondary:hover { background: rgb(255 255 255 / 0.05); } .ds-btn-secondary:focus-visible { outline: 2px solid #5eead4; outline-offset: 2px; } .ds-btn-secondary:active { transform: scale(0.97); }"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Region search and the Polygon name field.",
+      "html": "<input class=\"ds-input\" placeholder=\"Search for a region\" />",
+      "css": ".ds-input { box-sizing: border-box; width: 100%; height: 44px; padding: 0 12px; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 8px; background: rgb(0 0 0 / 0.3); color: #f1f5f9; caret-color: #2dd4bf; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 1rem; } .ds-input::placeholder { color: #94a3b8; } .ds-input:focus { border-color: #2dd4bf; outline: 2px solid #5eead4; outline-offset: 2px; }"
+    },
+    {
+      "name": "Section Title",
+      "kind": "nav",
+      "refersTo": "title",
+      "description": "The numbered sidebar sections. There is no separate navigation bar.",
+      "html": "<h2 class=\"ds-section\">1 · Import Polygon</h2>",
+      "css": ".ds-section { margin: 0 0 12px; color: #f1f5f9; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; line-height: 1.4; }"
+    },
+    {
+      "name": "Switch",
+      "kind": "chip",
+      "refersTo": "switch-on",
+      "description": "Shows or hides a Polygon. The knob stays inside the pill.",
+      "html": "<button class=\"ds-switch\" aria-checked=\"true\"><span class=\"ds-switch-knob\"></span></button>",
+      "css": ".ds-switch { position: relative; width: 44px; height: 24px; border: none; border-radius: 9999px; background: #0f766e; padding: 0; } .ds-switch-knob { position: absolute; top: 2px; left: 20px; width: 20px; height: 20px; border-radius: 9999px; background: #ffffff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.35); }"
+    },
+    {
+      "name": "Inset List",
+      "kind": "card",
+      "refersTo": "surface-overlay",
+      "description": "Region results and the figure readout.",
+      "html": "<div class=\"ds-list\"><div class=\"ds-list-row\">Nile Delta</div></div>",
+      "css": ".ds-list { border: 1px solid rgb(255 255 255 / 0.1); border-radius: 12px; background: rgb(27 39 61 / 0.6); overflow: hidden; } .ds-list-row { min-height: 44px; display: flex; align-items: center; padding: 0 12px; color: #e2e8f0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; } .ds-list-row + .ds-list-row { border-top: 1px solid rgb(255 255 255 / 0.1); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The night map workbench",
+    "overview": "The map is the work. The sidebar is the instrument panel beside it: import, Polygon list, then region search, in that order. Colour is scarce. Teal means the action you can take or the thing that is selected. Everything else stays on night navy so the basemap and the Polygon remain the brightest objects in the view.\n\nThis record describes the interface that is already built. It is an Operate surface: a geologist places an outline, reads a number, and exports a picture.",
+    "keyCharacteristics": [
+      "Night navy panels, one teal accent.",
+      "Inter for the interface. Monospace and tabular figures for measurements.",
+      "44px hit targets. Press scales to 0.97.",
+      "Hairline white borders. Depth comes from a darker or lighter surface, plus a small shadow on things that float over the map.",
+      "The map keeps the centre of the screen. The sidebar is 380px from the large breakpoint up, and the map sits above it on a phone."
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "Signal teal and Selected teal are the only accents on a working screen. Warning amber and danger red are for a problem or a delete, not for decoration.", "section": "colors" },
+      { "name": "The Figure Rule", "body": "A length, an area, or the map scale bar uses tabular numbers. The scale bar is 15px and weight 600 so it survives in an exported PNG.", "section": "typography" },
+      { "name": "The Flat Panel Rule", "body": "Sidebar rows and secondary buttons do not cast a shadow. A border at white 10% or 15%, or a shift to Inset, is enough.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep primary actions on Signal teal (#2dd4bf) with Ink on teal (#042f2a).",
+      "Do keep selected rows and the switch-on state on Selected teal (#0f766e).",
+      "Do keep controls at least 44px tall.",
+      "Do use tabular numbers for lengths, areas, and the scale bar.",
+      "Do leave the map as the largest region, with the scale bar centred and readable in a PNG."
+    ],
+    "donts": [
+      "Don't add a second accent colour for ordinary actions.",
+      "Don't put a shadow on a sidebar row that is already sitting on Panel.",
+      "Don't cover the zoom controls with the region name or the ScaleFindr mark.",
+      "Don't shrink body fields below 16px on a phone.",
+      "Don't invent a new corner size. Use 8px for controls and 12px for grouped panels."
+    ]
+  }
+}

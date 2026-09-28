@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `PRODUCT.md` records the v1 product for Impeccable. Agents must read it, and
   `DESIGN.md` when that file exists, before feature or UI changes.
+- `DESIGN.md` records the current night-navy and teal interface. The sidecar
+  is `.impeccable/design.json`.
 
 
 - `docs/superpowers/specs/2026-09-24-gis-utm-columns-and-sidebar-resize-design.md` —

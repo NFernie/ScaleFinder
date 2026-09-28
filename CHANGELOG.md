@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A distance ruler sums open ground segments and does not close into an area (`src/core/ruler.ts`).
+
 ### Docs
 
 - `docs/superpowers/specs/2026-09-28-map-toolbox-design.md` — align Toolbox spec with locked lasso delta, aim-only controls, Circle list name, and Add to list centre placement.

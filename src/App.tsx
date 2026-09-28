@@ -16,14 +16,17 @@ import { polygonAreaM2 } from './core/geometry'
 import { haversineM } from './core/projection'
 import { ringToDraft } from './core/ringDraft'
 import { squareCorners } from './core/square'
+import { traceContrast } from './core/lasso'
 import {
   acceptClick,
   acceptDoubleClick,
   acceptHover,
   closedSession,
   chooseTool,
+  commitLasso,
   doneDraft,
   overlayOf,
+  setLassoSettings,
   setSquareMode,
   takeDraft,
   toggleMenu,
@@ -42,12 +45,14 @@ import {
 import { projectToGeographic } from './core/projection'
 import { LengthUnit, LngLat } from './core/types'
 import { getBasemaps, hasMapTilerKey } from './map/basemap'
+import { bufferPixel, bufferToCss, radiusInBuffer, sampleBasemap } from './map/sampleCanvas'
 import MapView from './map/MapView'
 import MeasurementOverlay from './map/MeasurementOverlay'
 import PolygonOverlay from './map/PolygonOverlay'
 import { Region } from './map/regions'
 import { downloadFramePng } from './map/snapshot'
 import ImportPanel from './ui/ImportPanel'
+import LassoMenu from './ui/LassoMenu'
 import MeasureMenu from './ui/MeasureMenu'
 import RulerMenu from './ui/RulerMenu'
 import ShapeMenu from './ui/ShapeMenu'
@@ -57,6 +62,8 @@ import RegionSearch from './ui/RegionSearch'
 import { SAMPLES } from './data/samples'
 
 const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY
+
+const CANNOT_SAMPLE = 'This basemap does not allow colour sampling.'
 
 function Mark() {
   return (
@@ -294,12 +301,53 @@ export default function App() {
     session.square?.status === 'origin' ||
     session.lasso?.status === 'aim'
 
-  const handleMapClick = useCallback((event: { lngLat: { lng: number; lat: number }; originalEvent: { target: EventTarget | null } }) => {
-    const target = event.originalEvent.target
-    if (target instanceof Element && target.closest('.maplibregl-marker')) return
-    const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
-    setSession((current) => acceptClick(current, corner).session)
+  const sampleLasso = useCallback(async (session: ToolboxSession, point: { x: number; y: number }) => {
+    const map = mapRef.current && 'getMap' in mapRef.current ? mapRef.current.getMap() : null
+    if (!map || !session.lasso) {
+      setSession((current) => commitLasso(current, [], CANNOT_SAMPLE))
+      return
+    }
+    try {
+      const raster = await sampleBasemap(map)
+      const canvas = map.getCanvas()
+      const seed = bufferPixel(point.x, point.y, raster.width, raster.height, canvas.clientWidth, canvas.clientHeight)
+      const radius = radiusInBuffer(session.lasso.radiusPx, raster.width, canvas.clientWidth)
+      const ring = traceContrast(raster, seed, radius, session.lasso.maxChannelDelta)
+      if (!ring) {
+        setSession((current) => commitLasso(current, [], 'No feature found at that contrast.'))
+        return
+      }
+      const corners = ring.map((pixel) => {
+        const css = bufferToCss(pixel, raster.width, raster.height, canvas.clientWidth, canvas.clientHeight)
+        const lngLat = map.unproject([css.x, css.y])
+        return { lng: lngLat.lng, lat: lngLat.lat }
+      })
+      setSession((current) => commitLasso(current, corners, null))
+    } catch {
+      setSession((current) => commitLasso(current, [], CANNOT_SAMPLE))
+    }
   }, [])
+
+  const handleMapClick = useCallback(
+    (event: {
+      lngLat: { lng: number; lat: number }
+      point: { x: number; y: number }
+      originalEvent: { target: EventTarget | null }
+    }) => {
+      const target = event.originalEvent.target
+      if (target instanceof Element && target.closest('.maplibregl-marker')) return
+      const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
+      setSession((current) => {
+        const result = acceptClick(current, corner)
+        if (result.sample) {
+          void sampleLasso(result.session, event.point)
+          return current
+        }
+        return result.session
+      })
+    },
+    [sampleLasso],
+  )
 
   const handleMapDoubleClick = useCallback((event: { lngLat: { lng: number; lat: number } }) => {
     const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
@@ -502,6 +550,7 @@ export default function App() {
               {(measurementOverlay.corners.length > 0 ||
                 session.polygon ||
                 session.ruler ||
+                session.lasso ||
                 session.circle ||
                 session.square) && (
                 <MeasurementOverlay
@@ -554,6 +603,18 @@ export default function App() {
             {session.ruler && (
               <div className="pointer-events-auto min-h-0 w-full">
                 <RulerMenu ruler={session.ruler} onDone={handleDone} onDelete={handleDelete} />
+              </div>
+            )}
+            {session.lasso && (
+              <div className="pointer-events-auto min-h-0 w-full">
+                <LassoMenu
+                  lasso={session.lasso}
+                  onSettings={(radiusPx, maxChannelDelta) =>
+                    setSession((current) => setLassoSettings(current, radiusPx, maxChannelDelta))
+                  }
+                  onAdd={handleAdd}
+                  onDelete={handleDelete}
+                />
               </div>
             )}
             {session.circle && (

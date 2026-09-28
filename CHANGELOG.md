@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Lasso picks a same-colour patch around a click and can add that outline to the Polygon list.
 - Ruler, Circle, and Square can be chosen from the Toolbox. Circle and Square can be added to the Polygon list.
 - Lasso can read the map canvas locally, or report that the basemap cannot be sampled (`src/map/sampleCanvas.ts`).
 - The Toolbox session holds one Polygon, Ruler, Lasso, Circle, or Square draft (`src/core/toolboxSession.ts`).

@@ -218,6 +218,10 @@ The track is 24px by 44px, a pill. Off is white at 15%. On is Selected teal. The
 
 The drag handle is a 20px circle in the Polygon colour with a 2px white stroke and the Marker shadow. A floating label uses Panel at 90%, 8px corners, and the Float shadow.
 
+### Toolbox
+
+The Toolbox replaces Measure. It sits on the map in the top-left slot, outside the snapshot frame. The button and the popup use Panel at 95%, 12px corners on the popup, 8px corners on the tool buttons, and the Float shadow. The active tool uses Selected teal. The readout uses the same panel. Lengths and areas use tabular numbers.
+
 ## Do's and Don'ts
 
 ### Do:

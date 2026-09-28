@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `feature/toolbox.md` is the plan for a map Toolbox that replaces Measure
+  with Polygon, Ruler, Lasso, Circle, and Square. Implementation waits on
+  `/brainstorming` and an approved spec.
 - `PRODUCT.md` records the v1 product for Impeccable. Agents must read it, and
   `DESIGN.md` when that file exists, before feature or UI changes.
 - `DESIGN.md` records the current night-navy and teal interface. The sidecar

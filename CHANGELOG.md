@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Lasso no longer rejects a same-colour fill that reaches the raster edge (`src/core/lasso.ts`).
+
 ### Added
 
 - Lasso traces pixels of a similar colour inside a radius into an ordered ring (`src/core/lasso.ts`).

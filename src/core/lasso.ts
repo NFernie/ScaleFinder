@@ -21,7 +21,6 @@ export function traceContrast(
   if (radiusPx < 1) return null
   if (seed.x < 0 || seed.y < 0 || seed.x >= raster.width || seed.y >= raster.height) return null
   const filled = flood(raster, seed, radiusPx, maxChannelDelta)
-  if (fillTouchesEdge(raster, filled)) return null
   let count = 0
   for (const cell of filled) count += cell
   if (count < 8) return null
@@ -61,17 +60,6 @@ function flood(raster: Raster, seed: Pixel, radiusPx: number, maxChannelDelta: n
     }
   }
   return filled
-}
-
-function fillTouchesEdge(raster: Raster, filled: Uint8Array): boolean {
-  const { width, height } = raster
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      if (!filled[y * width + x]) continue
-      if (x === 0 || y === 0 || x === width - 1 || y === height - 1) return true
-    }
-  }
-  return false
 }
 
 function rgb(raster: Raster, x: number, y: number): [number, number, number] {

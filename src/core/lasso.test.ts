@@ -32,6 +32,11 @@ describe('lasso contrast', () => {
   it('does not cross a radius or a contrasting pixel', () => {
     const raster = solid(9, 9, (x, y) => (x >= 2 && x <= 6 && y >= 2 && y <= 6 ? [200, 40, 40] : [20, 20, 20]))
     expect(traceContrast(raster, { x: 4, y: 4 }, 1, 12)).toBeNull()
-    expect(traceContrast(raster, { x: 0, y: 0 }, 10, 0)).toBeNull()
+    const edgeRing = traceContrast(raster, { x: 0, y: 0 }, 10, 0)
+    expect(edgeRing).not.toBeNull()
+    for (const point of edgeRing!) {
+      const index = (point.y * raster.width + point.x) * 4
+      expect([raster.data[index], raster.data[index + 1], raster.data[index + 2]]).toEqual([20, 20, 20])
+    }
   })
 })

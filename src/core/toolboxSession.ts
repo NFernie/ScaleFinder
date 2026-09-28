@@ -110,7 +110,7 @@ export function acceptHover(session: ToolboxSession, corner: LngLat): ToolboxSes
   return session
 }
 
-export function deleteDraft(session: ToolboxSession): ToolboxSession {
+export function deleteDraft(_session: ToolboxSession): ToolboxSession {
   return closedSession()
 }
 

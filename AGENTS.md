@@ -31,6 +31,8 @@ geographical regions. `PRODUCT.md` is the durable product record.
 ## Design → Implement → Polish workflow
 
 Vendored skills live in [`.cursor/skills/`](.cursor/skills/). Use them in order.
+[`WORKFLOW.md`](WORKFLOW.md) is the handrail for which skill to call, with
+ScaleFindr examples.
 
 ### 1. Design
 

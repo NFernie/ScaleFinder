@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The Toolbox session holds one Polygon, Ruler, Lasso, Circle, or Square draft (`src/core/toolboxSession.ts`).
 - Lasso traces pixels of a similar colour inside a radius into an ordered ring (`src/core/lasso.ts`).
 - Square draws a local east-north rectangle, or a square on the longer side (`src/core/square.ts`).
 - A circle tool builds a 64-vertex ground ring from a centre and a rim (`src/core/circle.ts`).

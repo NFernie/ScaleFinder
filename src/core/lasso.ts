@@ -1,3 +1,5 @@
+import { LngLat } from './types'
+
 export interface Raster {
   width: number
   height: number
@@ -7,6 +9,38 @@ export interface Raster {
 export interface Pixel {
   x: number
   y: number
+}
+
+export interface LassoDraft {
+  status: 'aim' | 'ready'
+  radiusPx: number
+  maxChannelDelta: number
+  corners: LngLat[]
+  message: string | null
+}
+
+export function beginLasso(): LassoDraft {
+  return { status: 'aim', radiusPx: 48, maxChannelDelta: 32, corners: [], message: null }
+}
+
+export function setLassoAim(draft: LassoDraft, radiusPx: number, maxChannelDelta: number): LassoDraft {
+  if (draft.status !== 'aim') return draft
+  return {
+    ...draft,
+    radiusPx: clamp(radiusPx, 8, 128),
+    maxChannelDelta: clamp(maxChannelDelta, 0, 255),
+  }
+}
+
+export function commitLassoRing(draft: LassoDraft, corners: LngLat[], message: string | null): LassoDraft {
+  if (message || corners.length < 3) {
+    return { ...draft, status: 'aim', corners: [], message: message ?? 'No feature found at that contrast.' }
+  }
+  return { ...draft, status: 'ready', corners, message: null }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
 }
 
 const DX = [1, 1, 0, -1, -1, -1, 0, 1]

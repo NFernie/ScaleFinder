@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { traceContrast, type Raster } from './lasso'
+import { beginLasso, commitLassoRing, setLassoAim, traceContrast, type Raster } from './lasso'
 
 function solid(width: number, height: number, paint: (x: number, y: number) => [number, number, number]): Raster {
   const data = new Uint8ClampedArray(width * height * 4)
@@ -27,6 +27,15 @@ describe('lasso contrast', () => {
       { x: 6, y: 6 },
       { x: 2, y: 6 },
     ])
+  })
+
+  it('clamps the aim settings and keeps a failed pick in aim', () => {
+    const aim = setLassoAim(beginLasso(), 4, 400)
+    expect(aim.radiusPx).toBe(8)
+    expect(aim.maxChannelDelta).toBe(255)
+    const missed = commitLassoRing(aim, [], 'No feature found at that contrast.')
+    expect(missed.status).toBe('aim')
+    expect(missed.message).toBe('No feature found at that contrast.')
   })
 
   it('does not cross a radius or a contrasting pixel', () => {

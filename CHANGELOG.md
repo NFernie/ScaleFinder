@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Lasso no longer rejects a same-colour fill that reaches the raster edge (`src/core/lasso.ts`).
+- Basemap sampling waits for a repaint when the map is already idle and rejects empty WebGL canvases (`src/map/sampleCanvas.ts`).
 
 ### Added
 

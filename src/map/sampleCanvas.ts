@@ -10,6 +10,7 @@ export class CanvasSampleError extends Error {
 interface MapLibreMap {
   getCanvas(): HTMLCanvasElement
   once(type: 'idle', listener: () => void): void
+  triggerRepaint?(): void
 }
 
 export function flipBottomUp(data: Uint8ClampedArray, width: number, height: number): Uint8ClampedArray {
@@ -54,6 +55,7 @@ export function radiusInBuffer(radiusCss: number, canvasWidth: number, clientWid
 }
 
 export async function sampleBasemap(map: MapLibreMap): Promise<Raster> {
+  map.triggerRepaint?.()
   await new Promise<void>((resolve) => map.once('idle', () => resolve()))
   const canvas = map.getCanvas()
   try {
@@ -63,6 +65,7 @@ export async function sampleBasemap(map: MapLibreMap): Promise<Raster> {
     const height = gl.drawingBufferHeight
     const pixels = new Uint8Array(width * height * 4)
     gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+    if (width === 0 || height === 0) throw new CanvasSampleError()
     return { width, height, data: flipBottomUp(new Uint8ClampedArray(pixels), width, height) }
   } catch (error) {
     if (error instanceof CanvasSampleError) throw error

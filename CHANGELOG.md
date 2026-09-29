@@ -11,9 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+### Docs
 
-- Lasso is a brush. Drag a free curve or click corners, and similar colours within the radius join the outline. Double-click closes the guide. Add to list stores a movable Lasso and leaves a fixed copy on the map until either row is deleted.
+- `features/toolbox_ui_update.md` — Toolbox UI update plan (bento grid, cursors, tooltips, edge pan, preview stacking, Emil animation workflow). Supersedes UI prompts in `feature/toolbox.md` for new UI work.
+
+### Changed Drag a free curve or click corners, and similar colours within the radius join the outline. Double-click closes the guide. Add to list stores a movable Lasso and leaves a fixed copy on the map until either row is deleted.
 - The Toolbox branch now also includes Polygon rotation, GIS `Poly,Vert,X,Y,Z` columns, and the draggable sidebar from main. A measured outline is listed as "Measured Polygon".
 - The map Measure button is now Toolbox. Polygon keeps the previous measure behaviour.
 

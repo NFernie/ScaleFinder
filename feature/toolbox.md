@@ -50,6 +50,8 @@ The user asked for this Toolbox on 2026-09-28 and explicitly expanded the produc
 
 ## Prompt workflow
 
+> **Archived for UI work:** The prompts below were used to ship the original Toolbox (text list, Prompts 0–8). For **Toolbox UI updates** (bento grid, cursors, tooltips, edge pan, preview stacking, animation pass), use **[`features/toolbox_ui_update.md`](../features/toolbox_ui_update.md)** — active workflow, prompts, and tasks. Keep reading this section only as **reference** for historical skill order or core implementation tasks (Tasks 1–12).
+
 Run these as separate messages, in order. One skill per message. Paste the prompt as written. The message template from `WORKFLOW.md` is already filled in.
 
 The full UI UX Pro Max `search.py` database is not in this repo. Use the vendored skills `ui-styling` and `design-system`. Do not call the `design` skill. It is for a brand mark, and `DESIGN.md` already exists.

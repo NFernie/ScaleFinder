@@ -41,7 +41,7 @@ export default function Toolbox({ session, onToggle, onChoose }: Props) {
                     title={tip.title}
                     aria-describedby={tipId}
                     onClick={() => onChoose(tool)}
-                    className={`pressable flex min-h-11 min-w-11 items-center justify-center rounded-lg border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                    className={`pressable flex min-h-11 min-w-11 items-center justify-center rounded-lg border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5eead4] ${
                       selected
                         ? 'border-accent bg-accent-strong text-teal-50'
                         : 'border-white/15 text-white hover:bg-white/5'

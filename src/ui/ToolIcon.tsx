@@ -26,7 +26,11 @@ export function ToolIcon({ tool, className }: Props) {
     case 'lasso':
       return (
         <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-          <ellipse cx="12" cy="12" rx="8" ry="6" />
+          <path
+            d="M6 14 C5 9 8 5 12 4 C17 3 20 7 19 11 C18 16 14 19 10 18 C7 17 5 16 6 14"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       )
     case 'circle':

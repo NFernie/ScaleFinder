@@ -1,4 +1,11 @@
-import { useCallback, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
 import { centroid } from './core/geometry'
 import { parsePolygonFile } from './core/parseFile'
@@ -59,6 +66,7 @@ import { LengthUnit, LngLat } from './core/types'
 import { getBasemaps, hasMapTilerKey } from './map/basemap'
 import { bufferPixel, bufferToCss, radiusInBuffer, readBasemap, sampleBasemap } from './map/sampleCanvas'
 import MapToolCursor from './map/MapToolCursor'
+import { framePointerFromClient } from './map/toolCursor'
 import MapView from './map/MapView'
 import MeasurementOverlay from './map/MeasurementOverlay'
 import PlacedPolygon from './map/PlacedPolygon'
@@ -137,6 +145,7 @@ export default function App() {
   const lassoDrawing = useRef(false)
   const guideCount = useRef(0)
   const layoutRef = useRef<HTMLDivElement>(null)
+  const lastFramePointerClient = useRef<{ x: number; y: number } | null>(null)
 
   const canExport = items.some(
     (item) => item.selected && verticesForPolygon(item).length >= 3,
@@ -595,21 +604,35 @@ export default function App() {
   const syncToolPointer = useCallback((clientX: number, clientY: number) => {
     const frame = frameRef.current
     if (!frame) return
-    const rect = frame.getBoundingClientRect()
-    setToolPointer({ x: clientX - rect.left, y: clientY - rect.top })
+    const pos = framePointerFromClient(frame.getBoundingClientRect(), clientX, clientY)
+    setToolPointer(pos)
   }, [])
 
   const handleFramePointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!session.tool) return
-      syncToolPointer(event.clientX, event.clientY)
+      lastFramePointerClient.current = { x: event.clientX, y: event.clientY }
+      if (session.tool) {
+        syncToolPointer(event.clientX, event.clientY)
+      }
     },
     [session.tool, syncToolPointer],
   )
 
   const handleFramePointerLeave = useCallback(() => {
+    lastFramePointerClient.current = null
     setToolPointer(null)
   }, [])
+
+  useEffect(() => {
+    if (!session.tool) {
+      setToolPointer(null)
+      return
+    }
+    const last = lastFramePointerClient.current
+    if (last) {
+      syncToolPointer(last.x, last.y)
+    }
+  }, [session.tool, syncToolPointer])
 
   const handleAdd = useCallback(() => {
     setSession((current) => {

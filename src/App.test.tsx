@@ -15,6 +15,11 @@ vi.mock('./map/MeasurementOverlay', () => ({
 
 const SQUARE = '0,0\n1000,0\n1000,1000\n0,1000\n'
 
+async function choosePolygon(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: 'Toolbox' }))
+  await user.click(screen.getByRole('button', { name: 'Polygon' }))
+}
+
 function csv(name: string, text: string) {
   return new File([text], name, { type: 'text/csv' })
 }
@@ -139,7 +144,7 @@ describe('App polygon list', () => {
   it('keeps measurement figures out of the sidebar until Add to list', async () => {
     const user = userEvent.setup()
     render(<App />)
-    await user.click(screen.getByRole('button', { name: 'Measure' }))
+    await choosePolygon(user)
     await user.click(screen.getByTestId('map'))
     await user.click(screen.getByRole('button', { name: 'Done' }))
     expect(screen.getByRole('status')).toHaveTextContent('Add at least two corners.')
@@ -154,7 +159,7 @@ describe('App polygon list', () => {
     expect(screen.queryByRole('button', { name: 'Add to list' })).not.toBeInTheDocument()
     expect(screen.queryByText('Planform area')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Measure' }))
+    await user.click(screen.getByRole('button', { name: 'Toolbox' }))
     expect(screen.getByText('Segment 1')).toBeInTheDocument()
   })
 
@@ -164,7 +169,7 @@ describe('App polygon list', () => {
     await user.click(screen.getByRole('button', { name: /small field/i }))
     await screen.findByRole('switch', { name: 'sample-small-field.csv' })
 
-    await user.click(screen.getByRole('button', { name: 'Measure' }))
+    await choosePolygon(user)
     await user.click(screen.getByTestId('map'))
     await user.click(screen.getByTestId('map'))
     await user.click(screen.getByTestId('map'))
@@ -178,7 +183,7 @@ describe('App polygon list', () => {
     expect(screen.getAllByText('Planform area')).toHaveLength(2)
     expect(screen.getByRole('switch', { name: 'sample-small-field.csv' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Measure' }))
+    await choosePolygon(user)
     await user.click(screen.getByTestId('map'))
     await user.click(screen.getByTestId('map'))
     await user.click(screen.getByRole('button', { name: 'Done' }))
@@ -186,6 +191,32 @@ describe('App polygon list', () => {
     expect(screen.queryByText('Segment 1')).not.toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'Measured Polygon' })).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'sample-small-field.csv' })).toBeInTheDocument()
+  })
+
+  it('tells the user when the basemap cannot be sampled', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Toolbox' }))
+    await user.click(screen.getByRole('button', { name: 'Lasso' }))
+    expect(screen.getByLabelText('Radius')).toHaveValue(48)
+    expect(screen.getByLabelText('Contrast')).toHaveValue(32)
+    await user.click(screen.getByTestId('map'))
+    expect(await screen.findByRole('status')).toHaveTextContent('This basemap does not allow colour sampling.')
+    expect(screen.queryByRole('switch', { name: 'Lasso' })).not.toBeInTheDocument()
+  })
+
+  it('measures a ruler without adding it to the Polygon list', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Toolbox' }))
+    await user.click(screen.getByRole('button', { name: 'Ruler' }))
+    await user.click(screen.getByTestId('map'))
+    await user.click(screen.getByTestId('map'))
+    expect(screen.getByText('Segment 1')).toBeInTheDocument()
+    expect(screen.queryByText('Area')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+    await user.click(screen.getByTestId('map'))
+    expect(screen.getAllByText(/Segment/)).toHaveLength(1)
   })
 
   it('renames a Polygon and imports a UTM file as a local row plus a fixed twin', async () => {

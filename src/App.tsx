@@ -1,5 +1,13 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
+import { edgePanDelta } from './map/mapEdgePan'
 import { centroid } from './core/geometry'
 import { parsePolygonFile } from './core/parseFile'
 import {
@@ -11,14 +19,31 @@ import {
   parseUtmTable,
   ZONE_MESSAGE,
 } from './core/polygonExport'
+import { circleRadiusM, circleRing } from './core/circle'
+import { polygonAreaM2 } from './core/geometry'
+import { haversineM } from './core/projection'
+import { ringToDraft } from './core/ringDraft'
+import { squareCorners } from './core/square'
+import { CANNOT_SAMPLE, traceBrush, type LassoSample, type Raster } from './core/lasso'
 import {
-  addCorner,
-  applyDoubleClick,
-  beginMeasurement,
-  finishRuler,
-  measuredPolygonDraft,
-  Measurement,
-} from './core/measurement'
+  acceptClick,
+  acceptDoubleClick,
+  acceptHover,
+  closedSession,
+  chooseTool,
+  doneDraft,
+  dropLastLassoPoint,
+  noteLasso,
+  overlayOf,
+  paintLassoSample,
+  setLassoOutline,
+  setLassoSettings,
+  setSquareMode,
+  takeDraft,
+  takeLassoPair,
+  toggleMenu,
+  ToolboxSession,
+} from './core/toolboxSession'
 import {
   appendPolygon,
   nextColour,
@@ -40,20 +65,28 @@ import {
 } from './core/rotation'
 import { LengthUnit, LngLat } from './core/types'
 import { getBasemaps, hasMapTilerKey } from './map/basemap'
+import { bufferPixel, bufferToCss, radiusInBuffer, readBasemap, sampleBasemap } from './map/sampleCanvas'
+import MapToolCursor from './map/MapToolCursor'
+import { framePointerFromClient } from './map/toolCursor'
 import MapView from './map/MapView'
 import MeasurementOverlay from './map/MeasurementOverlay'
 import PlacedPolygon from './map/PlacedPolygon'
 import { Region } from './map/regions'
 import { downloadFramePng } from './map/snapshot'
 import ImportPanel from './ui/ImportPanel'
+import LassoMenu from './ui/LassoMenu'
 import SidebarResizeHandle from './ui/SidebarResizeHandle'
 import { MAP_MIN_PX, SIDEBAR_DEFAULT_PX } from './ui/sidebarWidth'
 import MeasureMenu from './ui/MeasureMenu'
+import RulerMenu from './ui/RulerMenu'
+import ShapeMenu from './ui/ShapeMenu'
 import PolygonList from './ui/PolygonList'
+import Toolbox from './ui/Toolbox'
 import RegionSearch from './ui/RegionSearch'
 import { SAMPLES } from './data/samples'
 
 const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY
+const BRUSH_GAP_PX = 8
 
 function Mark() {
   return (
@@ -92,7 +125,8 @@ export default function App() {
   const [regionName, setRegionName] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
-  const [measurement, setMeasurement] = useState<Measurement | null>(null)
+  const [session, setSession] = useState<ToolboxSession>(closedSession())
+  const [toolPointer, setToolPointer] = useState<{ x: number; y: number } | null>(null)
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_PX)
 
   const basemaps = useMemo(() => getBasemaps(MAPTILER_KEY), [])
@@ -101,7 +135,18 @@ export default function App() {
 
   const mapRef = useRef<MapRef>(null)
   const frameRef = useRef<HTMLDivElement>(null)
+  const lassoChain = useRef(Promise.resolve())
+  const lassoRaster = useRef<Raster | null>(null)
+  const lassoSawRaster = useRef(false)
+  const lastCss = useRef<{ x: number; y: number } | null>(null)
+  const appendedOnLastDown = useRef(false)
+  const lassoPressSampled = useRef(false)
+  const touchAt = useRef(0)
+  const painting = useRef(false)
+  const lassoDrawing = useRef(false)
+  const guideCount = useRef(0)
   const layoutRef = useRef<HTMLDivElement>(null)
+  const lastFramePointerClient = useRef<{ x: number; y: number } | null>(null)
 
   const canExport = items.some(
     (item) => item.selected && verticesForPolygon(item).length >= 3,
@@ -234,7 +279,7 @@ export default function App() {
     )
   }, [])
 
-  const handleDelete = useCallback((id: string) => {
+  const handleRemovePolygon = useCallback((id: string) => {
     setItems((prev) => removePolygon(prev, id))
   }, [])
 
@@ -338,35 +383,322 @@ export default function App() {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, anchor: next } : item)))
   }, [])
 
-  const handleMeasure = useCallback(() => {
-    setMeasurement((current) => current ?? beginMeasurement())
+  lassoDrawing.current = session.lasso?.status === 'drawing'
+  if (!session.lasso) guideCount.current = 0
+  else if (session.lasso.guide.length >= guideCount.current) guideCount.current = session.lasso.guide.length
+  const mapAcceptsPoints =
+    session.polygon?.status === 'adding' ||
+    session.ruler?.status === 'adding' ||
+    session.circle?.status === 'centre' ||
+    session.square?.status === 'origin' ||
+    lassoDrawing.current
+
+  const resetLassoScratch = useCallback(() => {
+    lassoSawRaster.current = false
+    lassoRaster.current = null
+    lastCss.current = null
+    appendedOnLastDown.current = false
+    lassoPressSampled.current = false
+    painting.current = false
+    guideCount.current = 0
   }, [])
 
-  const handleMapClick = useCallback((event: { lngLat: { lng: number; lat: number }; originalEvent: { target: EventTarget | null } }) => {
-    const target = event.originalEvent.target
-    if (target instanceof Element && target.closest('.maplibregl-marker')) return
-    const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
-    setMeasurement((current) => (current ? addCorner(current, corner) : current))
+  const colourParts = useCallback((samples: LassoSample[]) => {
+    const map = mapRef.current && 'getMap' in mapRef.current ? mapRef.current.getMap() : null
+    const raster = lassoRaster.current
+    if (!map || !raster) return null
+    const canvas = map.getCanvas()
+    const ready = samples.flatMap((sample) =>
+      sample.pixel
+        ? [
+            {
+              pixel: sample.pixel,
+              radiusPx: radiusInBuffer(sample.radiusPx, raster.width, canvas.clientWidth),
+              maxChannelDelta: sample.maxChannelDelta,
+            },
+          ]
+        : [],
+    )
+    const rings = traceBrush(raster, ready)
+    if (!rings) return []
+    return rings.map((ring) =>
+      ring.map((pixel) => {
+        const css = bufferToCss(pixel, raster.width, raster.height, canvas.clientWidth, canvas.clientHeight)
+        const lngLat = map.unproject([css.x, css.y])
+        return { lng: lngLat.lng, lat: lngLat.lat }
+      }),
+    )
   }, [])
 
-  const handleMapDoubleClick = useCallback((event: { lngLat: { lng: number; lat: number } }) => {
-    const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
-    setMeasurement((current) => (current ? applyDoubleClick(current, corner) : current))
+  const paintLasso = useCallback(
+    async (index: number, css: { x: number; y: number }) => {
+      const map = mapRef.current && 'getMap' in mapRef.current ? mapRef.current.getMap() : null
+      if (!map) {
+        setSession((current) => noteLasso(current, CANNOT_SAMPLE))
+        return
+      }
+      try {
+        const raster = lassoSawRaster.current ? readBasemap(map) : await sampleBasemap(map)
+        lassoSawRaster.current = true
+        lassoRaster.current = raster
+        const canvas = map.getCanvas()
+        const pixel = bufferPixel(css.x, css.y, raster.width, raster.height, canvas.clientWidth, canvas.clientHeight)
+        setSession((current) => {
+          if (!current.lasso || current.lasso.status !== 'drawing') return current
+          const painted = paintLassoSample(current, index, pixel)
+          const parts = painted.lasso ? colourParts(painted.lasso.samples) : null
+          if (!painted.lasso || !parts) return painted
+          return setLassoOutline(painted, parts)
+        })
+      } catch {
+        setSession((current) => noteLasso(current, CANNOT_SAMPLE))
+      }
+    },
+    [colourParts],
+  )
+
+  const queueGuidePoint = useCallback(
+    (corner: LngLat, css: { x: number; y: number } | undefined, fromPress: boolean) => {
+      if (!lassoDrawing.current) return
+      if (!fromPress && css && lastCss.current) {
+        const dx = css.x - lastCss.current.x
+        const dy = css.y - lastCss.current.y
+        if (dx * dx + dy * dy < BRUSH_GAP_PX * BRUSH_GAP_PX) return
+      }
+      const index = guideCount.current
+      guideCount.current += 1
+      setSession((current) => {
+        if (current.lasso?.status !== 'drawing') return current
+        return acceptClick(current, corner).session
+      })
+      if (fromPress) appendedOnLastDown.current = true
+      if (css) lastCss.current = css
+      const point = css ?? { x: 0, y: 0 }
+      lassoChain.current = lassoChain.current.then(() => paintLasso(index, point))
+    },
+    [paintLasso],
+  )
+
+  const handleMapClick = useCallback(
+    (event: {
+      lngLat: { lng: number; lat: number }
+      point?: { x: number; y: number }
+      originalEvent: { target: EventTarget | null }
+    }) => {
+      const target = event.originalEvent.target
+      if (target instanceof Element && target.closest('.maplibregl-marker')) return
+      const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
+      if (lassoPressSampled.current) {
+        lassoPressSampled.current = false
+        return
+      }
+      if (lassoDrawing.current) {
+        queueGuidePoint(corner, event.point, true)
+        return
+      }
+      setSession((current) => acceptClick(current, corner).session)
+    },
+    [queueGuidePoint],
+  )
+
+  const handleMapDoubleClick = useCallback(
+    (event: { lngLat: { lng: number; lat: number } }) => {
+      const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
+      if (!lassoDrawing.current) {
+        setSession((current) => acceptDoubleClick(current, corner))
+        return
+      }
+      lassoChain.current = lassoChain.current.then(() => {
+        setSession((current) => {
+          if (current.lasso?.status !== 'drawing') return current
+          let next = current
+          if (appendedOnLastDown.current) {
+            next = dropLastLassoPoint(next)
+            appendedOnLastDown.current = false
+            guideCount.current = Math.max(0, guideCount.current - 1)
+            const parts = next.lasso ? colourParts(next.lasso.samples) : null
+            if (parts) next = setLassoOutline(next, parts)
+          }
+          return acceptDoubleClick(next, corner)
+        })
+      })
+    },
+    [colourParts],
+  )
+
+  const handleMapMouseDown = useCallback(
+    (event: {
+      lngLat: { lng: number; lat: number }
+      point: { x: number; y: number }
+      originalEvent: { target: EventTarget | null }
+    }) => {
+      if (!lassoDrawing.current || Date.now() - touchAt.current < 700) return
+      const target = event.originalEvent.target
+      if (target instanceof Element && target.closest('.maplibregl-marker')) return
+      painting.current = true
+      lassoPressSampled.current = true
+      queueGuidePoint({ lng: event.lngLat.lng, lat: event.lngLat.lat }, event.point, true)
+    },
+    [queueGuidePoint],
+  )
+
+  const handleMapMouseUp = useCallback(() => {
+    painting.current = false
   }, [])
 
-  const handleMeasureDone = useCallback(() => {
-    setMeasurement((current) => (current ? finishRuler(current) : current))
+  const handleMapTouchStart = useCallback(
+    (event: {
+      lngLat: { lng: number; lat: number }
+      point: { x: number; y: number }
+      originalEvent: { target: EventTarget | null }
+    }) => {
+      touchAt.current = Date.now()
+      if (!lassoDrawing.current) return
+      const target = event.originalEvent.target
+      if (target instanceof Element && target.closest('.maplibregl-marker')) return
+      painting.current = true
+      lassoPressSampled.current = true
+      queueGuidePoint({ lng: event.lngLat.lng, lat: event.lngLat.lat }, event.point, true)
+    },
+    [queueGuidePoint],
+  )
+
+  const panMapEdge = useCallback(
+    (point: { x: number; y: number } | undefined) => {
+      if (!mapAcceptsPoints || !point) return
+      const map = mapRef.current && 'getMap' in mapRef.current ? mapRef.current.getMap() : null
+      if (!map) return
+      const canvas = map.getCanvas()
+      const delta = edgePanDelta(
+        point,
+        { width: canvas.clientWidth, height: canvas.clientHeight },
+        32,
+      )
+      if (delta.x !== 0 || delta.y !== 0) {
+        map.panBy([delta.x, delta.y], { duration: 0 })
+      }
+    },
+    [mapAcceptsPoints],
+  )
+
+  const handleMapTouchMove = useCallback(
+    (event: { lngLat: { lng: number; lat: number }; point: { x: number; y: number } }) => {
+      if (painting.current && lassoDrawing.current) {
+        queueGuidePoint({ lng: event.lngLat.lng, lat: event.lngLat.lat }, event.point, false)
+      }
+      panMapEdge(event.point)
+    },
+    [panMapEdge, queueGuidePoint],
+  )
+
+  const handleMapMouseMove = useCallback(
+    (event: {
+      lngLat: { lng: number; lat: number }
+      point?: { x: number; y: number }
+      originalEvent?: { buttons?: number }
+    }) => {
+      const buttons = event.originalEvent?.buttons
+      if (
+        painting.current &&
+        lassoDrawing.current &&
+        event.point &&
+        (buttons === undefined || buttons === 1)
+      ) {
+        queueGuidePoint({ lng: event.lngLat.lng, lat: event.lngLat.lat }, event.point, false)
+      }
+      panMapEdge(event.point)
+      const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
+      setSession((current) => acceptHover(current, corner))
+    },
+    [panMapEdge, queueGuidePoint],
+  )
+
+  const handleDone = useCallback(() => {
+    setSession((current) => doneDraft(current))
   }, [])
 
-  const handleMeasureDelete = useCallback(() => {
-    setMeasurement(null)
+  const handleDelete = useCallback(() => {
+    resetLassoScratch()
+    setToolPointer(null)
+    setSession(closedSession())
+  }, [resetLassoScratch])
+
+  const syncToolPointer = useCallback((clientX: number, clientY: number) => {
+    const frame = frameRef.current
+    if (!frame) return
+    const pos = framePointerFromClient(frame.getBoundingClientRect(), clientX, clientY)
+    setToolPointer(pos)
   }, [])
 
-  const handleMeasureAdd = useCallback(() => {
-    setMeasurement((current) => {
-      if (!current) return current
-      const draft = measuredPolygonDraft(current)
-      if (!draft) return current
+  const handleFramePointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      lastFramePointerClient.current = { x: event.clientX, y: event.clientY }
+      if (session.tool) {
+        syncToolPointer(event.clientX, event.clientY)
+      }
+    },
+    [session.tool, syncToolPointer],
+  )
+
+  const handleFramePointerLeave = useCallback(() => {
+    lastFramePointerClient.current = null
+    setToolPointer(null)
+  }, [])
+
+  useEffect(() => {
+    if (!session.tool) {
+      setToolPointer(null)
+      return
+    }
+    const last = lastFramePointerClient.current
+    if (last) {
+      syncToolPointer(last.x, last.y)
+    }
+  }, [session.tool, syncToolPointer])
+
+  const handleAdd = useCallback(() => {
+    setSession((current) => {
+      if (current.lasso) {
+        const pairId = crypto.randomUUID()
+        const taken = takeLassoPair(current, pairId)
+        if (!taken.movable || !taken.fixed) return current
+        const movableDraft = taken.movable
+        const fixedDraft = taken.fixed
+        setItems((prev) => {
+          const colour = nextColour(prev.map((item) => item.colour))
+          const movable = stampRotation({
+            id: crypto.randomUUID(),
+            sourceName: movableDraft.sourceName,
+            raw: movableDraft.raw,
+            parts: movableDraft.parts,
+            unit: movableDraft.unit,
+            hasZ: movableDraft.hasZ,
+            selected: true,
+            anchor: movableDraft.anchor,
+            colour,
+            pairId,
+          })
+          const fixed = stampRotation({
+            id: crypto.randomUUID(),
+            sourceName: fixedDraft.sourceName,
+            raw: fixedDraft.raw,
+            parts: fixedDraft.parts,
+            unit: fixedDraft.unit,
+            hasZ: fixedDraft.hasZ,
+            selected: true,
+            anchor: fixedDraft.anchor,
+            colour,
+            pairId,
+            fixed: true,
+          })
+          return [...prev, movable, fixed]
+        })
+        resetLassoScratch()
+        return taken.session
+      }
+      const taken = takeDraft(current)
+      if (!taken.draft) return current
+      const draft = taken.draft
       setItems((prev) => [
         ...prev,
         stampRotation({
@@ -380,9 +712,37 @@ export default function App() {
           colour: nextColour(prev.map((item) => item.colour)),
         }),
       ])
-      return null
+      return taken.session
     })
-  }, [])
+  }, [resetLassoScratch])
+
+  const measurementOverlay = overlayOf(session)
+  const shapeCanAdd = takeDraft(session).draft !== null
+
+  const circleLengthM =
+    session.circle?.status === 'ready' && session.circle.centre && session.circle.edge
+      ? circleRadiusM(session.circle.centre, session.circle.edge)
+      : null
+  const circleAreaM2 = (() => {
+    if (!session.circle?.centre || circleLengthM === null) return null
+    const draft = ringToDraft(circleRing(session.circle.centre, circleLengthM), 'Circle')
+    return draft ? polygonAreaM2(draft.raw) : null
+  })()
+
+  const squareRing =
+    session.square?.status === 'ready' && session.square.origin && session.square.opposite
+      ? squareCorners(session.square.origin, session.square.opposite, session.square.shape)
+      : null
+  const squareLengthM =
+    squareRing && squareRing.length >= 4
+      ? Math.max(haversineM(squareRing[0], squareRing[1]), haversineM(squareRing[0], squareRing[3]))
+      : null
+  const squareAreaM2 = (() => {
+    if (!squareRing) return null
+    const name = session.square?.shape === 'square' ? 'Square' : 'Rectangle'
+    const draft = ringToDraft(squareRing, name)
+    return draft ? polygonAreaM2(draft.raw) : null
+  })()
 
   const handleSnapshot = useCallback(async () => {
     if (!frameRef.current || !canExport) return
@@ -465,7 +825,7 @@ export default function App() {
               onToggle={handleToggle}
               onColourChange={handleColourChange}
               onReCentre={handleReCentre}
-              onDelete={handleDelete}
+              onDelete={handleRemovePolygon}
               onRename={handleRename}
               onBearing={handleBearing}
               onExport={handleExportPolygon}
@@ -497,13 +857,25 @@ export default function App() {
         />
 
         <main className="relative min-h-0">
-          <div ref={frameRef} className="absolute inset-0">
+          <div
+            ref={frameRef}
+            className={`absolute inset-0 ${session.tool ? 'cursor-none' : ''}`}
+            onPointerMove={handleFramePointerMove}
+            onPointerLeave={handleFramePointerLeave}
+          >
             <MapView
               ref={mapRef}
               basemap={basemap}
-              onMapClick={measurement?.status === 'adding' ? handleMapClick : undefined}
-              onMapDoubleClick={measurement ? handleMapDoubleClick : undefined}
-              doubleClickZoom={measurement?.status !== 'adding'}
+              onMapClick={mapAcceptsPoints ? handleMapClick : undefined}
+              onMapDoubleClick={session.polygon || session.ruler || session.lasso ? handleMapDoubleClick : undefined}
+              onMapMouseMove={handleMapMouseMove}
+              onMapMouseDown={handleMapMouseDown}
+              onMapMouseUp={handleMapMouseUp}
+              onMapTouchStart={handleMapTouchStart}
+              onMapTouchMove={handleMapTouchMove}
+              doubleClickZoom={!mapAcceptsPoints}
+              dragPan={session.lasso?.status !== 'drawing'}
+              hideNativeCursor={session.tool !== null}
             >
               {items.map((item) =>
                 item.selected ? (
@@ -515,13 +887,31 @@ export default function App() {
                   />
                 ) : null,
               )}
-              {measurement && (
+              {(measurementOverlay.corners.length > 0 ||
+                session.polygon ||
+                session.ruler ||
+                session.lasso ||
+                session.circle ||
+                session.square) && (
                 <MeasurementOverlay
-                  corners={measurement.corners}
-                  closed={measurement.status === 'polygon'}
+                  corners={measurementOverlay.corners}
+                  closed={measurementOverlay.closed}
+                  preview={measurementOverlay.preview}
+                  guide={measurementOverlay.guide}
+                  guideClosed={measurementOverlay.guideClosed}
+                  parts={measurementOverlay.parts}
                 />
               )}
             </MapView>
+
+            {session.tool && toolPointer && (
+              <MapToolCursor
+                tool={session.tool}
+                lassoRadiusPx={session.lasso?.radiusPx}
+                x={toolPointer.x}
+                y={toolPointer.y}
+              />
+            )}
 
             {regionName && (
               <div className="pointer-events-none absolute bottom-16 left-3 z-10 max-w-[14rem] rounded-lg bg-surface/90 px-3 py-2 text-sm font-medium leading-snug text-white shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
@@ -544,23 +934,69 @@ export default function App() {
           </div>
 
           <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-h-[calc(100%-1.5rem)] w-[min(18rem,calc(100%-5.5rem))] flex-col items-start gap-2">
-            <button
-              type="button"
-              aria-pressed={measurement !== null}
-              onClick={handleMeasure}
-              className={`pressable pointer-events-auto min-h-11 rounded-lg px-3 text-sm font-medium shadow-[0_2px_8px_rgb(0_0_0/0.35)] ${
-                measurement ? 'bg-accent-strong text-teal-50' : 'bg-surface/95 text-white'
-              }`}
-            >
-              Measure
-            </button>
-            {measurement && (
+            <Toolbox
+              session={session}
+              onToggle={() => setSession((current) => toggleMenu(current))}
+              onChoose={(tool) => setSession((current) => chooseTool(current, tool))}
+            />
+            {session.polygon && (
               <div className="pointer-events-auto min-h-0 w-full">
                 <MeasureMenu
-                  measurement={measurement}
-                  onDone={handleMeasureDone}
-                  onDelete={handleMeasureDelete}
-                  onAdd={handleMeasureAdd}
+                  measurement={session.polygon}
+                  onDone={handleDone}
+                  onDelete={handleDelete}
+                  onAdd={handleAdd}
+                />
+              </div>
+            )}
+            {session.ruler && (
+              <div className="pointer-events-auto min-h-0 w-full">
+                <RulerMenu ruler={session.ruler} onDone={handleDone} onDelete={handleDelete} />
+              </div>
+            )}
+            {session.lasso && (
+              <div className="pointer-events-auto min-h-0 w-full">
+                <LassoMenu
+                  lasso={session.lasso}
+                  onSettings={(radiusPx, maxChannelDelta) =>
+                    setSession((current) => setLassoSettings(current, radiusPx, maxChannelDelta))
+                  }
+                  onAdd={handleAdd}
+                  onDelete={handleDelete}
+                />
+              </div>
+            )}
+            {session.circle && (
+              <div className="pointer-events-auto min-h-0 w-full">
+                <ShapeMenu
+                  title="Circle"
+                  lengthLabel="Radius"
+                  lengthM={circleLengthM}
+                  areaM2={circleAreaM2}
+                  message={session.circle.message}
+                  canAdd={shapeCanAdd}
+                  onAdd={handleAdd}
+                  onDelete={handleDelete}
+                />
+              </div>
+            )}
+            {session.square && (
+              <div className="pointer-events-auto min-h-0 w-full">
+                <ShapeMenu
+                  title="Square"
+                  lengthLabel="Side"
+                  lengthM={squareLengthM}
+                  areaM2={squareAreaM2}
+                  message={session.square.message}
+                  canAdd={shapeCanAdd}
+                  shape={session.square.status === 'origin' ? session.square.shape : undefined}
+                  onShape={
+                    session.square.status === 'origin'
+                      ? (shape) => setSession((current) => setSquareMode(current, shape))
+                      : undefined
+                  }
+                  onAdd={handleAdd}
+                  onDelete={handleDelete}
                 />
               </div>
             )}

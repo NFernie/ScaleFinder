@@ -11,8 +11,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Polygon and Ruler rubber-band: while status is `adding`, `overlayOf` sets `preview` to the confirmed corners plus `session.hover`. `MeasurementOverlay` draws that line under the confirmed stroke (white 2px, navy 4px casing) so it sits behind the tool cursor.
+- Map tool cursor overlay (`MapToolCursor`) with inline SVG marks per active tool; native cursor is hidden on the map frame while drawing. Lasso ring diameter follows Radius (8–128 CSS px, default 48).
+- Edge pan while drawing: `edgePanDelta` in `src/map/mapEdgePan.ts` (32px band, ±16px cap); `App` calls `map.panBy` on pointer move when the map is accepting points.
+
+### Changed
+
+- Toolbox motion: `.pressable` is scale 0.97 in 120ms ease-out. Bento cells transition transform and opacity only. Tooltips rise 4px and fade in over 125ms ease-out, snap when reduced motion is on, and skip that motion for keyboard focus and for the next cell once one tip is open. `.toolbox-pop` stays 160ms ease-out.
+- Toolbox popup tool picker is a bento grid of shape icons with hover/focus tooltips (`ToolIcon`, `TOOL_TIPS`) instead of a vertical text list.
+
+### Fixed
+
+- While a tool is active, `map-hide-native-cursor` on the MapLibre canvas container sets `cursor: none` with higher specificity than `.maplibregl-interactive`, `.maplibregl-track-pointer`, and `:active`, so the SVG tool cursor is the only pointer.
+- Lasso Radius and Contrast readout labels use the locked title sentences (Radius 8–128 and Contrast 0–255 meanings). Numeric ranges are unchanged.
+- Touch move edge-pans with `edgePanDelta` and `panBy` whenever a drawing tool accepts points, and still extends the lasso stroke while painting.
+- Tool cursor overlay appears immediately when a tool is selected while the pointer is already over the map (no blank frame until the first move).
+
 ### Docs
 
+- `DESIGN.md` — Toolbox subsection documents the bento icon grid, hover/focus tooltips, tool-matched cursors (lasso radius scaling), edge pan while drawing, and polygon/ruler preview behind the pointer.
+- `docs/superpowers/specs/2026-09-29-toolbox-ui-update.md` — approved Toolbox UI addendum: bento icon grid, tool cursors, hover tooltips, edge pan, and polygon/ruler preview behind the pointer. Lasso Radius stays 8–128 (default 48) and Contrast stays 0–255 (default 32). Geometry stays in `src/core`.
+- `features/toolbox_ui_update.md` — Toolbox UI update plan (bento grid, cursors, tooltips, edge pan, preview stacking, Emil animation workflow). Supersedes UI prompts in `feature/toolbox.md` for new UI work.
+
+### Changed Drag a free curve or click corners, and similar colours within the radius join the outline. Double-click closes the guide. Add to list stores a movable Lasso and leaves a fixed copy on the map until either row is deleted.
+- The Toolbox branch now also includes Polygon rotation, GIS `Poly,Vert,X,Y,Z` columns, and the draggable sidebar from main. A measured outline is listed as "Measured Polygon".
+- The map Measure button is now Toolbox. Polygon keeps the previous measure behaviour.
+
+### Fixed
+
+- Lasso no longer rejects a same-colour fill that reaches the raster edge (`src/core/lasso.ts`).
+- Basemap sampling waits for a repaint when the map is already idle and rejects empty WebGL canvases (`src/map/sampleCanvas.ts`).
+
+### Added
+
+- The Toolbox popup fades and rises 8px in 160ms, and snaps when reduced motion is on.
+- Lasso picks a same-colour patch around a click and can add that outline to the Polygon list.
+- Ruler, Circle, and Square can be chosen from the Toolbox. Circle and Square can be added to the Polygon list.
+- Lasso can read the map canvas locally, or report that the basemap cannot be sampled (`src/map/sampleCanvas.ts`).
+- The Toolbox session holds one Polygon, Ruler, Lasso, Circle, or Square draft (`src/core/toolboxSession.ts`).
+- Lasso traces pixels of a similar colour inside a radius into an ordered ring (`src/core/lasso.ts`).
+- Square draws a local east-north rectangle, or a square on the longer side (`src/core/square.ts`).
+- A circle tool builds a 64-vertex ground ring from a centre and a rim (`src/core/circle.ts`).
+- A distance ruler sums open ground segments and does not close into an area (`src/core/ruler.ts`).
+
+### Docs
+
+- `docs/superpowers/specs/2026-09-29-lasso-brush-design.md` — approved Lasso brush: drag a free curve, click corners, double-click closes the guide, and Add to list stores a movable Lasso plus a fixed outline. `PRODUCT.md` and `ScaleFinderPurpose.md` use that behaviour.
+- DESIGN.md records the map Toolbox: Panel at 95%, 12px popup corners, Float shadow, Selected teal while a tool is on.
+- `docs/superpowers/specs/2026-09-28-map-toolbox-design.md` — align Toolbox spec with locked lasso delta, aim-only controls, Circle list name, and Add to list centre placement.
+- `docs/superpowers/specs/2026-09-28-map-toolbox-design.md` — map Toolbox that replaces Measure with Polygon, Ruler, Lasso, Circle, and Square. Status is Approved.
+- `feature/toolbox.md` is the plan for a map Toolbox that replaces Measure
+  with Polygon, Ruler, Lasso, Circle, and Square. Implementation waits on
+  `/brainstorming` and an approved spec.
+- `PRODUCT.md` records the v1 product for Impeccable. Agents must read it, and
+  `DESIGN.md` when that file exists, before feature or UI changes.
+- `DESIGN.md` records the current night-navy and teal interface. The sidecar
+  is `.impeccable/design.json`.
+- `WORKFLOW.md` explains when to use the vendored UI UX Pro Max, Impeccable,
+  and Emil Kowalski skills on this product.
 - `docs/superpowers/specs/2026-09-24-polygon-rotation-design.md` —
   rotate a movable Polygon around its centre. The row shows the compass
   bearing of the edge chosen at import. Status is Approved.
@@ -95,6 +153,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The product record allows a map Toolbox: Polygon, Ruler, Lasso, Circle, and Square. Drawings still end when the page closes.
 - Planform area, max span, and equivalent square side can be hidden per Polygon
   with Show figures / Hide figures. The preview stays visible.
 - Region results sit in their own scrollable list. The region search field is

@@ -1,19 +1,26 @@
 # AGENTS.md — ScaleFinder
 
 Guidance for AI agents working in this repository. Read this first, then read
-[`ScaleFinderPurpose.md`](ScaleFinderPurpose.md) before making changes.
+[`PRODUCT.md`](PRODUCT.md) and [`ScaleFinderPurpose.md`](ScaleFinderPurpose.md)
+before making changes. When [`DESIGN.md`](DESIGN.md) exists, read it before any
+UI change. Cursor does not load those files on its own. The always-on rule in
+[`.cursor/rules/product-design-context.mdc`](.cursor/rules/product-design-context.mdc)
+requires it.
 
 ## What this project is
 
-ScaleFinder is a Vite + React + TypeScript + Tailwind web app for superimposing a
+ScaleFindr is a Vite + React + TypeScript + Tailwind web app for superimposing a
 true-scale field polygon over a MapLibre world map to compare it against real
-geographical regions. See `ScaleFinderPurpose.md` for the product purpose and the
-design spec in [`docs/superpowers/specs/`](docs/superpowers/specs/).
+geographical regions. `PRODUCT.md` is the durable product record.
+`ScaleFinderPurpose.md` is the long-form v1 brief. Design specs live in
+[`docs/superpowers/specs/`](docs/superpowers/specs/).
 
 ## Golden rules
 
-1. **Read the purpose first.** `ScaleFinderPurpose.md` is the source of truth for
-   what v1 should do. Do not add features outside it without agreement.
+1. **Read the product record first.** `PRODUCT.md` is the durable record of who
+   the product is for and what v1 may do. `ScaleFinderPurpose.md` is the
+   long-form brief. Do not add features outside them without agreement. When
+   `DESIGN.md` exists, UI work follows it.
 2. **Always update `CHANGELOG.md`.** Every code change adds an entry under
    `## [Unreleased]` (Keep a Changelog format) before you commit. This is a hard
    routine, not optional.
@@ -24,6 +31,8 @@ design spec in [`docs/superpowers/specs/`](docs/superpowers/specs/).
 ## Design → Implement → Polish workflow
 
 Vendored skills live in [`.cursor/skills/`](.cursor/skills/). Use them in order.
+[`WORKFLOW.md`](WORKFLOW.md) is the handrail for which skill to call, with
+ScaleFindr examples.
 
 ### 1. Design
 

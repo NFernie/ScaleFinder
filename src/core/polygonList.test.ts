@@ -98,6 +98,16 @@ describe('removePolygon', () => {
     expect(removePolygon(items, 'b').map((polygon) => polygon.id)).toEqual(['a', 'c'])
     expect(items).toHaveLength(3)
   })
+
+  it('removes both rows that share a pair id', () => {
+    const items = [
+      item({ id: 'keep' }),
+      item({ id: 'move', pairId: 'pair-1' }),
+      item({ id: 'fixed', pairId: 'pair-1', fixed: true }),
+    ]
+    expect(removePolygon(items, 'fixed').map((polygon) => polygon.id)).toEqual(['keep'])
+    expect(removePolygon(items, 'move').map((polygon) => polygon.id)).toEqual(['keep'])
+  })
 })
 
 describe('reCentreSelected', () => {

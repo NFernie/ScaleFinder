@@ -1,0 +1,17 @@
+---
+description: Read product and design references before any feature or UI change
+alwaysApply: true
+---
+
+# Product and design context
+
+Cursor does not load `PRODUCT.md` or `DESIGN.md` by itself. This rule makes those files mandatory.
+
+Before changing features, copy, geometry behaviour, or UI:
+
+1. Read `AGENTS.md`.
+2. Read `PRODUCT.md`. Treat it as the durable product record. Do not add a capability it lists as out of scope unless the user explicitly expands the product.
+3. Read `ScaleFinderPurpose.md` when the task touches what v1 does.
+4. Read `DESIGN.md` when that file exists. New or changed UI must use its tokens, type, and component rules. When `DESIGN.md` is absent, do not invent a parallel visual system. Match the interface that is already on screen.
+
+If a requested change conflicts with `PRODUCT.md`, stop and say which line conflicts. Do not silently rewrite those files to fit the change.

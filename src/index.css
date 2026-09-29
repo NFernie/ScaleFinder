@@ -68,8 +68,10 @@
 @layer components {
   .pressable {
     transition:
-      transform 140ms cubic-bezier(0.23, 1, 0.32, 1),
-      background-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
+      transform 120ms ease-out,
+      background-color 120ms ease-out,
+      border-color 120ms ease-out,
+      filter 120ms ease-out;
   }
 
   .pressable:active:not(:disabled) {
@@ -90,6 +92,16 @@
   .pressable:active:not(:disabled) {
     transform: none;
   }
+}
+
+/*
+ * Unlayered so this beats MapLibre's grab/grabbing rules. Specificity is one
+ * class above `.maplibregl-canvas-container.maplibregl-interactive` and `:active`.
+ */
+.maplibregl-canvas-container.maplibregl-interactive.map-hide-native-cursor,
+.maplibregl-canvas-container.maplibregl-interactive.map-hide-native-cursor.maplibregl-track-pointer,
+.maplibregl-canvas-container.maplibregl-interactive.map-hide-native-cursor:active {
+  cursor: none;
 }
 
 /* Keep MapLibre chrome clear of the home indicator and notch. */
@@ -129,4 +141,74 @@
 
 .maplibregl-ctrl-attrib {
   @apply text-[10px];
+}
+
+.toolbox-pop {
+  animation: toolbox-pop 160ms ease-out;
+}
+
+@keyframes toolbox-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toolbox-pop {
+    animation: none;
+  }
+}
+
+/* Bento cells: press scale only. Hover colour snaps; it is not a transition. */
+.toolbox-bento-cell {
+  transition:
+    transform 120ms ease-out,
+    opacity 120ms ease-out;
+}
+
+.toolbox-bento-tip {
+  opacity: 0;
+  transform: translateX(-50%) translateY(4px) scale(0.97);
+  transform-origin: center top;
+  transition:
+    opacity 125ms ease-out,
+    transform 125ms ease-out;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .group:hover > .toolbox-bento-tip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.group:focus-within > .toolbox-bento-tip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
+/* Keyboard focus is repeated constantly; snap. Mouse hover keeps the short reveal. */
+.group:focus-within:not(:hover) > .toolbox-bento-tip,
+.toolbox-bento-tip[data-instant] {
+  transition-duration: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toolbox-bento-cell,
+  .toolbox-bento-cell:active {
+    transition: none;
+    transform: none;
+  }
+
+  .toolbox-bento-tip,
+  .group:hover > .toolbox-bento-tip,
+  .group:focus-within > .toolbox-bento-tip {
+    transition: none;
+    transform: translateX(-50%);
+  }
 }

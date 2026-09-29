@@ -51,10 +51,16 @@ a river system such as the Ord or the Amazon.
   bearing. A fixed Polygon cannot rotate.
 - Several Polygons in one session, each with its own centre, colour, and the
   unit it was imported with. The list lasts for the browser session only.
-- A map ruler: a chain of clicks shows each ground segment and the total in a
-  floating menu. Double-click closes the chain and adds the area. Add to list
-  copies that closed shape into the session as a Polygon. The measurement is
-  not kept after the page closes.
+- A Toolbox on the map, in place of the Measure button. Polygon keeps the
+  previous ruler behaviour: clicks show each ground segment and the total, Done
+  keeps the chain open, double-click closes it and adds the area, and Add to
+  list copies that closed shape into the session. Ruler measures ground
+  distance across many clicks and does not close. Circle and Square draw a
+  closed outline from two clicks. Lasso draws a free curve by dragging or
+  clicking. Similar colours within the radius of that stroke join one region,
+  using the colour under the pointer at each sample. Double-click closes the
+  guide. Add to list stores a movable Lasso and leaves a fixed copy of that
+  outline on the map. Nothing drawn here is kept after the page closes.
 - Rename a Polygon in the session list, and export it as UTM easting and
   northing where it sits on the globe. Several switched-on Polygons in the
   same zone can be exported as one file. Importing that file adds the usual

@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `DESIGN.md` — Toolbox subsection documents the bento icon grid, hover/focus tooltips, tool-matched cursors (lasso radius scaling), edge pan while drawing, and polygon/ruler preview behind the pointer.
 - `docs/superpowers/specs/2026-09-29-toolbox-ui-update.md` — approved Toolbox UI addendum: bento icon grid, tool cursors, hover tooltips, edge pan, and polygon/ruler preview behind the pointer. Lasso Radius stays 8–128 (default 48) and Contrast stays 0–255 (default 32). Geometry stays in `src/core`.
 - `features/toolbox_ui_update.md` — Toolbox UI update plan (bento grid, cursors, tooltips, edge pan, preview stacking, Emil animation workflow). Supersedes UI prompts in `feature/toolbox.md` for new UI work.
 

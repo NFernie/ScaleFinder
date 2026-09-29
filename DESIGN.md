@@ -220,7 +220,11 @@ The drag handle is a 20px circle in the Polygon colour with a 2px white stroke a
 
 ### Toolbox
 
-The Toolbox replaces Measure. It sits on the map in the top-left slot, outside the snapshot frame. The button and the popup use Panel at 95%, 12px corners on the popup, 8px corners on the tool buttons, and the Float shadow. The active tool uses Selected teal. The readout uses the same panel. Lengths and areas use tabular numbers.
+The Toolbox replaces Measure. It sits on the map in the top-left slot, outside the snapshot frame. The trigger button and the popup use **Panel** at 95%, **12px** corners on the popup, **8px** corners on controls, and the **Float** shadow (`0 2px 8px rgb(0 0 0 / 0.35)`). Targets are at least **44px**. The active tool uses **Selected teal**; keyboard focus on a tool cell uses **Focus teal** (2px ring, 2px offset). The readout uses the same panel. Lengths and areas use tabular numbers.
+
+**Tool picker (bento):** When the menu is open, tools appear in a compact **bento icon grid** (three columns, one cell per tool). Each cell centres a monochrome shape icon (polygon, polyline, lasso ring, circle, square) in **Mist** / **Selected teal** when active — not a text-only list. The tool name and a short description sit in a **hover and focus tooltip** below the cell (`aria-label` on the button matches the title). Popup chrome motion follows the global **160ms** popup and **120ms** pressable timings; map geometry is not animated.
+
+**Map interaction while a tool is active:** The map frame hides the native pointer (`cursor-none`) and draws a **tool-matched cursor overlay** above the map: crosshair for Polygon and Ruler, ring for Circle, square mark for Square, and a ring for Lasso whose diameter follows the Lasso **Radius** setting (8–128 CSS px, default 48). **Edge pan:** when the session is accepting map points (adding polygon/ruler, placing circle/square clicks, or lasso drawing), moving the pointer within the edge band pans the map so the user can keep drawing without leaving the viewport. **Polygon and Ruler preview:** the rubber-band segment from the last confirmed corner to the hover point is drawn on the map **behind** the cursor overlay (confirmed stroke above preview line).
 
 ## Do's and Don'ts
 

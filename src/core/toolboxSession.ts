@@ -117,6 +117,8 @@ export function acceptDoubleClick(session: ToolboxSession, corner: LngLat): Tool
 }
 
 export function acceptHover(session: ToolboxSession, corner: LngLat): ToolboxSession {
+  if (session.polygon) return { ...session, hover: session.polygon.status === 'adding' ? corner : null }
+  if (session.ruler) return { ...session, hover: session.ruler.status === 'adding' ? corner : null }
   if (session.circle?.status === 'centre' && session.circle.centre) return { ...session, hover: corner }
   if (session.square?.status === 'origin' && session.square.origin) return { ...session, hover: corner }
   return session
@@ -209,16 +211,35 @@ export function takeLassoPair(
 export interface ToolboxOverlay {
   corners: LngLat[]
   closed: boolean
+  /** Confirmed corners plus the hover point while Polygon or Ruler is still adding. */
+  preview?: LngLat[]
   guide?: LngLat[]
   guideClosed?: boolean
   parts?: LngLat[][]
 }
 
+function rubberBand(status: string, corners: LngLat[], hover: LngLat | null): LngLat[] | undefined {
+  if (status !== 'adding' || corners.length < 1 || !hover) return undefined
+  return [...corners, hover]
+}
+
 export function overlayOf(session: ToolboxSession): ToolboxOverlay {
   if (session.polygon) {
-    return { corners: session.polygon.corners, closed: session.polygon.status === 'polygon' }
+    const preview = rubberBand(session.polygon.status, session.polygon.corners, session.hover)
+    return {
+      corners: session.polygon.corners,
+      closed: session.polygon.status === 'polygon',
+      ...(preview ? { preview } : {}),
+    }
   }
-  if (session.ruler) return { corners: session.ruler.corners, closed: false }
+  if (session.ruler) {
+    const preview = rubberBand(session.ruler.status, session.ruler.corners, session.hover)
+    return {
+      corners: session.ruler.corners,
+      closed: false,
+      ...(preview ? { preview } : {}),
+    }
+  }
   if (session.circle?.centre) {
     const edge = session.circle.edge ?? session.hover
     if (!edge) return { corners: [], closed: false }

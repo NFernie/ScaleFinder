@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Polygon and Ruler rubber-band: while status is `adding`, `overlayOf` sets `preview` to the confirmed corners plus `session.hover`. `MeasurementOverlay` draws that line under the confirmed stroke (white 2px, navy 4px casing) so it sits behind the tool cursor.
 - Map tool cursor overlay (`MapToolCursor`) with inline SVG marks per active tool; native cursor is hidden on the map frame while drawing. Lasso ring diameter follows Radius (8–128 CSS px, default 48).
 - Edge pan while drawing: `edgePanDelta` in `src/map/mapEdgePan.ts` (32px band, ±16px cap); `App` calls `map.panBy` on pointer move when the map is accepting points.
 

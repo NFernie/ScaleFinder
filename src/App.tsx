@@ -888,6 +888,7 @@ export default function App() {
                 <MeasurementOverlay
                   corners={measurementOverlay.corners}
                   closed={measurementOverlay.closed}
+                  preview={measurementOverlay.preview}
                   guide={measurementOverlay.guide}
                   guideClosed={measurementOverlay.guideClosed}
                   parts={measurementOverlay.parts}

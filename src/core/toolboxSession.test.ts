@@ -3,10 +3,12 @@ import { destinationPoint } from './projection'
 import {
   acceptClick,
   acceptDoubleClick,
+  acceptHover,
   chooseTool,
   closedSession,
   deleteDraft,
   doneDraft,
+  overlayOf,
   setLassoOutline,
   setLassoSettings,
   takeDraft,
@@ -116,6 +118,46 @@ describe('toolbox session', () => {
     expect(removePolygon(rows, 'fixed').map((row) => row.id)).toEqual([])
     expect(removePolygon(rows, 'move').map((row) => row.id)).toEqual([])
     expect(setLassoSettings(session, 80, 4).lasso?.radiusPx).toBe(8)
+  })
+
+  it('includes hover preview for an open polygon', () => {
+    let session = chooseTool(closedSession(), 'polygon')
+    session = acceptClick(session, a).session
+    session = acceptClick(session, b).session
+    session = acceptHover(session, c)
+    const overlay = overlayOf(session)
+    expect(overlay.preview).toEqual([a, b, c])
+    expect(overlay.corners).toEqual([a, b])
+    expect(overlay.closed).toBe(false)
+  })
+
+  it('omits preview once a polygon is closed', () => {
+    let session = chooseTool(closedSession(), 'polygon')
+    session = acceptClick(session, a).session
+    session = acceptClick(session, b).session
+    session = acceptClick(session, c).session
+    session = acceptDoubleClick(session, c)
+    session = acceptHover(session, c)
+    const overlay = overlayOf(session)
+    expect(session.polygon?.status).toBe('polygon')
+    expect(overlay.preview).toBeUndefined()
+    expect(overlay.corners).toEqual(session.polygon?.corners)
+    expect(overlay.closed).toBe(true)
+  })
+
+  it('includes hover preview for an open ruler and drops it when the ruler is done', () => {
+    let session = chooseTool(closedSession(), 'ruler')
+    session = acceptClick(session, a).session
+    session = acceptHover(session, b)
+    expect(overlayOf(session).preview).toEqual([a, b])
+    expect(overlayOf(session).corners).toEqual([a])
+    session = acceptClick(session, b).session
+    session = acceptDoubleClick(session, b)
+    session = acceptHover(session, c)
+    expect(session.ruler?.status).toBe('done')
+    expect(session.hover).toBeNull()
+    expect(overlayOf(session).preview).toBeUndefined()
+    expect(overlayOf(session).corners).toEqual([a, b])
   })
 
   it('clears a drawing without returning a draft', () => {

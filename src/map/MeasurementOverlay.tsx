@@ -7,6 +7,8 @@ import { LngLat } from '../core/types'
 interface Props {
   corners: LngLat[]
   closed: boolean
+  /** Confirmed corners plus hover. Drawn under the committed stroke. */
+  preview?: LngLat[]
   /** Lasso stroke. Present only while a Lasso draft exists. */
   guide?: LngLat[]
   guideClosed?: boolean
@@ -20,8 +22,26 @@ function lineOf(points: LngLat[], closed: boolean): [number, number][] {
   return line
 }
 
-export default function MeasurementOverlay({ corners, closed, guide, guideClosed, parts }: Props) {
+const NAVY = '#0f172a'
+const WHITE = '#ffffff'
+
+function previewCollection(preview: LngLat[] | undefined): FeatureCollection | null {
+  if (!preview || preview.length < 2) return null
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: { kind: 'preview' },
+        geometry: { type: 'LineString', coordinates: lineOf(preview, false) },
+      },
+    ],
+  }
+}
+
+export default function MeasurementOverlay({ corners, closed, preview, guide, guideClosed, parts }: Props) {
   const lasso = guide !== undefined || parts !== undefined
+  const previewData = useMemo(() => previewCollection(preview), [preview])
   const data = useMemo<FeatureCollection>(() => {
     if (lasso) {
       const features: Feature[] = []
@@ -78,34 +98,52 @@ export default function MeasurementOverlay({ corners, closed, guide, guideClosed
     }
   }, [corners, closed, guide, guideClosed, lasso, parts])
 
-  const drawable = lasso
+  const confirmedDrawable = lasso
     ? (guide?.length ?? 0) >= 2 || (parts ?? []).some((part) => part.length >= 2)
     : corners.length >= 2
-  if (!drawable) return null
+  if (!confirmedDrawable && !previewData) return null
   const showFill = lasso ? (parts ?? []).some((part) => part.length >= 3) : closed
 
   return (
-    <Source id="measurement" type="geojson" data={data}>
-      {showFill && (
-        <Layer
-          id="measurement-fill"
-          type="fill"
-          filter={['==', ['get', 'kind'], 'fill']}
-          paint={{ 'fill-color': '#ffffff', 'fill-opacity': 0.2 }}
-        />
+    <>
+      {previewData && (
+        <Source id="measurement-preview" type="geojson" data={previewData}>
+          <Layer
+            id="measurement-preview-casing"
+            type="line"
+            paint={{ 'line-color': NAVY, 'line-width': 4 }}
+          />
+          <Layer
+            id="measurement-preview-line"
+            type="line"
+            paint={{ 'line-color': WHITE, 'line-width': 2 }}
+          />
+        </Source>
       )}
-      <Layer
-        id="measurement-casing"
-        type="line"
-        filter={['==', ['get', 'kind'], 'line']}
-        paint={{ 'line-color': '#0f172a', 'line-width': 4 }}
-      />
-      <Layer
-        id="measurement-line"
-        type="line"
-        filter={['==', ['get', 'kind'], 'line']}
-        paint={{ 'line-color': '#ffffff', 'line-width': 2 }}
-      />
-    </Source>
+      {confirmedDrawable && (
+        <Source id="measurement" type="geojson" data={data}>
+          {showFill && (
+            <Layer
+              id="measurement-fill"
+              type="fill"
+              filter={['==', ['get', 'kind'], 'fill']}
+              paint={{ 'fill-color': WHITE, 'fill-opacity': 0.2 }}
+            />
+          )}
+          <Layer
+            id="measurement-casing"
+            type="line"
+            filter={['==', ['get', 'kind'], 'line']}
+            paint={{ 'line-color': NAVY, 'line-width': 4 }}
+          />
+          <Layer
+            id="measurement-line"
+            type="line"
+            filter={['==', ['get', 'kind'], 'line']}
+            paint={{ 'line-color': WHITE, 'line-width': 2 }}
+          />
+        </Source>
+      )}
+    </>
   )
 }

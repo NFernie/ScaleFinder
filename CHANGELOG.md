@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Toolbox popup tool picker is a bento grid of shape icons with hover/focus tooltips (`ToolIcon`, `TOOL_TIPS`) instead of a vertical text list.
+
 ### Docs
 
 - `docs/superpowers/specs/2026-09-29-toolbox-ui-update.md` — approved Toolbox UI addendum: bento icon grid, tool cursors, hover tooltips, edge pan, and polygon/ruler preview behind the pointer. Lasso Radius stays 8–128 (default 48) and Contrast stays 0–255 (default 32). Geometry stays in `src/core`.

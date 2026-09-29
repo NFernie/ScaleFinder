@@ -15,6 +15,12 @@ function Harness() {
   )
 }
 
+it('renders bento tool buttons with accessible names', () => {
+  render(<Toolbox session={{ ...closedSession(), menuOpen: true }} onToggle={() => {}} onChoose={() => {}} />)
+  expect(screen.getByRole('button', { name: /polygon/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /square/i })).toBeInTheDocument()
+})
+
 it('replaces Measure with a popup of five tools', async () => {
   const user = userEvent.setup()
   render(<Harness />)
@@ -24,7 +30,7 @@ it('replaces Measure with a popup of five tools', async () => {
   expect(screen.getByRole('button', { name: 'Ruler' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Lasso' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Circle' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Square' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /square/i })).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Polygon' }))
   expect(screen.getByRole('button', { name: 'Toolbox' })).toHaveAttribute('aria-pressed', 'true')
 })

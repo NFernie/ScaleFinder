@@ -7,6 +7,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
+import { edgePanDelta } from './map/mapEdgePan'
 import { centroid } from './core/geometry'
 import { parsePolygonFile } from './core/parseFile'
 import {
@@ -585,10 +586,24 @@ export default function App() {
       ) {
         queueGuidePoint({ lng: event.lngLat.lng, lat: event.lngLat.lat }, event.point, false)
       }
+      if (mapAcceptsPoints && event.point) {
+        const map = mapRef.current && 'getMap' in mapRef.current ? mapRef.current.getMap() : null
+        if (map) {
+          const canvas = map.getCanvas()
+          const delta = edgePanDelta(
+            event.point,
+            { width: canvas.clientWidth, height: canvas.clientHeight },
+            32,
+          )
+          if (delta.x !== 0 || delta.y !== 0) {
+            map.panBy([delta.x, delta.y], { duration: 0 })
+          }
+        }
+      }
       const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
       setSession((current) => acceptHover(current, corner))
     },
-    [queueGuidePoint],
+    [mapAcceptsPoints, queueGuidePoint],
   )
 
   const handleDone = useCallback(() => {

@@ -563,12 +563,32 @@ export default function App() {
     [queueGuidePoint],
   )
 
+  const panMapEdge = useCallback(
+    (point: { x: number; y: number } | undefined) => {
+      if (!mapAcceptsPoints || !point) return
+      const map = mapRef.current && 'getMap' in mapRef.current ? mapRef.current.getMap() : null
+      if (!map) return
+      const canvas = map.getCanvas()
+      const delta = edgePanDelta(
+        point,
+        { width: canvas.clientWidth, height: canvas.clientHeight },
+        32,
+      )
+      if (delta.x !== 0 || delta.y !== 0) {
+        map.panBy([delta.x, delta.y], { duration: 0 })
+      }
+    },
+    [mapAcceptsPoints],
+  )
+
   const handleMapTouchMove = useCallback(
     (event: { lngLat: { lng: number; lat: number }; point: { x: number; y: number } }) => {
-      if (!painting.current || !lassoDrawing.current) return
-      queueGuidePoint({ lng: event.lngLat.lng, lat: event.lngLat.lat }, event.point, false)
+      if (painting.current && lassoDrawing.current) {
+        queueGuidePoint({ lng: event.lngLat.lng, lat: event.lngLat.lat }, event.point, false)
+      }
+      panMapEdge(event.point)
     },
-    [queueGuidePoint],
+    [panMapEdge, queueGuidePoint],
   )
 
   const handleMapMouseMove = useCallback(
@@ -586,24 +606,11 @@ export default function App() {
       ) {
         queueGuidePoint({ lng: event.lngLat.lng, lat: event.lngLat.lat }, event.point, false)
       }
-      if (mapAcceptsPoints && event.point) {
-        const map = mapRef.current && 'getMap' in mapRef.current ? mapRef.current.getMap() : null
-        if (map) {
-          const canvas = map.getCanvas()
-          const delta = edgePanDelta(
-            event.point,
-            { width: canvas.clientWidth, height: canvas.clientHeight },
-            32,
-          )
-          if (delta.x !== 0 || delta.y !== 0) {
-            map.panBy([delta.x, delta.y], { duration: 0 })
-          }
-        }
-      }
+      panMapEdge(event.point)
       const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
       setSession((current) => acceptHover(current, corner))
     },
-    [mapAcceptsPoints, queueGuidePoint],
+    [panMapEdge, queueGuidePoint],
   )
 
   const handleDone = useCallback(() => {
@@ -868,6 +875,7 @@ export default function App() {
               onMapTouchMove={handleMapTouchMove}
               doubleClickZoom={!mapAcceptsPoints}
               dragPan={session.lasso?.status !== 'drawing'}
+              hideNativeCursor={session.tool !== null}
             >
               {items.map((item) =>
                 item.selected ? (

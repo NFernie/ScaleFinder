@@ -1,5 +1,12 @@
 import type { ToolId } from '../core/toolboxSession'
 
+/** Locked readout titles from features/toolbox_ui_update.md. */
+export const LASSO_RADIUS_TITLE =
+  'Radius (8–128 px): Size of the colour-search disc around your brush. Low (8–24): tight, precise edges. High (64–128): grabs a wider area; use on large uniform regions; may include unlike colours.'
+
+export const LASSO_CONTRAST_TITLE =
+  'Contrast (0–255): How similar a pixel’s RGB must be to the seed colour. Low (0–16): only nearly identical colours. High (48–255): includes more variation; 32 is default. 255 is maximally permissive.'
+
 export const TOOL_TIPS: Record<ToolId, { title: string; body: string }> = {
   polygon: {
     title: 'Polygon',

@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beginLasso, type LassoDraft } from '../core/lasso'
 import LassoMenu from './LassoMenu'
+import { LASSO_CONTRAST_TITLE, LASSO_RADIUS_TITLE } from './ToolboxTooltips'
 
 const a = { lng: 10, lat: 45 }
 const b = { lng: 10.01, lat: 45 }
@@ -14,6 +15,8 @@ describe('LassoMenu', () => {
     render(<LassoMenu lasso={lasso} onSettings={vi.fn()} onAdd={vi.fn()} onDelete={vi.fn()} />)
     expect(screen.getByLabelText('Radius')).toHaveValue(48)
     expect(screen.getByLabelText('Contrast')).toHaveValue(32)
+    expect(screen.getByText('Radius').closest('label')).toHaveAttribute('title', LASSO_RADIUS_TITLE)
+    expect(screen.getByText('Contrast').closest('label')).toHaveAttribute('title', LASSO_CONTRAST_TITLE)
     expect(screen.getByText('Drag or click on the map. Double-click to close.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add to list' })).not.toBeInTheDocument()
   })

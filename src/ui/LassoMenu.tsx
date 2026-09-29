@@ -1,4 +1,5 @@
 import { LassoDraft } from '../core/lasso'
+import { LASSO_CONTRAST_TITLE, LASSO_RADIUS_TITLE } from './ToolboxTooltips'
 
 interface Props {
   lasso: LassoDraft
@@ -13,7 +14,7 @@ export default function LassoMenu({ lasso, onSettings, onAdd, onDelete }: Props)
   const blocked = lasso.message === 'This basemap does not allow colour sampling.'
   return (
     <div className="flex min-h-0 flex-col gap-3 rounded-xl border border-white/15 bg-surface/95 p-3 text-sm text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
-      <label className="flex items-center justify-between gap-3">
+      <label title={LASSO_RADIUS_TITLE} className="flex items-center justify-between gap-3">
         Radius
         <input
           aria-label="Radius"
@@ -27,7 +28,7 @@ export default function LassoMenu({ lasso, onSettings, onAdd, onDelete }: Props)
           className="min-h-11 w-24 rounded-lg border border-white/10 bg-black/30 px-3 text-base text-slate-100"
         />
       </label>
-      <label className="flex items-center justify-between gap-3">
+      <label title={LASSO_CONTRAST_TITLE} className="flex items-center justify-between gap-3">
         Contrast
         <input
           aria-label="Contrast"

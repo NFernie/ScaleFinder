@@ -94,6 +94,16 @@
   }
 }
 
+/*
+ * Unlayered so this beats MapLibre's grab/grabbing rules. Specificity is one
+ * class above `.maplibregl-canvas-container.maplibregl-interactive` and `:active`.
+ */
+.maplibregl-canvas-container.maplibregl-interactive.map-hide-native-cursor,
+.maplibregl-canvas-container.maplibregl-interactive.map-hide-native-cursor.maplibregl-track-pointer,
+.maplibregl-canvas-container.maplibregl-interactive.map-hide-native-cursor:active {
+  cursor: none;
+}
+
 /* Keep MapLibre chrome clear of the home indicator and notch. */
 .maplibregl-ctrl-bottom-right {
   margin-bottom: calc(10px + env(safe-area-inset-bottom, 0px));

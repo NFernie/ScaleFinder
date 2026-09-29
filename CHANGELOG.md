@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- While a tool is active, `map-hide-native-cursor` on the MapLibre canvas container sets `cursor: none` with higher specificity than `.maplibregl-interactive`, `.maplibregl-track-pointer`, and `:active`, so the SVG tool cursor is the only pointer.
+- Lasso Radius and Contrast readout labels use the locked title sentences (Radius 8–128 and Contrast 0–255 meanings). Numeric ranges are unchanged.
+- Touch move edge-pans with `edgePanDelta` and `panBy` whenever a drawing tool accepts points, and still extends the lasso stroke while painting.
 - Tool cursor overlay appears immediately when a tool is selected while the pointer is already over the map (no blank frame until the first move).
 
 ### Docs

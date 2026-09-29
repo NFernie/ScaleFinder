@@ -13,7 +13,7 @@ export default function MeasureMenu({ measurement, onDone, onDelete, onAdd }: Pr
   const closed = measurement.status === 'polygon'
 
   return (
-    <div className="flex min-h-0 flex-col gap-3 rounded-xl border border-white/15 bg-surface/95 p-3 text-sm text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
+    <div className="flex min-h-0 flex-col gap-3 rounded-lg bg-surface/95 p-3 text-sm text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
       <div className="min-h-0 max-h-64 overflow-y-auto overscroll-contain">
         {figures.segments.length > 0 && (
           <ul className="flex flex-col gap-1">
@@ -23,7 +23,7 @@ export default function MeasureMenu({ measurement, onDone, onDelete, onAdd }: Pr
                 <span className="tabular-nums">{formatLength(segment.metres)}</span>
               </li>
             ))}
-            <li className="mt-1 flex items-baseline justify-between gap-3 border-t border-white/10 pt-1 font-medium">
+            <li className="mt-2 flex items-baseline justify-between gap-3 pt-2 font-medium">
               <span>Total</span>
               <span className="tabular-nums">{formatLength(figures.totalM)}</span>
             </li>
@@ -64,7 +64,7 @@ export default function MeasureMenu({ measurement, onDone, onDelete, onAdd }: Pr
           type="button"
           aria-label="Delete measurement"
           onClick={onDelete}
-          className="pressable min-h-11 rounded-lg border border-white/15 px-3 text-sm text-red-400 hover:bg-white/5"
+          className="pressable min-h-11 rounded-lg bg-surface-overlay px-3 text-sm text-red-400 hover:bg-white/10"
         >
           Delete
         </button>

@@ -43,16 +43,26 @@ import {
   verticesForPolygon,
 } from './core/polygonList'
 import { projectToGeographic } from './core/projection'
+import {
+  bearingDelta,
+  initialBearing,
+  rotationForBearing,
+  rotationState,
+  turnedParts,
+  wrapBearing,
+} from './core/rotation'
 import { LengthUnit, LngLat } from './core/types'
 import { getBasemaps, hasMapTilerKey } from './map/basemap'
 import { bufferPixel, bufferToCss, radiusInBuffer, sampleBasemap } from './map/sampleCanvas'
 import MapView from './map/MapView'
 import MeasurementOverlay from './map/MeasurementOverlay'
-import PolygonOverlay from './map/PolygonOverlay'
+import PlacedPolygon from './map/PlacedPolygon'
 import { Region } from './map/regions'
 import { downloadFramePng } from './map/snapshot'
 import ImportPanel from './ui/ImportPanel'
 import LassoMenu from './ui/LassoMenu'
+import SidebarResizeHandle from './ui/SidebarResizeHandle'
+import { MAP_MIN_PX, SIDEBAR_DEFAULT_PX } from './ui/sidebarWidth'
 import MeasureMenu from './ui/MeasureMenu'
 import RulerMenu from './ui/RulerMenu'
 import ShapeMenu from './ui/ShapeMenu'
@@ -86,6 +96,12 @@ function Mark() {
   )
 }
 
+function stampRotation(item: PolygonItem): PolygonItem {
+  if (item.fixed) return item
+  const state = rotationState(partsForPolygon(item), item.anchor)
+  return state ? { ...item, ...state } : item
+}
+
 export default function App() {
   const [unit, setUnit] = useState<LengthUnit>('m')
   const [items, setItems] = useState<PolygonItem[]>([])
@@ -97,6 +113,7 @@ export default function App() {
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
   const [session, setSession] = useState<ToolboxSession>(closedSession())
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_PX)
 
   const basemaps = useMemo(() => getBasemaps(MAPTILER_KEY), [])
   const [basemapId, setBasemapId] = useState(basemaps[0].id)
@@ -104,6 +121,7 @@ export default function App() {
 
   const mapRef = useRef<MapRef>(null)
   const frameRef = useRef<HTMLDivElement>(null)
+  const layoutRef = useRef<HTMLDivElement>(null)
 
   const canExport = items.some(
     (item) => item.selected && verticesForPolygon(item).length >= 3,
@@ -132,7 +150,7 @@ export default function App() {
               mapCentre: currentCenter(),
             })
             next = next.map((item, index) =>
-              index === next.length - 1 ? { ...item, parts: utm.parts } : item,
+              index === next.length - 1 ? stampRotation({ ...item, parts: utm.parts }) : item,
             )
             if (utm.zone) {
               const anchor = fixedAnchor(utm.parts, utm.zone)
@@ -166,7 +184,7 @@ export default function App() {
             unit,
             hasZ: result.hasZ,
             mapCentre: currentCenter(),
-          }),
+          }).map((item, index, all) => (index === all.length - 1 ? stampRotation(item) : item)),
         )
         setImportNote(null)
         setError(null)
@@ -193,7 +211,7 @@ export default function App() {
             unit: sample.unit,
             hasZ: result.hasZ,
             mapCentre: currentCenter(),
-          }),
+          }).map((item, index, all) => (index === all.length - 1 ? stampRotation(item) : item)),
         )
         setError(null)
         setLoadedName(sample.fileName)
@@ -221,7 +239,19 @@ export default function App() {
   }, [])
 
   const handleReCentre = useCallback(() => {
-    setItems((prev) => reCentreSelected(prev))
+    setItems((prev) =>
+      reCentreSelected(prev).map((item) => {
+        if (!item.selected || item.fixed || !item.referenceEdge || item.originalBearing == null) return item
+        const rotationDeg = rotationForBearing(
+          partsForPolygon(item),
+          item.anchor,
+          item.rotationDeg ?? 0,
+          item.referenceEdge,
+          item.originalBearing,
+        )
+        return { ...item, rotationDeg }
+      }),
+    )
   }, [])
 
   const handleRemovePolygon = useCallback((id: string) => {
@@ -233,10 +263,44 @@ export default function App() {
   }, [])
 
   const geographicParts = useCallback((item: PolygonItem) => {
-    const parts = partsForPolygon(item)
+    const parts = turnedParts(partsForPolygon(item), item.fixed ? 0 : item.rotationDeg ?? 0)
     const origin = centroid(parts.flat())
     return parts.map((part) => projectToGeographic(part, item.anchor, origin))
   }, [])
+
+  const handleBearing = useCallback((id: string, bearing: number) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id || item.fixed || !item.referenceEdge) return item
+        const rotationDeg = rotationForBearing(
+          partsForPolygon(item),
+          item.anchor,
+          item.rotationDeg ?? 0,
+          item.referenceEdge,
+          bearing,
+        )
+        return { ...item, rotationDeg }
+      }),
+    )
+  }, [])
+
+  const handleRotatePointer = useCallback((id: string, pointer: LngLat) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id || item.fixed || !item.referenceEdge) return item
+        const rings = geographicParts(item)
+        const ring = rings[item.referenceEdge.part]
+        const start = ring?.[item.referenceEdge.edge]
+        const end = ring?.[item.referenceEdge.edge + 1]
+        if (!start || !end) return item
+        const mid = { lng: (start.lng + end.lng) / 2, lat: (start.lat + end.lat) / 2 }
+        const rotationDeg = wrapBearing(
+          (item.rotationDeg ?? 0) + bearingDelta(initialBearing(item.anchor, mid), initialBearing(item.anchor, pointer)),
+        )
+        return { ...item, rotationDeg }
+      }),
+    )
+  }, [geographicParts])
 
   const saveCsv = useCallback((fileName: string, text: string) => {
     const blob = new Blob([text], { type: 'text/csv;charset=utf-8' })
@@ -374,7 +438,7 @@ export default function App() {
       const draft = taken.draft
       setItems((prev) => [
         ...prev,
-        {
+        stampRotation({
           id: crypto.randomUUID(),
           sourceName: draft.sourceName,
           raw: draft.raw,
@@ -383,7 +447,7 @@ export default function App() {
           selected: true,
           anchor: draft.anchor,
           colour: nextColour(prev.map((item) => item.colour)),
-        },
+        }),
       ])
       return taken.session
     })
@@ -435,9 +499,9 @@ export default function App() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-white/10 pb-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:pl-[max(1.25rem,env(safe-area-inset-left))] sm:pr-[max(1.25rem,env(safe-area-inset-right))]">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-surface-raised pb-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:pl-[max(1.25rem,env(safe-area-inset-left))] sm:pr-[max(1.25rem,env(safe-area-inset-right))]">
         <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+          <h1 className="flex items-center gap-2 text-lg font-semibold">
             <Mark />
             ScaleFindr
           </h1>
@@ -469,8 +533,12 @@ export default function App() {
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(12rem,42dvh)] overflow-hidden lg:grid-cols-[380px_minmax(0,1fr)] lg:grid-rows-1">
-        <aside className="flex min-h-0 flex-col gap-8 overflow-y-auto overscroll-contain border-b border-white/10 bg-surface-raised px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 lg:border-b-0 lg:border-r">
+      <div
+        ref={layoutRef}
+        className="relative grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(12rem,42dvh)] overflow-hidden lg:grid-cols-[var(--sidebar-width)_minmax(0,1fr)] lg:grid-rows-1"
+        style={{ ['--sidebar-width' as string]: `${sidebarWidth}px` }}
+      >
+        <aside className="relative flex min-h-0 flex-col gap-8 overflow-y-auto overscroll-contain bg-surface-raised px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 lg:px-6">
           <section>
             <h2 className="mb-3 text-sm font-semibold text-slate-100">1 · Import Polygon</h2>
             <ImportPanel
@@ -496,6 +564,7 @@ export default function App() {
               onReCentre={handleReCentre}
               onDelete={handleRemovePolygon}
               onRename={handleRename}
+              onBearing={handleBearing}
               onExport={handleExportPolygon}
               onExportSelected={handleExportSelected}
               exportNotes={exportNotes}
@@ -512,12 +581,17 @@ export default function App() {
           </section>
 
           {!hasMapTilerKey(MAPTILER_KEY) && (
-            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
+            <p className="rounded-lg bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
               Using the keyless OpenFreeMap basemap. Set <span className="font-mono">VITE_MAPTILER_KEY</span>{' '}
               to enable MapTiler basemaps and worldwide search.
             </p>
           )}
         </aside>
+        <SidebarResizeHandle
+          width={sidebarWidth}
+          containerWidth={() => layoutRef.current?.clientWidth || sidebarWidth + MAP_MIN_PX}
+          onWidth={setSidebarWidth}
+        />
 
         <main className="relative min-h-0">
           <div ref={frameRef} className="absolute inset-0">
@@ -529,24 +603,16 @@ export default function App() {
               onMapMouseMove={handleMapMouseMove}
               doubleClickZoom={!mapAcceptsPoints}
             >
-              {items.map((item) => {
-                if (!item.selected) return null
-                const parts = partsForPolygon(item)
-                const origin = centroid(parts.flat())
-                const rings = parts.map((part) => projectToGeographic(part, item.anchor, origin))
-                return (
-                  <PolygonOverlay
+              {items.map((item) =>
+                item.selected ? (
+                  <PlacedPolygon
                     key={item.id}
-                    id={item.id}
-                    rings={rings}
-                    fixed={item.fixed}
-                    anchor={item.anchor}
-                    colour={item.colour}
-                    sourceName={item.sourceName}
+                    item={item}
                     onAnchorChange={(next) => handleAnchorChange(item.id, next)}
+                    onRotate={(pointer) => handleRotatePointer(item.id, pointer)}
                   />
-                )
-              })}
+                ) : null,
+              )}
               {(measurementOverlay.corners.length > 0 ||
                 session.polygon ||
                 session.ruler ||
@@ -560,17 +626,13 @@ export default function App() {
               )}
             </MapView>
 
-            <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3 pr-14">
-              {regionName ? (
-                <div className="max-w-[min(100%,18rem)] rounded-lg bg-surface/90 px-3 py-1.5 text-sm font-medium leading-snug text-white shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
-                  {regionName}
-                </div>
-              ) : (
-                <span />
-              )}
-              <div className="shrink-0 rounded-lg bg-surface/90 px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
-                ScaleFindr
+            {regionName && (
+              <div className="pointer-events-none absolute bottom-16 left-3 z-10 max-w-[14rem] rounded-lg bg-surface/90 px-3 py-2 text-sm font-medium leading-snug text-white shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
+                {regionName}
               </div>
+            )}
+            <div className="pointer-events-none absolute bottom-16 right-3 z-10 rounded-lg bg-surface/90 px-3 py-2 text-xs font-medium tracking-tight text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
+              ScaleFindr
             </div>
 
             {!anySelected && (
@@ -661,7 +723,7 @@ export default function App() {
               id="basemap-select"
               value={basemapId}
               onChange={(e) => setBasemapId(e.target.value)}
-              className="pointer-events-auto min-h-11 rounded-lg border border-white/15 bg-surface/95 px-3 text-base text-white shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
+              className="pointer-events-auto min-h-11 max-w-[12rem] rounded-lg bg-surface/95 px-3 text-base text-white shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
             >
               {basemaps.map((b) => (
                 <option key={b.id} value={b.id}>

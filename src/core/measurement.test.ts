@@ -69,7 +69,7 @@ describe('measurement to Polygon', () => {
     if (!closed) throw new Error('expected a closed polygon')
     const draft = measuredPolygonDraft(closed)
     if (!draft) throw new Error('expected a draft')
-    expect(draft.sourceName).toBe('Measured polygon')
+    expect(draft.sourceName).toBe('Measured Polygon')
     expect(draft.unit).toBe('m')
     expect(draft.hasZ).toBe(false)
     const placed = projectToGeographic(draft.raw, draft.anchor)
@@ -97,7 +97,7 @@ describe('measurement controls', () => {
     expect(next).not.toBeNull()
     expect(next?.status).toBe('adding')
     expect(next?.corners).toHaveLength(2)
-    expect(next?.message).toBe('Add at least three corners to close a polygon.')
+    expect(next?.message).toBe('Add at least three corners to close a Polygon.')
   })
 
   it('does not store a second copy of the last corner', () => {

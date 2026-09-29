@@ -26,6 +26,12 @@ export interface PolygonItem {
   parts?: Vertex[][]
   /** A UTM import twin. Drag, re-centre, and region search leave it in place. */
   fixed?: boolean
+  /** Clockwise turn of the imported metres, around their own centre. */
+  rotationDeg?: number
+  /** Edge chosen when the Polygon was added. Part index, then edge index. */
+  referenceEdge?: { part: number; edge: number }
+  /** Compass bearing of that edge when the Polygon was added. */
+  originalBearing?: number
 }
 
 export interface NewPolygonInput {

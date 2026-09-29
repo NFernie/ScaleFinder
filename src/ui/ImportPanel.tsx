@@ -73,7 +73,7 @@ export default function ImportPanel({
           role="radiogroup"
           aria-labelledby={`${inputId}-units`}
           onKeyDown={onUnitKeyDown}
-          className="inline-flex gap-1 rounded-lg border border-white/10 bg-surface-overlay p-1"
+          className="inline-flex gap-1 rounded-lg bg-surface-overlay p-1"
         >
           {LENGTH_UNITS.map((u) => (
             <button
@@ -105,12 +105,12 @@ export default function ImportPanel({
           setDragOver(false)
           void handleFiles(e.dataTransfer.files)
         }}
-        className={`rounded-xl border border-dashed p-5 text-center transition-colors duration-150 ${
+        className={`rounded-lg p-4 text-center transition-colors duration-150 ${
           dragOver
-            ? 'border-accent bg-accent/10'
+            ? 'bg-accent/10'
             : sourceName && !error
-              ? 'border-accent/40 bg-black/20'
-              : 'border-white/15 bg-black/20'
+              ? 'bg-surface-overlay'
+              : 'bg-surface-overlay/70'
         }`}
       >
         <p className="text-sm text-slate-300">
@@ -118,8 +118,8 @@ export default function ImportPanel({
           <span className="font-mono">.csv</span> Polygon here
         </p>
         <p id={hintId} className="mt-1 text-xs leading-relaxed text-slate-400">
-          Use a two-column file of X and Y values exported from your GIS software. An optional Z
-          column is kept and not used for the planform.
+          Use a two-column X and Y file, or a UTM table of Poly, Vert, X, Y, Z. Commas or tabs
+          both work. A UTM file starts with a line like # UTM 54S.
         </p>
         <label htmlFor={inputId} className="sr-only">
           Choose Polygon file
@@ -152,7 +152,7 @@ export default function ImportPanel({
             key={s.id}
             type="button"
             onClick={() => onLoadSample(s.id)}
-            className="pressable min-h-11 rounded-lg border border-white/15 px-3 text-sm text-slate-200 hover:bg-white/5"
+            className="pressable min-h-11 rounded-lg bg-surface px-3 text-sm text-slate-200 hover:bg-white/10"
           >
             {s.label}
           </button>

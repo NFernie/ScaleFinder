@@ -175,10 +175,10 @@ describe('App polygon list', () => {
     await user.click(screen.getByTestId('map'))
     await user.click(screen.getByTestId('map-double'))
     expect(screen.getByText('Area')).toBeInTheDocument()
-    expect(screen.queryByRole('switch', { name: 'Measured polygon' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('switch', { name: 'Measured Polygon' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Add to list' }))
-    expect(await screen.findByRole('switch', { name: 'Measured polygon' })).toBeInTheDocument()
+    expect(await screen.findByRole('switch', { name: 'Measured Polygon' })).toBeInTheDocument()
     expect(screen.queryByText('Segment 1')).not.toBeInTheDocument()
     expect(screen.getAllByText('Planform area')).toHaveLength(2)
     expect(screen.getByRole('switch', { name: 'sample-small-field.csv' })).toBeInTheDocument()
@@ -189,7 +189,7 @@ describe('App polygon list', () => {
     await user.click(screen.getByRole('button', { name: 'Done' }))
     await user.click(screen.getByRole('button', { name: 'Delete measurement' }))
     expect(screen.queryByText('Segment 1')).not.toBeInTheDocument()
-    expect(screen.getByRole('switch', { name: 'Measured polygon' })).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'Measured Polygon' })).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'sample-small-field.csv' })).toBeInTheDocument()
   })
 
@@ -233,15 +233,16 @@ describe('App polygon list', () => {
 
     const utm = [
       '# UTM 36N',
-      'Vertices,X,Y,Z',
-      '1,500000.00,3320000.00,0',
-      '2,501000.00,3320000.00,0',
-      '3,501000.00,3321000.00,0',
-      '4,500000.00,3321000.00,0',
+      'Poly,Vert,X,Y,Z',
+      '1,1,500000.00,3320000.00,0',
+      '1,2,501000.00,3320000.00,0',
+      '1,3,501000.00,3321000.00,0',
+      '1,4,500000.00,3321000.00,0',
     ].join('\n')
     await user.upload(screen.getByLabelText('Choose Polygon file'), csv('utm-field.csv', utm))
     expect(await screen.findByRole('switch', { name: 'utm-field.csv' })).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'utm-field.csv (fixed)' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Export utm-field.csv (fixed)' })).toBeInTheDocument()
+    expect(screen.getByRole('complementary').parentElement).toHaveStyle({ '--sidebar-width': '380px' })
   })
 })

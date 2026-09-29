@@ -37,7 +37,7 @@ describe('toolbox session', () => {
     session = acceptDoubleClick(session, c)
     expect(session.polygon?.status).toBe('polygon')
     const taken = takeDraft(session)
-    expect(taken.draft?.sourceName).toBe('Measured polygon')
+    expect(taken.draft?.sourceName).toBe('Measured Polygon')
     expect(taken.session.tool).toBeNull()
   })
 

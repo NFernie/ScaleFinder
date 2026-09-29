@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `docs/superpowers/specs/2026-09-29-lasso-brush-design.md` — Lasso becomes a live brush: drag a free curve, click corners, double-click closes the guide, and Add to list stores a movable Lasso plus a fixed outline. Status is Awaiting review.
 - DESIGN.md records the map Toolbox: Panel at 95%, 12px popup corners, Float shadow, Selected teal while a tool is on.
 - `docs/superpowers/specs/2026-09-28-map-toolbox-design.md` — align Toolbox spec with locked lasso delta, aim-only controls, Circle list name, and Add to list centre placement.
 - `docs/superpowers/specs/2026-09-28-map-toolbox-design.md` — map Toolbox that replaces Measure with Polygon, Ruler, Lasso, Circle, and Square. Status is Approved.

@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Map tool cursor overlay (`MapToolCursor`) with inline SVG marks per active tool; native cursor is hidden on the map frame while drawing. Lasso ring diameter follows Radius (8–128 CSS px, default 48).
+
 ### Changed
 
 - Toolbox popup tool picker is a bento grid of shape icons with hover/focus tooltips (`ToolIcon`, `TOOL_TIPS`) instead of a vertical text list.

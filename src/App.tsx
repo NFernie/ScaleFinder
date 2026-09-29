@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
 import { centroid } from './core/geometry'
 import { parsePolygonFile } from './core/parseFile'
@@ -58,6 +58,7 @@ import {
 import { LengthUnit, LngLat } from './core/types'
 import { getBasemaps, hasMapTilerKey } from './map/basemap'
 import { bufferPixel, bufferToCss, radiusInBuffer, readBasemap, sampleBasemap } from './map/sampleCanvas'
+import MapToolCursor from './map/MapToolCursor'
 import MapView from './map/MapView'
 import MeasurementOverlay from './map/MeasurementOverlay'
 import PlacedPolygon from './map/PlacedPolygon'
@@ -116,6 +117,7 @@ export default function App() {
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
   const [session, setSession] = useState<ToolboxSession>(closedSession())
+  const [toolPointer, setToolPointer] = useState<{ x: number; y: number } | null>(null)
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_PX)
 
   const basemaps = useMemo(() => getBasemaps(MAPTILER_KEY), [])
@@ -586,8 +588,28 @@ export default function App() {
 
   const handleDelete = useCallback(() => {
     resetLassoScratch()
+    setToolPointer(null)
     setSession(closedSession())
   }, [resetLassoScratch])
+
+  const syncToolPointer = useCallback((clientX: number, clientY: number) => {
+    const frame = frameRef.current
+    if (!frame) return
+    const rect = frame.getBoundingClientRect()
+    setToolPointer({ x: clientX - rect.left, y: clientY - rect.top })
+  }, [])
+
+  const handleFramePointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!session.tool) return
+      syncToolPointer(event.clientX, event.clientY)
+    },
+    [session.tool, syncToolPointer],
+  )
+
+  const handleFramePointerLeave = useCallback(() => {
+    setToolPointer(null)
+  }, [])
 
   const handleAdd = useCallback(() => {
     setSession((current) => {
@@ -790,7 +812,12 @@ export default function App() {
         />
 
         <main className="relative min-h-0">
-          <div ref={frameRef} className="absolute inset-0">
+          <div
+            ref={frameRef}
+            className={`absolute inset-0 ${session.tool ? 'cursor-none' : ''}`}
+            onPointerMove={handleFramePointerMove}
+            onPointerLeave={handleFramePointerLeave}
+          >
             <MapView
               ref={mapRef}
               basemap={basemap}
@@ -829,6 +856,15 @@ export default function App() {
                 />
               )}
             </MapView>
+
+            {session.tool && toolPointer && (
+              <MapToolCursor
+                tool={session.tool}
+                lassoRadiusPx={session.lasso?.radiusPx}
+                x={toolPointer.x}
+                y={toolPointer.y}
+              />
+            )}
 
             {regionName && (
               <div className="pointer-events-none absolute bottom-16 left-3 z-10 max-w-[14rem] rounded-lg bg-surface/90 px-3 py-2 text-sm font-medium leading-snug text-white shadow-[0_2px_8px_rgb(0_0_0/0.35)]">

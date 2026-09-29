@@ -1,5 +1,16 @@
 import { beginCircle, circleRadiusM, circleRing, CircleDraft, setCircleCentre, setCircleEdge } from './circle'
-import { beginLasso, commitLassoRing, LassoDraft, setLassoAim } from './lasso'
+import {
+  appendGuidePoint,
+  beginLasso,
+  closeGuide,
+  dropLastGuidePoint,
+  LassoDraft,
+  markLassoMessage,
+  paintGuideSample,
+  Pixel,
+  setLassoAim,
+  setOutline,
+} from './lasso'
 import {
   addCorner,
   applyDoubleClick,
@@ -8,7 +19,7 @@ import {
   measuredPolygonDraft,
   Measurement,
 } from './measurement'
-import { ringToDraft, RingDraft } from './ringDraft'
+import { ringsToDraft, ringToDraft, RingDraft } from './ringDraft'
 import { addRulerCorner, beginRuler, finishDistanceRuler, Ruler } from './ruler'
 import {
   beginSquare,
@@ -86,8 +97,8 @@ export function acceptClick(session: ToolboxSession, corner: LngLat): { session:
       : setSquareOrigin(session.square, corner)
     return { session: { ...session, square, hover: square.status === 'ready' ? null : session.hover }, sample: false }
   }
-  if (session.tool === 'lasso' && session.lasso?.status === 'aim') {
-    return { session, sample: true }
+  if (session.tool === 'lasso' && session.lasso?.status === 'drawing') {
+    return { session: { ...session, lasso: appendGuidePoint(session.lasso, corner) }, sample: true }
   }
   return { session, sample: false }
 }
@@ -101,6 +112,7 @@ export function acceptDoubleClick(session: ToolboxSession, corner: LngLat): Tool
   if (session.tool === 'ruler' && session.ruler) {
     return { ...session, ruler: finishDistanceRuler(session.ruler) }
   }
+  if (session.tool === 'lasso' && session.lasso) return closeLasso(session)
   return session
 }
 
@@ -121,18 +133,38 @@ export function doneDraft(session: ToolboxSession): ToolboxSession {
 }
 
 export function setLassoSettings(session: ToolboxSession, radiusPx: number, maxChannelDelta: number): ToolboxSession {
-  if (!session.lasso || session.lasso.status !== 'aim') return session
+  if (!session.lasso) return session
   return { ...session, lasso: setLassoAim(session.lasso, radiusPx, maxChannelDelta) }
+}
+
+export function paintLassoSample(session: ToolboxSession, index: number, pixel: Pixel): ToolboxSession {
+  if (!session.lasso) return session
+  return { ...session, lasso: paintGuideSample(session.lasso, index, pixel) }
+}
+
+export function setLassoOutline(session: ToolboxSession, parts: LngLat[][]): ToolboxSession {
+  if (!session.lasso) return session
+  return { ...session, lasso: setOutline(session.lasso, parts) }
+}
+
+export function noteLasso(session: ToolboxSession, message: string): ToolboxSession {
+  if (!session.lasso) return session
+  return { ...session, lasso: markLassoMessage(session.lasso, message) }
+}
+
+export function dropLastLassoPoint(session: ToolboxSession): ToolboxSession {
+  if (!session.lasso) return session
+  return { ...session, lasso: dropLastGuidePoint(session.lasso) }
+}
+
+export function closeLasso(session: ToolboxSession): ToolboxSession {
+  if (!session.lasso) return session
+  return { ...session, lasso: closeGuide(session.lasso), hover: null }
 }
 
 export function setSquareMode(session: ToolboxSession, shape: BoxShape): ToolboxSession {
   if (!session.square) return session
   return { ...session, square: setSquareShape(session.square, shape) }
-}
-
-export function commitLasso(session: ToolboxSession, corners: LngLat[], message: string | null): ToolboxSession {
-  if (!session.lasso) return session
-  return { ...session, lasso: commitLassoRing(session.lasso, corners, message), hover: null }
 }
 
 export function takeDraft(session: ToolboxSession): { session: ToolboxSession; draft: RingDraft | null } {
@@ -152,14 +184,37 @@ export function takeDraft(session: ToolboxSession): { session: ToolboxSession; d
     const draft = corners ? ringToDraft(corners, name) : null
     return { session: draft ? closedSession() : session, draft }
   }
-  if (session.lasso?.status === 'ready') {
-    const draft = ringToDraft(session.lasso.corners, 'Lasso')
-    return { session: draft ? closedSession() : session, draft }
-  }
   return { session, draft: null }
 }
 
-export function overlayOf(session: ToolboxSession): { corners: LngLat[]; closed: boolean } {
+export function takeLassoPair(
+  session: ToolboxSession,
+  pairId: string,
+): { session: ToolboxSession; movable: RingDraft | null; fixed: RingDraft | null } {
+  const parts = session.lasso?.parts.filter((part) => part.length >= 3) ?? []
+  if (!session.lasso || parts.length === 0) return { session, movable: null, fixed: null }
+  if (session.lasso.message === 'This basemap does not allow colour sampling.') {
+    return { session, movable: null, fixed: null }
+  }
+  const movable = ringsToDraft(parts, 'Lasso')
+  const fixed = ringsToDraft(parts, 'Lasso (fixed)')
+  if (!movable || !fixed) return { session, movable: null, fixed: null }
+  return {
+    session: closedSession(),
+    movable: { ...movable, pairId },
+    fixed: { ...fixed, pairId, fixed: true },
+  }
+}
+
+export interface ToolboxOverlay {
+  corners: LngLat[]
+  closed: boolean
+  guide?: LngLat[]
+  guideClosed?: boolean
+  parts?: LngLat[][]
+}
+
+export function overlayOf(session: ToolboxSession): ToolboxOverlay {
   if (session.polygon) {
     return { corners: session.polygon.corners, closed: session.polygon.status === 'polygon' }
   }
@@ -176,6 +231,14 @@ export function overlayOf(session: ToolboxSession): { corners: LngLat[]; closed:
     if (!opposite) return { corners: [], closed: false }
     return { corners: squareCorners(session.square.origin, opposite, session.square.shape) ?? [], closed: true }
   }
-  if (session.lasso) return { corners: session.lasso.corners, closed: session.lasso.corners.length >= 3 }
+  if (session.lasso) {
+    return {
+      corners: [],
+      closed: false,
+      guide: session.lasso.guide,
+      guideClosed: session.lasso.status === 'closed' && session.lasso.guide.length >= 3,
+      parts: session.lasso.parts.filter((part) => part.length >= 2),
+    }
+  }
   return { corners: [], closed: false }
 }

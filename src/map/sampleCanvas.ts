@@ -57,6 +57,11 @@ export function radiusInBuffer(radiusCss: number, canvasWidth: number, clientWid
 export async function sampleBasemap(map: MapLibreMap): Promise<Raster> {
   map.triggerRepaint?.()
   await new Promise<void>((resolve) => map.once('idle', () => resolve()))
+  return readBasemap(map)
+}
+
+/** Read the canvas that is already on screen. Does not wait for another frame. */
+export function readBasemap(map: MapLibreMap): Raster {
   const canvas = map.getCanvas()
   try {
     const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl')

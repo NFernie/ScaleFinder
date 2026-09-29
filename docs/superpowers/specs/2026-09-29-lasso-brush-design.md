@@ -1,6 +1,6 @@
 # Lasso brush — Design Spec
 
-- **Status:** Awaiting review
+- **Status:** Approved
 - **Date:** 2026-09-29
 - **Branch:** `cursor/toolbox-merge-main-3678`
 - **Purpose doc:** [`ScaleFinderPurpose.md`](../../../ScaleFinderPurpose.md)

@@ -16,19 +16,23 @@ import { polygonAreaM2 } from './core/geometry'
 import { haversineM } from './core/projection'
 import { ringToDraft } from './core/ringDraft'
 import { squareCorners } from './core/square'
-import { traceContrast } from './core/lasso'
+import { CANNOT_SAMPLE, traceBrush, type LassoSample, type Raster } from './core/lasso'
 import {
   acceptClick,
   acceptDoubleClick,
   acceptHover,
   closedSession,
   chooseTool,
-  commitLasso,
   doneDraft,
+  dropLastLassoPoint,
+  noteLasso,
   overlayOf,
+  paintLassoSample,
+  setLassoOutline,
   setLassoSettings,
   setSquareMode,
   takeDraft,
+  takeLassoPair,
   toggleMenu,
   ToolboxSession,
 } from './core/toolboxSession'
@@ -53,7 +57,7 @@ import {
 } from './core/rotation'
 import { LengthUnit, LngLat } from './core/types'
 import { getBasemaps, hasMapTilerKey } from './map/basemap'
-import { bufferPixel, bufferToCss, radiusInBuffer, sampleBasemap } from './map/sampleCanvas'
+import { bufferPixel, bufferToCss, radiusInBuffer, readBasemap, sampleBasemap } from './map/sampleCanvas'
 import MapView from './map/MapView'
 import MeasurementOverlay from './map/MeasurementOverlay'
 import PlacedPolygon from './map/PlacedPolygon'
@@ -72,8 +76,7 @@ import RegionSearch from './ui/RegionSearch'
 import { SAMPLES } from './data/samples'
 
 const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY
-
-const CANNOT_SAMPLE = 'This basemap does not allow colour sampling.'
+const BRUSH_GAP_PX = 8
 
 function Mark() {
   return (
@@ -121,6 +124,16 @@ export default function App() {
 
   const mapRef = useRef<MapRef>(null)
   const frameRef = useRef<HTMLDivElement>(null)
+  const lassoChain = useRef(Promise.resolve())
+  const lassoRaster = useRef<Raster | null>(null)
+  const lassoSawRaster = useRef(false)
+  const lastCss = useRef<{ x: number; y: number } | null>(null)
+  const appendedOnLastDown = useRef(false)
+  const lassoPressSampled = useRef(false)
+  const touchAt = useRef(0)
+  const painting = useRef(false)
+  const lassoDrawing = useRef(false)
+  const guideCount = useRef(0)
   const layoutRef = useRef<HTMLDivElement>(null)
 
   const canExport = items.some(
@@ -358,81 +371,264 @@ export default function App() {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, anchor: next } : item)))
   }, [])
 
+  lassoDrawing.current = session.lasso?.status === 'drawing'
+  if (!session.lasso) guideCount.current = 0
+  else if (session.lasso.guide.length >= guideCount.current) guideCount.current = session.lasso.guide.length
   const mapAcceptsPoints =
     session.polygon?.status === 'adding' ||
     session.ruler?.status === 'adding' ||
     session.circle?.status === 'centre' ||
     session.square?.status === 'origin' ||
-    session.lasso?.status === 'aim'
+    lassoDrawing.current
 
-  const sampleLasso = useCallback(async (session: ToolboxSession, point: { x: number; y: number }) => {
+  const resetLassoScratch = useCallback(() => {
+    lassoSawRaster.current = false
+    lassoRaster.current = null
+    lastCss.current = null
+    appendedOnLastDown.current = false
+    lassoPressSampled.current = false
+    painting.current = false
+    guideCount.current = 0
+  }, [])
+
+  const colourParts = useCallback((samples: LassoSample[]) => {
     const map = mapRef.current && 'getMap' in mapRef.current ? mapRef.current.getMap() : null
-    if (!map || !session.lasso) {
-      setSession((current) => commitLasso(current, [], CANNOT_SAMPLE))
-      return
-    }
-    try {
-      const raster = await sampleBasemap(map)
-      const canvas = map.getCanvas()
-      const seed = bufferPixel(point.x, point.y, raster.width, raster.height, canvas.clientWidth, canvas.clientHeight)
-      const radius = radiusInBuffer(session.lasso.radiusPx, raster.width, canvas.clientWidth)
-      const ring = traceContrast(raster, seed, radius, session.lasso.maxChannelDelta)
-      if (!ring) {
-        setSession((current) => commitLasso(current, [], 'No feature found at that contrast.'))
-        return
-      }
-      const corners = ring.map((pixel) => {
+    const raster = lassoRaster.current
+    if (!map || !raster) return null
+    const canvas = map.getCanvas()
+    const ready = samples.flatMap((sample) =>
+      sample.pixel
+        ? [
+            {
+              pixel: sample.pixel,
+              radiusPx: radiusInBuffer(sample.radiusPx, raster.width, canvas.clientWidth),
+              maxChannelDelta: sample.maxChannelDelta,
+            },
+          ]
+        : [],
+    )
+    const rings = traceBrush(raster, ready)
+    if (!rings) return []
+    return rings.map((ring) =>
+      ring.map((pixel) => {
         const css = bufferToCss(pixel, raster.width, raster.height, canvas.clientWidth, canvas.clientHeight)
         const lngLat = map.unproject([css.x, css.y])
         return { lng: lngLat.lng, lat: lngLat.lat }
-      })
-      setSession((current) => commitLasso(current, corners, null))
-    } catch {
-      setSession((current) => commitLasso(current, [], CANNOT_SAMPLE))
-    }
+      }),
+    )
   }, [])
+
+  const paintLasso = useCallback(
+    async (index: number, css: { x: number; y: number }) => {
+      const map = mapRef.current && 'getMap' in mapRef.current ? mapRef.current.getMap() : null
+      if (!map) {
+        setSession((current) => noteLasso(current, CANNOT_SAMPLE))
+        return
+      }
+      try {
+        const raster = lassoSawRaster.current ? readBasemap(map) : await sampleBasemap(map)
+        lassoSawRaster.current = true
+        lassoRaster.current = raster
+        const canvas = map.getCanvas()
+        const pixel = bufferPixel(css.x, css.y, raster.width, raster.height, canvas.clientWidth, canvas.clientHeight)
+        setSession((current) => {
+          if (!current.lasso || current.lasso.status !== 'drawing') return current
+          const painted = paintLassoSample(current, index, pixel)
+          const parts = painted.lasso ? colourParts(painted.lasso.samples) : null
+          if (!painted.lasso || !parts) return painted
+          return setLassoOutline(painted, parts)
+        })
+      } catch {
+        setSession((current) => noteLasso(current, CANNOT_SAMPLE))
+      }
+    },
+    [colourParts],
+  )
+
+  const queueGuidePoint = useCallback(
+    (corner: LngLat, css: { x: number; y: number } | undefined, fromPress: boolean) => {
+      if (!lassoDrawing.current) return
+      if (!fromPress && css && lastCss.current) {
+        const dx = css.x - lastCss.current.x
+        const dy = css.y - lastCss.current.y
+        if (dx * dx + dy * dy < BRUSH_GAP_PX * BRUSH_GAP_PX) return
+      }
+      const index = guideCount.current
+      guideCount.current += 1
+      setSession((current) => {
+        if (current.lasso?.status !== 'drawing') return current
+        return acceptClick(current, corner).session
+      })
+      if (fromPress) appendedOnLastDown.current = true
+      if (css) lastCss.current = css
+      const point = css ?? { x: 0, y: 0 }
+      lassoChain.current = lassoChain.current.then(() => paintLasso(index, point))
+    },
+    [paintLasso],
+  )
 
   const handleMapClick = useCallback(
     (event: {
       lngLat: { lng: number; lat: number }
-      point: { x: number; y: number }
+      point?: { x: number; y: number }
       originalEvent: { target: EventTarget | null }
     }) => {
       const target = event.originalEvent.target
       if (target instanceof Element && target.closest('.maplibregl-marker')) return
       const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
-      setSession((current) => {
-        const result = acceptClick(current, corner)
-        if (result.sample) {
-          void sampleLasso(result.session, event.point)
-          return current
-        }
-        return result.session
-      })
+      if (lassoPressSampled.current) {
+        lassoPressSampled.current = false
+        return
+      }
+      if (lassoDrawing.current) {
+        queueGuidePoint(corner, event.point, true)
+        return
+      }
+      setSession((current) => acceptClick(current, corner).session)
     },
-    [sampleLasso],
+    [queueGuidePoint],
   )
 
-  const handleMapDoubleClick = useCallback((event: { lngLat: { lng: number; lat: number } }) => {
-    const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
-    setSession((current) => acceptDoubleClick(current, corner))
+  const handleMapDoubleClick = useCallback(
+    (event: { lngLat: { lng: number; lat: number } }) => {
+      const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
+      if (!lassoDrawing.current) {
+        setSession((current) => acceptDoubleClick(current, corner))
+        return
+      }
+      lassoChain.current = lassoChain.current.then(() => {
+        setSession((current) => {
+          if (current.lasso?.status !== 'drawing') return current
+          let next = current
+          if (appendedOnLastDown.current) {
+            next = dropLastLassoPoint(next)
+            appendedOnLastDown.current = false
+            guideCount.current = Math.max(0, guideCount.current - 1)
+            const parts = next.lasso ? colourParts(next.lasso.samples) : null
+            if (parts) next = setLassoOutline(next, parts)
+          }
+          return acceptDoubleClick(next, corner)
+        })
+      })
+    },
+    [colourParts],
+  )
+
+  const handleMapMouseDown = useCallback(
+    (event: {
+      lngLat: { lng: number; lat: number }
+      point: { x: number; y: number }
+      originalEvent: { target: EventTarget | null }
+    }) => {
+      if (!lassoDrawing.current || Date.now() - touchAt.current < 700) return
+      const target = event.originalEvent.target
+      if (target instanceof Element && target.closest('.maplibregl-marker')) return
+      painting.current = true
+      lassoPressSampled.current = true
+      queueGuidePoint({ lng: event.lngLat.lng, lat: event.lngLat.lat }, event.point, true)
+    },
+    [queueGuidePoint],
+  )
+
+  const handleMapMouseUp = useCallback(() => {
+    painting.current = false
   }, [])
 
-  const handleMapMouseMove = useCallback((event: { lngLat: { lng: number; lat: number } }) => {
-    const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
-    setSession((current) => acceptHover(current, corner))
-  }, [])
+  const handleMapTouchStart = useCallback(
+    (event: {
+      lngLat: { lng: number; lat: number }
+      point: { x: number; y: number }
+      originalEvent: { target: EventTarget | null }
+    }) => {
+      touchAt.current = Date.now()
+      if (!lassoDrawing.current) return
+      const target = event.originalEvent.target
+      if (target instanceof Element && target.closest('.maplibregl-marker')) return
+      painting.current = true
+      lassoPressSampled.current = true
+      queueGuidePoint({ lng: event.lngLat.lng, lat: event.lngLat.lat }, event.point, true)
+    },
+    [queueGuidePoint],
+  )
+
+  const handleMapTouchMove = useCallback(
+    (event: { lngLat: { lng: number; lat: number }; point: { x: number; y: number } }) => {
+      if (!painting.current || !lassoDrawing.current) return
+      queueGuidePoint({ lng: event.lngLat.lng, lat: event.lngLat.lat }, event.point, false)
+    },
+    [queueGuidePoint],
+  )
+
+  const handleMapMouseMove = useCallback(
+    (event: {
+      lngLat: { lng: number; lat: number }
+      point?: { x: number; y: number }
+      originalEvent?: { buttons?: number }
+    }) => {
+      const buttons = event.originalEvent?.buttons
+      if (
+        painting.current &&
+        lassoDrawing.current &&
+        event.point &&
+        (buttons === undefined || buttons === 1)
+      ) {
+        queueGuidePoint({ lng: event.lngLat.lng, lat: event.lngLat.lat }, event.point, false)
+      }
+      const corner = { lng: event.lngLat.lng, lat: event.lngLat.lat }
+      setSession((current) => acceptHover(current, corner))
+    },
+    [queueGuidePoint],
+  )
 
   const handleDone = useCallback(() => {
     setSession((current) => doneDraft(current))
   }, [])
 
   const handleDelete = useCallback(() => {
+    resetLassoScratch()
     setSession(closedSession())
-  }, [])
+  }, [resetLassoScratch])
 
   const handleAdd = useCallback(() => {
     setSession((current) => {
+      if (current.lasso) {
+        const pairId = crypto.randomUUID()
+        const taken = takeLassoPair(current, pairId)
+        if (!taken.movable || !taken.fixed) return current
+        const movableDraft = taken.movable
+        const fixedDraft = taken.fixed
+        setItems((prev) => {
+          const colour = nextColour(prev.map((item) => item.colour))
+          const movable = stampRotation({
+            id: crypto.randomUUID(),
+            sourceName: movableDraft.sourceName,
+            raw: movableDraft.raw,
+            parts: movableDraft.parts,
+            unit: movableDraft.unit,
+            hasZ: movableDraft.hasZ,
+            selected: true,
+            anchor: movableDraft.anchor,
+            colour,
+            pairId,
+          })
+          const fixed = stampRotation({
+            id: crypto.randomUUID(),
+            sourceName: fixedDraft.sourceName,
+            raw: fixedDraft.raw,
+            parts: fixedDraft.parts,
+            unit: fixedDraft.unit,
+            hasZ: fixedDraft.hasZ,
+            selected: true,
+            anchor: fixedDraft.anchor,
+            colour,
+            pairId,
+            fixed: true,
+          })
+          return [...prev, movable, fixed]
+        })
+        resetLassoScratch()
+        return taken.session
+      }
       const taken = takeDraft(current)
       if (!taken.draft) return current
       const draft = taken.draft
@@ -451,7 +647,7 @@ export default function App() {
       ])
       return taken.session
     })
-  }, [])
+  }, [resetLassoScratch])
 
   const measurementOverlay = overlayOf(session)
   const shapeCanAdd = takeDraft(session).draft !== null
@@ -599,9 +795,14 @@ export default function App() {
               ref={mapRef}
               basemap={basemap}
               onMapClick={mapAcceptsPoints ? handleMapClick : undefined}
-              onMapDoubleClick={session.polygon || session.ruler ? handleMapDoubleClick : undefined}
+              onMapDoubleClick={session.polygon || session.ruler || session.lasso ? handleMapDoubleClick : undefined}
               onMapMouseMove={handleMapMouseMove}
+              onMapMouseDown={handleMapMouseDown}
+              onMapMouseUp={handleMapMouseUp}
+              onMapTouchStart={handleMapTouchStart}
+              onMapTouchMove={handleMapTouchMove}
               doubleClickZoom={!mapAcceptsPoints}
+              dragPan={session.lasso?.status !== 'drawing'}
             >
               {items.map((item) =>
                 item.selected ? (
@@ -622,6 +823,9 @@ export default function App() {
                 <MeasurementOverlay
                   corners={measurementOverlay.corners}
                   closed={measurementOverlay.closed}
+                  guide={measurementOverlay.guide}
+                  guideClosed={measurementOverlay.guideClosed}
+                  parts={measurementOverlay.parts}
                 />
               )}
             </MapView>

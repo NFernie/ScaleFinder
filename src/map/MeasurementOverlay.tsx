@@ -1,19 +1,62 @@
 import { useMemo } from 'react'
 import { Layer, Source } from 'react-map-gl/maplibre'
-import type { FeatureCollection } from 'geojson'
+import type { Feature, FeatureCollection } from 'geojson'
 import { toGeoJsonRing } from '../core/projection'
 import { LngLat } from '../core/types'
 
 interface Props {
   corners: LngLat[]
   closed: boolean
+  /** Lasso stroke. Present only while a Lasso draft exists. */
+  guide?: LngLat[]
+  guideClosed?: boolean
+  /** Colour outline. One ring per patch. */
+  parts?: LngLat[][]
 }
 
-export default function MeasurementOverlay({ corners, closed }: Props) {
+function lineOf(points: LngLat[], closed: boolean): [number, number][] {
+  const line = points.map((corner) => [corner.lng, corner.lat] as [number, number])
+  if (closed && line.length > 0) line.push(line[0])
+  return line
+}
+
+export default function MeasurementOverlay({ corners, closed, guide, guideClosed, parts }: Props) {
+  const lasso = guide !== undefined || parts !== undefined
   const data = useMemo<FeatureCollection>(() => {
+    if (lasso) {
+      const features: Feature[] = []
+      for (const part of parts ?? []) {
+        if (part.length >= 3) {
+          features.push({
+            type: 'Feature',
+            properties: { kind: 'fill' },
+            geometry: { type: 'Polygon', coordinates: [toGeoJsonRing(part)] },
+          })
+          features.push({
+            type: 'Feature',
+            properties: { kind: 'line' },
+            geometry: { type: 'LineString', coordinates: lineOf(part, true) },
+          })
+        } else if (part.length >= 2) {
+          features.push({
+            type: 'Feature',
+            properties: { kind: 'line' },
+            geometry: { type: 'LineString', coordinates: lineOf(part, false) },
+          })
+        }
+      }
+      if (guide && guide.length >= 2) {
+        features.push({
+          type: 'Feature',
+          properties: { kind: 'line' },
+          geometry: { type: 'LineString', coordinates: lineOf(guide, guideClosed === true) },
+        })
+      }
+      return { type: 'FeatureCollection', features }
+    }
+
     const ring = closed && corners.length >= 3 ? toGeoJsonRing(corners) : null
-    const line = corners.map((corner) => [corner.lng, corner.lat] as [number, number])
-    if (ring) line.push(line[0])
+    const line = lineOf(corners, Boolean(ring))
     return {
       type: 'FeatureCollection',
       features: [
@@ -33,13 +76,17 @@ export default function MeasurementOverlay({ corners, closed }: Props) {
         },
       ],
     }
-  }, [corners, closed])
+  }, [corners, closed, guide, guideClosed, lasso, parts])
 
-  if (corners.length < 2) return null
+  const drawable = lasso
+    ? (guide?.length ?? 0) >= 2 || (parts ?? []).some((part) => part.length >= 2)
+    : corners.length >= 2
+  if (!drawable) return null
+  const showFill = lasso ? (parts ?? []).some((part) => part.length >= 3) : closed
 
   return (
     <Source id="measurement" type="geojson" data={data}>
-      {closed && (
+      {showFill && (
         <Layer
           id="measurement-fill"
           type="fill"

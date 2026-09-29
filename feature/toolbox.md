@@ -2343,3 +2343,41 @@ Spec coverage against the request:
 Placeholder scan: task code, commands, and expected results are written in full. Prompt 8 is a manual script, not a code step.
 
 Type names used later match the Produces lines: `ToolboxSession`, `chooseTool`, `acceptClick`, `traceContrast`, `ringToDraft`, `sampleBasemap`, `CanvasSampleError`.
+
+---
+
+## Lasso brush (2026-09-29)
+
+The approved spec is `docs/superpowers/specs/2026-09-29-lasso-brush-design.md`. This section replaces the single-click Lasso. Polygon, Ruler, Circle, and Square stay as they are. Do not re-run Prompt 5.
+
+**Goal:** A Lasso stroke is a free curve (drag) plus corners (click). Each sample keeps the colour under the pointer, the radius, and the contrast from that moment. Double-click closes the guide and does not add a point. Add to list writes `Lasso` and `Lasso (fixed)` with one `pairId` and one swatch. The guide is removed. The fixed outline stays until either row is deleted.
+
+**Rules:** Pixels stay in the browser. One drawing at a time. Radius 8–128, default 48. Contrast 0–255, default 32. Settings apply only to later samples. While status is `drawing`, a pointer drag does not pan. No new colour token.
+
+### Task A — Brush union
+
+- [x] `traceBrush` in `src/core/lasso.ts` unions a 4-connected flood per sample. A sample under 8 pixels adds nothing. Touching patches are one part. A gap is another part. RDP stays 1.25. `traceContrast` stays for its tests.
+- [x] `LassoDraft` status is `drawing` | `closed`. Fields: `guide`, `samples` (parallel, each stores that point's radius and contrast), `parts`, `message`.
+- [x] Tests in `src/core/lasso.test.ts`: same colour touches → one ring; two colours that touch both join; a pixel outside the radius stays out; a contrasting pixel inside the radius stays out; under 8 pixels returns null; a gap is two parts.
+
+### Task B — Session, pair, and metres draft
+
+- [x] A click or drag point appends one guide point while `drawing`. Radius and contrast change only then.
+- [x] Double-click with fewer than 3 guide points stays open and sets `Add at least three corners to close a polygon.`
+- [x] Double-click with at least 3 guide points closes and does not append. No colour ring sets `No feature found at that contrast.`
+- [x] `takeLassoPair` returns `Lasso` and `Lasso (fixed)` with the same `pairId`, the same centre, and `fixed: true` on the second. The guide is not in either draft. `ringsToDraft` builds one or more parts.
+- [x] `removePolygon` deletes every row with that `pairId`.
+- [x] Tests in `src/core/toolboxSession.test.ts` and `src/core/polygonList.test.ts`.
+
+### Task C — Map and readout
+
+- [x] `App` samples on press and, while the button is down, about every 8 CSS pixels. The first sample waits for a map frame. Later samples read the canvas already on screen. The second press of a double-click is dropped before the guide closes.
+- [x] `dragPan` is off while status is `drawing`.
+- [x] The map shows the guide stroke and the colour outline with the existing white line over the slate casing. A colour ring is filled at 0.2 opacity.
+- [x] The readout keeps Radius, Contrast, Add to list, and Delete. Add to list is offered when a colour ring exists, and stays hidden when the basemap cannot be sampled.
+- [x] Canvas failure keeps the guide and shows `This basemap does not allow colour sampling.`
+- [x] Replace the single-click Lasso sentence in `PRODUCT.md` and `ScaleFinderPurpose.md`.
+
+### Manual check
+
+Drag a free curve and see the colour outline grow. Click a corner. Double-click and see the guide close. Add to list leaves a fixed outline and a rotatable Lasso. Delete either row and both are gone.

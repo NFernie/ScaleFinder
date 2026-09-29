@@ -32,6 +32,8 @@ export interface PolygonItem {
   referenceEdge?: { part: number; edge: number }
   /** Compass bearing of that edge when the Polygon was added. */
   originalBearing?: number
+  /** Lasso rows that were stored together. Deleting one deletes the other. */
+  pairId?: string
 }
 
 export interface NewPolygonInput {
@@ -73,9 +75,12 @@ export function appendPolygon(items: readonly PolygonItem[], input: NewPolygonIn
   return [...items, item]
 }
 
-/** Drop one Polygon from the session list. Other rows stay in order. */
+/** Drop one Polygon. A Lasso pair drops both rows. Other rows stay in order. */
 export function removePolygon(items: readonly PolygonItem[], id: string): PolygonItem[] {
-  return items.filter((item) => item.id !== id)
+  const hit = items.find((item) => item.id === id)
+  if (!hit) return items as PolygonItem[]
+  if (!hit.pairId) return items.filter((item) => item.id !== id)
+  return items.filter((item) => item.pairId !== hit.pairId)
 }
 
 /** Copy the uppermost selected centre onto every other selected Polygon. */

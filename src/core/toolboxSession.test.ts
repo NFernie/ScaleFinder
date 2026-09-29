@@ -5,12 +5,15 @@ import {
   acceptDoubleClick,
   chooseTool,
   closedSession,
-  commitLasso,
   deleteDraft,
   doneDraft,
+  setLassoOutline,
+  setLassoSettings,
   takeDraft,
+  takeLassoPair,
   toggleMenu,
 } from './toolboxSession'
+import { removePolygon, type PolygonItem } from './polygonList'
 
 const a = { lng: 10, lat: 45 }
 const b = destinationPoint(a, 1000, 90)
@@ -53,16 +56,66 @@ describe('toolbox session', () => {
     )
   })
 
-  it('asks the map to sample a lasso click and stores the ring', () => {
-    const session = chooseTool(closedSession(), 'lasso')
-    const click = acceptClick(session, a)
-    expect(click.sample).toBe(true)
-    const traced = commitLasso(click.session, [a, b, c], null)
-    expect(traced.lasso?.status).toBe('ready')
-    expect(takeDraft(traced).draft?.sourceName).toBe('Lasso')
-    const missed = commitLasso(click.session, [], 'No feature found at that contrast.')
-    expect(missed.lasso?.message).toBe('No feature found at that contrast.')
-    expect(takeDraft(missed).draft).toBeNull()
+  it('appends lasso guide points and stores a movable and fixed pair', () => {
+    let session = chooseTool(closedSession(), 'lasso')
+    const drag = acceptClick(session, a)
+    expect(drag.sample).toBe(true)
+    session = acceptClick(drag.session, b).session
+    expect(session.lasso?.status).toBe('drawing')
+    expect(session.lasso?.guide).toEqual([a, b])
+    const tuned = setLassoSettings(session, 4, 400)
+    expect(tuned.lasso?.radiusPx).toBe(8)
+    expect(tuned.lasso?.samples[0]?.radiusPx).toBe(48)
+    expect(tuned.lasso?.samples[1]?.radiusPx).toBe(48)
+    const tooFew = acceptDoubleClick(tuned, b)
+    expect(tooFew.lasso?.status).toBe('drawing')
+    expect(tooFew.lasso?.guide).toEqual([a, b])
+    expect(tooFew.lasso?.message).toBe('Add at least three corners to close a polygon.')
+    session = acceptClick(tooFew, c).session
+    const d = destinationPoint(c, 1000, 180)
+    session = acceptClick(session, d).session
+    session = setLassoOutline(session, [[a, b, c]])
+    session = acceptDoubleClick(session, d)
+    expect(session.lasso?.status).toBe('closed')
+    expect(session.lasso?.guide).toEqual([a, b, c, d])
+    const taken = takeLassoPair(session, 'pair-1')
+    expect(taken.movable?.sourceName).toBe('Lasso')
+    expect(taken.fixed?.sourceName).toBe('Lasso (fixed)')
+    expect(taken.movable?.pairId).toBe('pair-1')
+    expect(taken.fixed?.pairId).toBe('pair-1')
+    expect(taken.fixed?.fixed).toBe(true)
+    expect(taken.movable?.fixed).toBeUndefined()
+    expect(taken.movable?.raw).toHaveLength(3)
+    expect(taken.movable?.anchor).toEqual(taken.fixed?.anchor)
+    expect(taken.session.tool).toBeNull()
+    const rows: PolygonItem[] = [
+      {
+        id: 'move',
+        sourceName: 'Lasso',
+        raw: taken.movable!.raw,
+        unit: 'm',
+        hasZ: false,
+        selected: true,
+        anchor: taken.movable!.anchor,
+        colour: '#2dd4bf',
+        pairId: 'pair-1',
+      },
+      {
+        id: 'fixed',
+        sourceName: 'Lasso (fixed)',
+        raw: taken.fixed!.raw,
+        unit: 'm',
+        hasZ: false,
+        selected: true,
+        anchor: taken.fixed!.anchor,
+        colour: '#2dd4bf',
+        pairId: 'pair-1',
+        fixed: true,
+      },
+    ]
+    expect(removePolygon(rows, 'fixed').map((row) => row.id)).toEqual([])
+    expect(removePolygon(rows, 'move').map((row) => row.id)).toEqual([])
+    expect(setLassoSettings(session, 80, 4).lasso?.radiusPx).toBe(8)
   })
 
   it('clears a drawing without returning a draft', () => {

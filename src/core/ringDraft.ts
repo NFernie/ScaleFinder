@@ -11,6 +11,10 @@ export interface RingDraft {
   unit: 'm'
   hasZ: false
   anchor: LngLat
+  /** Set when the outline is more than one patch. */
+  parts?: Vertex[][]
+  fixed?: boolean
+  pairId?: string
 }
 
 export function ringToDraft(corners: LngLat[], sourceName: string): RingDraft | null {
@@ -22,6 +26,24 @@ export function ringToDraft(corners: LngLat[], sourceName: string): RingDraft | 
     unit: 'm',
     hasZ: false,
     anchor: geographicCentroid(corners[0], raw),
+  }
+}
+
+/** One or more colour rings, sharing the drawn centre. The guide is not included. */
+export function ringsToDraft(rings: LngLat[][], sourceName: string): RingDraft | null {
+  const usable = rings.filter((ring) => ring.length >= 3)
+  if (usable.length === 0) return null
+  if (usable.length === 1) return ringToDraft(usable[0], sourceName)
+  const origin = usable[0][0]
+  const parts = usable.map((ring) => ring.map((corner) => offsetMetres(origin, corner)))
+  const raw = parts.flat()
+  return {
+    sourceName,
+    raw,
+    parts,
+    unit: 'm',
+    hasZ: false,
+    anchor: geographicCentroid(origin, raw),
   }
 }
 

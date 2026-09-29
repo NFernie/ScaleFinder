@@ -11,20 +11,48 @@ export interface Pixel {
   y: number
 }
 
-export interface LassoDraft {
-  status: 'aim' | 'ready'
+/** One guide point. `pixel` stays empty until the canvas read for that point returns. */
+export interface LassoSample {
+  pixel: Pixel | null
   radiusPx: number
   maxChannelDelta: number
-  corners: LngLat[]
+}
+
+export interface BrushSample {
+  pixel: Pixel
+  radiusPx: number
+  maxChannelDelta: number
+}
+
+export interface LassoDraft {
+  status: 'drawing' | 'closed'
+  radiusPx: number
+  maxChannelDelta: number
+  /** Stroke the user drew. Each point is one brush sample. */
+  guide: LngLat[]
+  /** Parallel to `guide`. A null pixel has not been read yet. */
+  samples: LassoSample[]
+  /** Colour outline in geographic coordinates. One ring per separated patch. */
+  parts: LngLat[][]
   message: string | null
 }
 
+export const CANNOT_SAMPLE = 'This basemap does not allow colour sampling.'
+
 export function beginLasso(): LassoDraft {
-  return { status: 'aim', radiusPx: 48, maxChannelDelta: 32, corners: [], message: null }
+  return {
+    status: 'drawing',
+    radiusPx: 48,
+    maxChannelDelta: 32,
+    guide: [],
+    samples: [],
+    parts: [],
+    message: null,
+  }
 }
 
 export function setLassoAim(draft: LassoDraft, radiusPx: number, maxChannelDelta: number): LassoDraft {
-  if (draft.status !== 'aim') return draft
+  if (draft.status !== 'drawing') return draft
   return {
     ...draft,
     radiusPx: clamp(radiusPx, 8, 128),
@@ -32,11 +60,61 @@ export function setLassoAim(draft: LassoDraft, radiusPx: number, maxChannelDelta
   }
 }
 
-export function commitLassoRing(draft: LassoDraft, corners: LngLat[], message: string | null): LassoDraft {
-  if (message || corners.length < 3) {
-    return { ...draft, status: 'aim', corners: [], message: message ?? 'No feature found at that contrast.' }
+export function appendGuidePoint(draft: LassoDraft, point: LngLat): LassoDraft {
+  if (draft.status !== 'drawing') return draft
+  return {
+    ...draft,
+    guide: [...draft.guide, { lng: point.lng, lat: point.lat }],
+    samples: [
+      ...draft.samples,
+      { pixel: null, radiusPx: draft.radiusPx, maxChannelDelta: draft.maxChannelDelta },
+    ],
+    message: null,
   }
-  return { ...draft, status: 'ready', corners, message: null }
+}
+
+export function paintGuideSample(draft: LassoDraft, index: number, pixel: Pixel): LassoDraft {
+  if (draft.status !== 'drawing') return draft
+  if (index < 0 || index >= draft.samples.length) return draft
+  const samples = draft.samples.slice()
+  const slot = samples[index]
+  if (!slot) return draft
+  samples[index] = { ...slot, pixel }
+  return { ...draft, samples }
+}
+
+export function setOutline(draft: LassoDraft, parts: LngLat[][]): LassoDraft {
+  if (draft.status !== 'drawing') return draft
+  return { ...draft, parts, message: null }
+}
+
+export function markLassoMessage(draft: LassoDraft, message: string): LassoDraft {
+  if (draft.status !== 'drawing') return draft
+  return { ...draft, message }
+}
+
+export function dropLastGuidePoint(draft: LassoDraft): LassoDraft {
+  if (draft.status !== 'drawing' || draft.guide.length === 0) return draft
+  return {
+    ...draft,
+    guide: draft.guide.slice(0, -1),
+    samples: draft.samples.slice(0, -1),
+  }
+}
+
+/** Close without adding a point. Fewer than 3 guide points stays open. */
+export function closeGuide(draft: LassoDraft): LassoDraft {
+  if (draft.status !== 'drawing') return draft
+  if (draft.guide.length < 3) {
+    return { ...draft, message: 'Add at least three corners to close a polygon.' }
+  }
+  const parts = draft.parts.filter((part) => part.length >= 3)
+  if (parts.length === 0) {
+    const message =
+      draft.message === CANNOT_SAMPLE ? draft.message : 'No feature found at that contrast.'
+    return { ...draft, status: 'closed', parts: [], message }
+  }
+  return { ...draft, status: 'closed', parts, message: null }
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -63,6 +141,94 @@ export function traceContrast(
   const walked = moore(raster, filled, start)
   const simplified = simplifyRing(walked, 1.25)
   return simplified.length >= 3 ? simplified : null
+}
+
+/**
+ * Union of one flood per sample. Each sample keeps the radius and contrast it
+ * was drawn with. A sample that fills fewer than 8 pixels adds nothing.
+ * Touching patches are one part. A gap is another part.
+ */
+export function traceBrush(raster: Raster, samples: BrushSample[]): Pixel[][] | null {
+  if (raster.width === 0 || raster.height === 0 || samples.length === 0) return null
+  const mask = new Uint8Array(raster.width * raster.height)
+  let total = 0
+  let minX = raster.width
+  let minY = raster.height
+  let maxX = 0
+  let maxY = 0
+  for (const sample of samples) {
+    if (sample.radiusPx < 1) continue
+    const seed = sample.pixel
+    if (seed.x < 0 || seed.y < 0 || seed.x >= raster.width || seed.y >= raster.height) continue
+    const patch = flood(raster, seed, sample.radiusPx, sample.maxChannelDelta)
+    const reach = Math.ceil(sample.radiusPx)
+    const x0 = Math.max(0, seed.x - reach)
+    const y0 = Math.max(0, seed.y - reach)
+    const x1 = Math.min(raster.width - 1, seed.x + reach)
+    const y1 = Math.min(raster.height - 1, seed.y + reach)
+    let count = 0
+    for (let y = y0; y <= y1; y += 1) {
+      for (let x = x0; x <= x1; x += 1) {
+        if (patch[y * raster.width + x]) count += 1
+      }
+    }
+    if (count < 8) continue
+    for (let y = y0; y <= y1; y += 1) {
+      for (let x = x0; x <= x1; x += 1) {
+        const key = y * raster.width + x
+        if (!patch[key] || mask[key]) continue
+        mask[key] = 1
+        total += 1
+        if (x < minX) minX = x
+        if (y < minY) minY = y
+        if (x > maxX) maxX = x
+        if (y > maxY) maxY = y
+      }
+    }
+  }
+  if (total < 8) return null
+  const parts = connectedOutlines(raster, mask, minX, minY, maxX, maxY)
+  return parts.length > 0 ? parts : null
+}
+
+function connectedOutlines(
+  raster: Raster,
+  filled: Uint8Array,
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+): Pixel[][] {
+  const seen = new Uint8Array(filled.length)
+  const parts: Pixel[][] = []
+  for (let y = minY; y <= maxY; y += 1) {
+    for (let x = minX; x <= maxX; x += 1) {
+      const startKey = y * raster.width + x
+      if (!filled[startKey] || seen[startKey]) continue
+      const component = new Uint8Array(filled.length)
+      const stack: Pixel[] = [{ x, y }]
+      seen[startKey] = 1
+      component[startKey] = 1
+      while (stack.length > 0) {
+        const current = stack.pop()!
+        for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+          const nx = current.x + ox
+          const ny = current.y + oy
+          if (nx < minX || ny < minY || nx > maxX || ny > maxY) continue
+          const key = ny * raster.width + nx
+          if (!filled[key] || seen[key]) continue
+          seen[key] = 1
+          component[key] = 1
+          stack.push({ x: nx, y: ny })
+        }
+      }
+      const start = topLeft(raster, component)
+      if (!start) continue
+      const simplified = simplifyRing(moore(raster, component, start), 1.25)
+      if (simplified.length >= 3) parts.push(simplified)
+    }
+  }
+  return parts
 }
 
 function flood(raster: Raster, seed: Pixel, radiusPx: number, maxChannelDelta: number): Uint8Array {

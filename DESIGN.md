@@ -230,7 +230,7 @@ The Toolbox replaces Measure. It sits on the map in the top-left slot, outside t
 
 **Lasso behaviours:** The readout offers Dynamic, Static, and Outline in one wrapping row, using the same pressed style as Rectangle and Square. Outline hides Radius and Contrast. After the first point the row stays visible and the buttons are disabled.
 
-**Vertex menu:** After a Polygon or Lasso draft is closed, 8px white dots mark the editable corners in HTML over the map, with the same #0f172a casing as the line. A right-click within 12 CSS pixels opens a floating menu, Add vertex and Delete vertex, using the Toolbox panel, 12px corners, and the Float shadow. The dots and the menu sit outside the snapshot frame. The map line does not move with an animation.
+**Vertex menu:** After a Polygon or Lasso draft is closed, 8px white dots mark the editable corners in HTML over the map, with the same #0f172a casing as the line. Each dot sits in a 44px grab target. Pressing a corner selects it, shown with a Focus teal ring, and dragging moves that corner. The outline follows the pointer with no animation. A right-click within 12 CSS pixels, or on the corner itself, opens a floating menu, Add vertex and Delete vertex, using the Toolbox panel, 12px corners, and the Float shadow. The dots and the menu sit outside the snapshot frame.
 
 ## Do's and Don'ts
 

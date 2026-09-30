@@ -1,5 +1,5 @@
 import type { LassoBehaviour, LassoDraft } from '../core/lasso'
-import { LASSO_BEHAVIOUR_TIPS, LASSO_CONTRAST_TITLE, LASSO_RADIUS_TITLE } from './ToolboxTooltips'
+import { LASSO_BEHAVIOUR_TIPS, LASSO_CONTRAST_TITLE, LASSO_RADIUS_TITLE, VERTEX_EDIT_HINT } from './ToolboxTooltips'
 
 const BEHAVIOURS: { behaviour: LassoBehaviour; label: string }[] = [
   { behaviour: 'dynamic', label: 'Dynamic' },
@@ -87,7 +87,7 @@ export default function LassoMenu({ lasso, onSettings, onBehaviour, onAdd, onDel
       )}
       {lasso.message && <p role="status" className="text-slate-300">{lasso.message}</p>}
       {showHint && (
-        <p className="text-slate-300">Right-click a side or corner to add or delete a vertex.</p>
+        <p className="text-slate-300">{VERTEX_EDIT_HINT}</p>
       )}
       <div className="flex flex-wrap gap-2">
         {hasRing && !blocked && (

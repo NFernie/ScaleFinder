@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A closed Polygon or Lasso corner can be selected and dragged. The outline and the area follow that corner, and the Lasso guide stays put. The readout says to drag a corner, and a right-click still adds or deletes a vertex.
 - A closed Polygon readout tells the user they can right-click a side or corner. The hint stays hidden while the chain is still open.
 - Right-click within 12 CSS pixels of a closed side or corner opens Add vertex and Delete vertex. The dots and the menu stay outside the snapshot.
 - A two-row vertex menu adds or deletes the vertex under a right-click. It uses the toolbox pop enter, focuses Add vertex, closes on Escape, and shifts inward when it would leave the frame.
@@ -65,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- Product, purpose, and design records say a closed Lasso or Polygon corner can be selected and dragged before Add to list.
 - PRODUCT.md, ScaleFinderPurpose.md, and DESIGN.md name Lasso Dynamic, Static, and Outline, and the closed-draft vertex edit.
 - `features/lasso-poly-update.md` — implementation plan for Lasso Dynamic, Static, and Outline, and vertex edit on a closed Polygon or Lasso. A ring hit stores the corner's own part separately from the side's part. UI tasks require UI UX Pro Max, Impeccable, and Emil Kowalski before the screen ships.
 - `docs/superpowers/specs/2026-09-30-lasso-behaviours-and-vertex-edit-design.md` — accepted Lasso behaviours Dynamic, Static, and Outline, and add or delete a vertex on a closed Polygon or Lasso before Add to list. Product copy updates happen in the implementation.

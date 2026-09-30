@@ -7,6 +7,9 @@ export const LASSO_BEHAVIOUR_TIPS: Record<LassoBehaviour, string> = {
   outline: 'Click and drag the outline. The stroke is the Polygon. Map colour is ignored.',
 }
 
+export const VERTEX_EDIT_HINT =
+  'Drag a corner to move it. Right-click a side or corner to add or delete a vertex.'
+
 /** Locked readout titles from features/toolbox_ui_update.md. */
 export const LASSO_RADIUS_TITLE =
   'Radius (8–128 px): Size of the colour-search disc around your brush. Low (8–24): tight, precise edges. High (64–128): grabs a wider area; use on large uniform regions; may include unlike colours.'

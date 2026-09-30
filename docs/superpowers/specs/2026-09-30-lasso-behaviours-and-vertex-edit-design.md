@@ -61,7 +61,9 @@ While a Polygon or Lasso draft is closed and has an editable ring of at least 3 
 
 A right-click within 12 CSS pixels of a side or a corner opens a menu at that point. It has two rows, **Add vertex** and **Delete vertex**, each at least 44px, on the same floating panel as the readout. The first row takes keyboard focus. If the menu would leave the map frame, it flips inward. Choosing either row, pressing Escape, clicking elsewhere, or moving the map closes it. The browser menu is suppressed only when this menu opens. A touch long-press is out of scope.
 
-When that editable ring exists, the readout adds: "Right-click a side or corner to add or delete a vertex."
+When that editable ring exists, the readout adds: "Drag a corner to move it. Right-click a side or corner to add or delete a vertex."
+
+Pressing a corner selects it and dragging moves that corner. The drag updates the closed Polygon corners, or the closed Lasso colour ring, and leaves the Lasso guide where it was. The corner shows a focus-teal ring while it is selected. The hit target is 44px. The map line is not animated.
 
 ## 4. Components and data flow
 

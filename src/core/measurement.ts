@@ -1,6 +1,6 @@
 import { centroid, polygonAreaM2 } from './geometry'
 import { destinationPoint, haversineM } from './projection'
-import { insertOnSide, removeCorner, VERTEX_FLOOR } from './ringEdit'
+import { insertOnSide, moveCorner, removeCorner, VERTEX_FLOOR } from './ringEdit'
 import { LngLat, Vertex } from './types'
 
 const toRad = (degrees: number) => (degrees * Math.PI) / 180
@@ -53,6 +53,13 @@ export function addCorner(measurement: Measurement, corner: LngLat): Measurement
 export function insertMeasuredCorner(measurement: Measurement, sideIndex: number, point: LngLat): Measurement {
   if (measurement.status !== 'polygon') return measurement
   return { ...measurement, corners: insertOnSide(measurement.corners, sideIndex, point), message: null }
+}
+
+export function moveMeasuredCorner(measurement: Measurement, index: number, point: LngLat): Measurement {
+  if (measurement.status !== 'polygon') return measurement
+  const corners = moveCorner(measurement.corners, index, point)
+  if (corners === measurement.corners) return measurement
+  return { ...measurement, corners, message: null }
 }
 
 export function removeMeasuredCorner(measurement: Measurement, index: number): Measurement {

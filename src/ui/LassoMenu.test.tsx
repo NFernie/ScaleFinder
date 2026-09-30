@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { appendGuidePoint, beginLasso, setLassoBehaviour, type LassoDraft } from '../core/lasso'
 import LassoMenu from './LassoMenu'
-import { LASSO_CONTRAST_TITLE, LASSO_RADIUS_TITLE } from './ToolboxTooltips'
+import { LASSO_CONTRAST_TITLE, LASSO_RADIUS_TITLE, VERTEX_EDIT_HINT } from './ToolboxTooltips'
 
 const a = { lng: 10, lat: 45 }
 const b = { lng: 10.01, lat: 45 }
@@ -70,7 +70,7 @@ describe('LassoMenu', () => {
     const { rerender } = render(
       <LassoMenu lasso={open} onSettings={vi.fn()} onBehaviour={vi.fn()} onAdd={vi.fn()} onDelete={vi.fn()} />,
     )
-    expect(screen.queryByText('Right-click a side or corner to add or delete a vertex.')).not.toBeInTheDocument()
+    expect(screen.queryByText(VERTEX_EDIT_HINT)).not.toBeInTheDocument()
     const closed: LassoDraft = {
       ...beginLasso(),
       status: 'closed',
@@ -78,6 +78,6 @@ describe('LassoMenu', () => {
       parts: [[a, b, c]],
     }
     rerender(<LassoMenu lasso={closed} onSettings={vi.fn()} onBehaviour={vi.fn()} onAdd={vi.fn()} onDelete={vi.fn()} />)
-    expect(screen.getByText('Right-click a side or corner to add or delete a vertex.')).toBeInTheDocument()
+    expect(screen.getByText(VERTEX_EDIT_HINT)).toBeInTheDocument()
   })
 })

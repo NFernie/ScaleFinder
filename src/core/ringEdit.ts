@@ -9,6 +9,13 @@ export function insertOnSide(ring: LngLat[], sideIndex: number, point: LngLat): 
   return next
 }
 
+export function moveCorner(ring: LngLat[], index: number, point: LngLat): LngLat[] {
+  if (index < 0 || index >= ring.length) return ring
+  return ring.map((item, itemIndex) =>
+    itemIndex === index ? { lng: point.lng, lat: point.lat } : { lng: item.lng, lat: item.lat },
+  )
+}
+
 export function removeCorner(ring: LngLat[], index: number): LngLat[] | null {
   if (ring.length < 4 || index < 0 || index >= ring.length) return null
   return ring.filter((_, item) => item !== index).map((item) => ({ lng: item.lng, lat: item.lat }))

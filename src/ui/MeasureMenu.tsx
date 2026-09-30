@@ -1,5 +1,6 @@
 import { formatArea, formatLength } from '../core/format'
 import { Measurement, readout } from '../core/measurement'
+import { VERTEX_EDIT_HINT } from './ToolboxTooltips'
 
 interface Props {
   measurement: Measurement
@@ -42,7 +43,7 @@ export default function MeasureMenu({ measurement, onDone, onDelete, onAdd }: Pr
         )}
         {closed && measurement.corners.length >= 3 && (
           <p className="text-sm text-slate-300">
-            Right-click a side or corner to add or delete a vertex.
+            {VERTEX_EDIT_HINT}
           </p>
         )}
       </div>

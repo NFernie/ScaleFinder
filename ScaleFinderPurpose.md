@@ -62,8 +62,9 @@ a river system such as the Ord or the Amazon.
   under the pointer at each sample. Static uses the same radius and contrast,
   compared with the colour under the first point. Outline stores the stroke
   itself and does not sample colour. Double-click closes the guide. After a
-  Lasso or a Polygon draft is closed, and before Add to list, a right-click
-  within 12 CSS pixels of a side or corner can add or delete a vertex. Add to
+  Lasso or a Polygon draft is closed, and before Add to list, a corner can be
+  selected and dragged, and a right-click within 12 CSS pixels of a side or
+  corner can add or delete a vertex. Add to
   list stores a movable Lasso and leaves a fixed copy of that outline on the
   map. Nothing drawn here is kept after the page closes.
 - Rename a Polygon in the session list, and export it as UTM easting and

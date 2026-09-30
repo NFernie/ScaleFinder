@@ -52,6 +52,8 @@ import {
   setSquareMode,
   insertLassoVertex,
   insertPolygonVertex,
+  moveLassoVertex,
+  movePolygonVertex,
   removeLassoVertex,
   removePolygonVertex,
   takeDraft,
@@ -158,6 +160,8 @@ export default function App() {
   const [toolPointer, setToolPointer] = useState<{ x: number; y: number } | null>(null)
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_PX)
   const [vertexMenu, setVertexMenu] = useState<VertexMenuState | null>(null)
+  const [heldVertex, setHeldVertex] = useState<{ part: number; corner: number } | null>(null)
+  const [vertexDragging, setVertexDragging] = useState(false)
   const [mapReady, setMapReady] = useState(false)
   const [mapTick, setMapTick] = useState(0)
 
@@ -182,6 +186,8 @@ export default function App() {
   const lastFramePointerClient = useRef<{ x: number; y: number } | null>(null)
   const sessionRef = useRef(session)
   const vertexMenuRef = useRef<HTMLDivElement>(null)
+  const heldVertexRef = useRef<{ part: number; corner: number } | null>(null)
+  const vertexDraggingRef = useRef(false)
   sessionRef.current = session
 
   const canExport = items.some(
@@ -687,6 +693,10 @@ export default function App() {
     resetLassoScratch()
     setToolPointer(null)
     setVertexMenu(null)
+    heldVertexRef.current = null
+    vertexDraggingRef.current = false
+    setHeldVertex(null)
+    setVertexDragging(false)
     setSession(closedSession())
   }, [resetLassoScratch])
 
@@ -732,12 +742,81 @@ export default function App() {
     const menu = vertexMenu
     setVertexMenu(null)
     if (!menu) return
+    heldVertexRef.current = null
+    vertexDraggingRef.current = false
+    setHeldVertex(null)
+    setVertexDragging(false)
     setSession((current) =>
       current.polygon?.status === 'polygon'
         ? removePolygonVertex(current, menu.corner)
         : removeLassoVertex(current, menu.cornerPart, menu.corner),
     )
   }, [vertexMenu])
+
+  const moveHeldVertex = useCallback((clientX: number, clientY: number) => {
+    const held = heldVertexRef.current
+    const frame = frameRef.current
+    const map = mapRef.current && 'getMap' in mapRef.current ? mapRef.current.getMap() : null
+    if (!held || !frame || !map || !vertexDraggingRef.current) return
+    const rect = frame.getBoundingClientRect()
+    const lngLat = map.unproject([clientX - rect.left, clientY - rect.top])
+    const point = { lng: lngLat.lng, lat: lngLat.lat }
+    setSession((current) =>
+      current.polygon?.status === 'polygon'
+        ? movePolygonVertex(current, held.corner, point)
+        : moveLassoVertex(current, held.part, held.corner, point),
+    )
+  }, [])
+
+  const handleVertexPointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>, part: number, corner: number) => {
+    if (event.button !== 0) return
+    event.preventDefault()
+    event.stopPropagation()
+    setVertexMenu(null)
+    const next = { part, corner }
+    heldVertexRef.current = next
+    vertexDraggingRef.current = true
+    setHeldVertex(next)
+    setVertexDragging(true)
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }, [])
+
+  const handleVertexPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (!vertexDraggingRef.current) return
+      moveHeldVertex(event.clientX, event.clientY)
+    },
+    [moveHeldVertex],
+  )
+
+  const handleVertexPointerUp = useCallback(() => {
+    vertexDraggingRef.current = false
+    setVertexDragging(false)
+  }, [])
+
+  const handleVertexContextMenu = useCallback(
+    (event: ReactMouseEvent<HTMLButtonElement>, part: number, corner: number, x: number, y: number) => {
+      event.preventDefault()
+      event.stopPropagation()
+      const frame = frameRef.current
+      if (!frame) return
+      const rect = frame.getBoundingClientRect()
+      const next = { part, corner }
+      heldVertexRef.current = next
+      setHeldVertex(next)
+      setVertexMenu({
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+        part,
+        side: corner,
+        cornerPart: part,
+        corner,
+        at: { x, y },
+        onCorner: true,
+      })
+    },
+    [],
+  )
 
   useEffect(() => {
     if (!mapReady) return
@@ -763,6 +842,18 @@ export default function App() {
     document.addEventListener('pointerdown', onPointerDown)
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [vertexMenu])
+
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      if (vertexDraggingRef.current) return
+      const target = event.target
+      if (target instanceof Element && target.closest('[data-vertex-handle]')) return
+      heldVertexRef.current = null
+      setHeldVertex(null)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [])
 
   const syncToolPointer = useCallback((clientX: number, clientY: number) => {
     const frame = frameRef.current
@@ -1063,7 +1154,7 @@ export default function App() {
               )}
             </MapView>
 
-            {session.tool && toolPointer && (
+            {session.tool && toolPointer && !vertexDragging && (
               <MapToolCursor
                 tool={session.tool}
                 lassoBehaviour={session.lasso?.behaviour}
@@ -1094,14 +1185,35 @@ export default function App() {
           </div>
 
           <div className="pointer-events-none absolute inset-0 z-20">
-            {vertexDots.map((dot) => (
-              <span
-                key={`${dot.part}-${dot.corner}`}
-                aria-hidden="true"
-                className="pointer-events-none absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_0_1px_#0f172a]"
-                style={{ left: dot.x, top: dot.y }}
-              />
-            ))}
+            {vertexDots.map((dot) => {
+              const held = heldVertex?.part === dot.part && heldVertex.corner === dot.corner
+              return (
+                <button
+                  key={`${dot.part}-${dot.corner}`}
+                  type="button"
+                  data-vertex-handle=""
+                  aria-label={`Corner ${dot.corner + 1}`}
+                  aria-pressed={held}
+                  onPointerDown={(event) => handleVertexPointerDown(event, dot.part, dot.corner)}
+                  onPointerMove={handleVertexPointerMove}
+                  onPointerUp={handleVertexPointerUp}
+                  onPointerCancel={handleVertexPointerUp}
+                  onContextMenu={(event) => handleVertexContextMenu(event, dot.part, dot.corner, dot.x, dot.y)}
+                  className={`pointer-events-auto absolute flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full touch-none ${
+                    held && vertexDragging ? 'cursor-grabbing' : 'cursor-grab'
+                  }`}
+                  style={{ left: dot.x, top: dot.y }}
+                >
+                  <span
+                    className={`pointer-events-none h-2 w-2 rounded-full bg-white ${
+                      held
+                        ? 'shadow-[0_0_0_1px_#0f172a,0_0_0_3px_#5eead4]'
+                        : 'shadow-[0_0_0_1px_#0f172a]'
+                    }`}
+                  />
+                </button>
+              )
+            })}
             {vertexMenu && (
               <div ref={vertexMenuRef} className="pointer-events-auto">
                 <VertexMenu
@@ -1122,6 +1234,10 @@ export default function App() {
               onToggle={() => setSession((current) => toggleMenu(current))}
               onChoose={(tool) => {
                 setVertexMenu(null)
+                heldVertexRef.current = null
+                vertexDraggingRef.current = false
+                setHeldVertex(null)
+                setVertexDragging(false)
                 setSession((current) => chooseTool(current, tool))
               }}
             />

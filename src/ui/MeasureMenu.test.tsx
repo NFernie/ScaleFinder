@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { addCorner, applyDoubleClick, beginMeasurement } from '../core/measurement'
 import MeasureMenu from './MeasureMenu'
+import { VERTEX_EDIT_HINT } from './ToolboxTooltips'
 
 const a = { lng: 10, lat: 45 }
 const b = { lng: 10.01, lat: 45 }
@@ -13,10 +14,10 @@ describe('MeasureMenu', () => {
     const { rerender } = render(
       <MeasureMenu measurement={open} onDone={vi.fn()} onDelete={vi.fn()} onAdd={vi.fn()} />,
     )
-    expect(screen.queryByText('Right-click a side or corner to add or delete a vertex.')).not.toBeInTheDocument()
+    expect(screen.queryByText(VERTEX_EDIT_HINT)).not.toBeInTheDocument()
     const closed = applyDoubleClick(addCorner(open, c), c)
     if (!closed) throw new Error('expected closed')
     rerender(<MeasureMenu measurement={closed} onDone={vi.fn()} onDelete={vi.fn()} onAdd={vi.fn()} />)
-    expect(screen.getByText('Right-click a side or corner to add or delete a vertex.')).toBeInTheDocument()
+    expect(screen.getByText(VERTEX_EDIT_HINT)).toBeInTheDocument()
   })
 })

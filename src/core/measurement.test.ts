@@ -7,6 +7,7 @@ import {
   finishRuler,
   insertMeasuredCorner,
   measuredPolygonDraft,
+  moveMeasuredCorner,
   readout,
   removeMeasuredCorner,
 } from './measurement'
@@ -81,6 +82,13 @@ describe('measurement readout', () => {
     )
     expect(refused.corners).toHaveLength(3)
     expect(refused.message).toBe('A Polygon needs at least three corners.')
+    const shifted = { lng: north.lng + 0.01, lat: north.lat }
+    expect(moveMeasuredCorner(open, 0, shifted)).toBe(open)
+    const moved = moveMeasuredCorner(closed, 2, shifted)
+    expect(moved.corners[2]).toEqual(shifted)
+    expect(moved.corners[0]).toEqual(closed.corners[0])
+    expect(readout(moved).areaM2).not.toBe(before)
+    expect(moveMeasuredCorner(closed, 9, shifted)).toBe(closed)
   })
 })
 

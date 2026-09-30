@@ -21,9 +21,10 @@ import {
   insertMeasuredCorner,
   measuredPolygonDraft,
   Measurement,
+  moveMeasuredCorner,
   removeMeasuredCorner,
 } from './measurement'
-import { insertOnSide, removeCorner, VERTEX_FLOOR } from './ringEdit'
+import { insertOnSide, moveCorner, removeCorner, VERTEX_FLOOR } from './ringEdit'
 import { ringsToDraft, ringToDraft, RingDraft } from './ringDraft'
 import { addRulerCorner, beginRuler, finishDistanceRuler, Ruler } from './ruler'
 import {
@@ -170,6 +171,25 @@ export function removeLassoVertex(session: ToolboxSession, part: number, corner:
 export function insertPolygonVertex(session: ToolboxSession, side: number, point: LngLat): ToolboxSession {
   if (!session.polygon) return session
   return { ...session, polygon: insertMeasuredCorner(session.polygon, side, point) }
+}
+
+export function movePolygonVertex(session: ToolboxSession, corner: number, point: LngLat): ToolboxSession {
+  if (!session.polygon) return session
+  const polygon = moveMeasuredCorner(session.polygon, corner, point)
+  if (polygon === session.polygon) return session
+  return { ...session, polygon }
+}
+
+export function moveLassoVertex(session: ToolboxSession, part: number, corner: number, point: LngLat): ToolboxSession {
+  const draft = session.lasso
+  if (!draft || draft.status !== 'closed') return session
+  const ring = draft.parts[part]
+  if (!ring) return session
+  const next = moveCorner(ring, corner, point)
+  if (next === ring) return session
+  const parts = draft.parts.slice()
+  parts[part] = next
+  return { ...session, lasso: { ...draft, parts, message: null } }
 }
 
 export function removePolygonVertex(session: ToolboxSession, corner: number): ToolboxSession {

@@ -10,6 +10,8 @@ import {
   doneDraft,
   insertLassoVertex,
   insertPolygonVertex,
+  moveLassoVertex,
+  movePolygonVertex,
   overlayOf,
   removeLassoVertex,
   removePolygonVertex,
@@ -200,6 +202,12 @@ describe('toolbox session', () => {
     session = setLassoOutline(session, [[a, b, c]])
     session = acceptDoubleClick(session, c)
     const guide = session.lasso?.guide
+    const dragged = moveLassoVertex(session, 0, 1, { lng: 10.02, lat: 45.02 })
+    expect(dragged.lasso?.parts[0][1]).toEqual({ lng: 10.02, lat: 45.02 })
+    expect(dragged.lasso?.guide).toEqual(guide)
+    expect(moveLassoVertex({ ...session, lasso: { ...session.lasso!, status: 'drawing' } }, 0, 1, a).lasso?.parts).toEqual(
+      session.lasso?.parts,
+    )
     const moved = insertLassoVertex(session, 0, 0, { lng: 10.005, lat: 45 })
     expect(moved.lasso?.parts[0]).toHaveLength(4)
     expect(moved.lasso?.guide).toEqual(guide)
@@ -227,6 +235,13 @@ describe('toolbox session', () => {
     const inserted = insertPolygonVertex(session, 0, { lng: a.lng, lat: a.lat + 0.01 })
     expect(inserted.polygon?.corners).toHaveLength((session.polygon?.corners.length ?? 0) + 1)
     expect(inserted.polygon?.corners[1]).toEqual({ lng: a.lng, lat: a.lat + 0.01 })
+    const dragged = movePolygonVertex(session, 1, { lng: b.lng, lat: b.lat + 0.02 })
+    expect(dragged.polygon?.corners[1]).toEqual({ lng: b.lng, lat: b.lat + 0.02 })
+    expect(dragged.polygon?.corners[0]).toEqual(session.polygon?.corners[0])
+    expect(movePolygonVertex({ ...session, polygon: { ...session.polygon!, status: 'adding' } }, 1, a)).toEqual({
+      ...session,
+      polygon: { ...session.polygon!, status: 'adding' },
+    })
     const refused = removePolygonVertex(session, 0)
     expect(refused.polygon?.corners).toHaveLength(3)
     expect(refused.polygon?.message).toBe('A Polygon needs at least three corners.')

@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `docs/superpowers/specs/2026-09-29-sidebar-update-design.md` — Approved Polygons sidebar spec. Critique amendments: an open thumbnail keeps the map fill and stops the stroke 8px short of each end; Centre on fixed is hidden until it can run.
 - `features/sidebar_update.md` — Sidebar UI workflow for Extent, the outline thumbnail, row layout, a collapsible Polygons list, Centre on fixed, and hover tooltips. Spec and product code wait on `/brainstorming`, then `/writing-plans`.
 - `DESIGN.md` — Toolbox subsection documents the bento icon grid, hover/focus tooltips, tool-matched cursors (lasso radius scaling), edge pan while drawing, and polygon/ruler preview behind the pointer.
 - `docs/superpowers/specs/2026-09-29-toolbox-ui-update.md` — approved Toolbox UI addendum: bento icon grid, tool cursors, hover tooltips, edge pan, and polygon/ruler preview behind the pointer. Lasso Radius stays 8–128 (default 48) and Contrast stays 0–255 (default 32). Geometry stays in `src/core`.

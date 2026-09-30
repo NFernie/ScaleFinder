@@ -1,6 +1,6 @@
 # Sidebar update — Design Spec
 
-- **Status:** Pending review
+- **Status:** Approved, with the 2026-09-30 critique amendments
 - **Date:** 2026-09-30
 - **Branch:** `cursor/sidebar-update-20260929`
 - **Purpose doc:** [`ScaleFinderPurpose.md`](../../../ScaleFinderPurpose.md)
@@ -19,20 +19,20 @@ Import, Polygons, and Find a region stay in that order. Planform area, Max span,
 | --- | --- |
 | Extent | Starts closed. Visible label and accessible name are **Show extent** or **Hide extent** |
 | Outline | Starts closed. Visible label and accessible name are **Show outline** or **Hide outline** |
-| Thumbnail | One path per part. The stroke does not close. A part with three or more vertices is filled, and that fill may close. A part with two vertices is an open line with no fill |
+| Thumbnail | One path per part. Fill matches the map. An open part keeps that fill and shows a visible break in the stroke. A closed part has no break |
 | Import | Vertices already stored are not rewritten to force a close |
 | Row order | Rotation field, then the file name on its own line, then switch, colour, Export, and Delete |
 | Polygons section | Starts open. Collapsing hides the drag hint and the rows. Heading actions stay visible |
 | Centre on fixed | Moves switched-on, non-fixed anchors onto the chosen fixed anchor and flies the map there. Bearing does not change. Fixed rows do not move |
 | One fixed Polygon | The button does this immediately |
 | Several fixed Polygons | The button opens a list of their names. Choosing one runs the action |
-| Button disabled | No fixed Polygon, or no switched-on Polygon that can move |
+| Centre on fixed shown | Only when at least one fixed Polygon exists and at least one switched-on Polygon is not fixed. Otherwise the button is absent, not disabled |
 | Tooltips | Draft table in `features/sidebar_update.md`, except Extent and Outline use the verb labels as the accessible name |
 | Split | Preview draws parts. `centreSelectedOnFixed` is pure. `App` flies the map. `PolygonList` owns disclosures, the picker, and tooltips |
 
 ## 3. On-screen behaviour
 
-**2 · Polygons** is a disclosure and starts open. The accessible name is `Polygons`. The visible text stays `2 · Polygons`. Closing it hides the sentence that begins “Drag the round marker…” and hides the rows. **Export selected** and **Re-centre** still appear only when at least two Polygons are switched on. **Centre on fixed** is always in that heading row.
+**2 · Polygons** is a disclosure and starts open. The accessible name is `Polygons`. The visible text stays `2 · Polygons`. Closing it hides the sentence that begins “Drag the round marker…” and hides the rows. **Export selected** and **Re-centre** still appear only when at least two Polygons are switched on. **Centre on fixed** is in that heading row only when it can run. An empty list, a list with no fixed Polygon, and a list where every switched-on Polygon is fixed do not show it.
 
 Each row, top to bottom:
 
@@ -45,9 +45,11 @@ Each row, top to bottom:
 
 The verb is the state you can take next. The chevron and `aria-expanded` match the open state.
 
-The thumbnail draws each part on its own. Turning a movable Polygon rotates each part before drawing. Parts are not flattened into one shape. The stroke follows the vertices and does not add a segment from the last vertex back to the first. A part with three or more vertices gets a fill; that fill may repeat the first vertex, as `toGeoJsonRing` does for the map. A part with two vertices has no fill. Import does not append a closing vertex.
+The thumbnail draws each part on its own. Turning a movable Polygon rotates each part before drawing. Parts are not flattened into one shape. Import does not append a closing vertex.
 
-**Centre on fixed** is disabled when the list has no fixed Polygon, or when every switched-on Polygon is fixed or there is no switched-on Polygon. A disabled press does nothing.
+A part is closed when its first and last vertices have the same x and y. A closed part is stroked along every vertex, including the return to the start, and it has no gap. An open part with three or more vertices is filled, and that fill may repeat the first vertex, as `toGeoJsonRing` does for the map. Its stroke does not draw the closing edge. In the preview’s pixel space the stroke also stops 8px short of the first vertex and 8px short of the last, measured along the first segment and the last segment. If a segment is shorter than 8px, the stroke stops at that segment’s midpoint. The fill still uses the true vertices, so the gap in the stroke is the cue that the part is open. A part with two vertices has no fill and is stroked in full, with no inset.
+
+**Centre on fixed** is not rendered unless the list has a fixed Polygon and a switched-on Polygon that is not fixed. There is no disabled state.
 
 When the button is enabled and exactly one fixed Polygon is in the list, the press moves every switched-on Polygon that is not fixed onto that fixed Polygon’s anchor, then flies the map to that anchor. The fixed row’s own switch does not matter. Bearing, colour, names, and fixed anchors stay as they are.
 
@@ -73,7 +75,7 @@ Tooltips open on hover and on keyboard focus. Each is `role="tooltip"`, pointed 
 | Centre on fixed | Centre on fixed | Move switched-on Polygons back to a fixed outline’s imported centre, and centre the map there. |
 | Fixed picker row | {fixed name} | Use this fixed outline as the centre. |
 
-`{name}` is that row’s `sourceName`. Several rows may each expose a switch named `Show on map`, and an Extent or Outline button with the same verb. Tests that need one row look inside that row. The disabled **Centre on fixed** control is wrapped so the tooltip still opens on hover and focus.
+`{name}` is that row’s `sourceName`. Several rows may each expose a switch named `Show on map`, and an Extent or Outline button with the same verb. Tests that need one row look inside that row. The Centre on fixed tooltip exists only while the button is shown.
 
 The picker uses Panel at 95%, 12px corners, and the Float shadow, because it floats over the row. Sidebar rows themselves get no shadow. Controls stay at least 44px. Name and bearing fields stay 16px text.
 
@@ -93,7 +95,7 @@ The picker uses Panel at 95%, 12px corners, and the Float shadow, because it flo
 
 Rename cancel, bearing rejection, and export notes stay as they are. There is no new error sentence for Centre on fixed.
 
-A missing fixed id, or an id that is not fixed, does not change the list and does not fly the map. Dismissing the picker does not change the list and does not fly the map. A disabled button does not open the picker and does not move anchors.
+A missing fixed id, or an id that is not fixed, does not change the list and does not fly the map. Dismissing the picker does not change the list and does not fly the map. When the button is absent, nothing moves.
 
 A part with fewer than two vertices is omitted from the thumbnail. A part with two vertices is a line. Empty `parts` shows no paths.
 
@@ -107,16 +109,17 @@ A part with fewer than two vertices is omitted from the thumbnail. A part with t
 
 `PolygonPreview`, in a new test or the nearest existing UI test:
 
-- Two parts do not share a stroke, and neither stroke closes.
-- A part with three or more vertices has a fill.
-- A part with two vertices has no fill.
+- Two parts do not share a stroke.
+- An open part with three or more vertices has a fill, and its stroke stops 8px short of each end.
+- A closed part has a fill and a continuous stroke with no inset.
+- A part with two vertices has no fill and a full stroke.
 
 `src/ui/PolygonList.test.tsx`:
 
 - The section starts open.
 - Row order is the rotation field, then the file name, then switch, colour, Export, and Delete.
 - The disclosures start as **Show extent** and **Show outline**, and flip to **Hide** when opened.
-- **Centre on fixed** is disabled when it cannot run.
+- **Centre on fixed** is absent when it cannot run, and present when it can.
 - One fixed Polygon calls the centre callback with that id and does not open a list.
 - Two fixed Polygons open the list first. Choosing a name calls the callback. Escape does not.
 - Accessible names match the table in §3.

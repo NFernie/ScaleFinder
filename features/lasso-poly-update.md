@@ -419,6 +419,7 @@ export interface ScreenPoint { x: number; y: number }
 export interface RingHit {
   part: number
   side: number
+  cornerPart: number
   corner: number
   at: ScreenPoint
   onCorner: boolean
@@ -503,6 +504,7 @@ export interface ScreenPoint {
 export interface RingHit {
   part: number
   side: number
+  cornerPart: number
   corner: number
   at: ScreenPoint
   onCorner: boolean
@@ -549,6 +551,7 @@ export function nearestRingHit(rings: ScreenPoint[][], click: ScreenPoint, maxPx
   return {
     part: bestSide.part,
     side: bestSide.side,
+    cornerPart: bestCorner.part,
     corner: bestCorner.corner,
     at: bestSide.at,
     onCorner,
@@ -1407,6 +1410,7 @@ interface VertexMenuState {
   y: number
   part: number
   side: number
+  cornerPart: number
   corner: number
   at: { x: number; y: number }
   onCorner: boolean
@@ -1450,7 +1454,7 @@ A miss does not call `preventDefault`.
 
 Add: if `menu.onCorner`, clear the menu and return. Otherwise `map.unproject([menu.at.x, menu.at.y])` and call `insertPolygonVertex` when `session.polygon?.status === 'polygon'`, else `insertLassoVertex(session, menu.part, menu.side, point)`.
 
-Delete: `removePolygonVertex(session, menu.corner)` or `removeLassoVertex(session, menu.part, menu.corner)`. Do not call `traceBrush` or `setLassoOutline` after either action.
+Delete: `removePolygonVertex(session, menu.corner)` or `removeLassoVertex(session, menu.cornerPart, menu.corner)`. `cornerPart` is the part that owns the nearest corner. `part` is the part that owns the nearest side. Do not call `traceBrush` or `setLassoOutline` after either action.
 
 Close the menu on add, delete, Escape via `onClose`, a pointer down whose target is outside the menu, and `map.on('move')`. The same `move` listener bumps a tick so the dots follow the map. Remove the listener on cleanup.
 

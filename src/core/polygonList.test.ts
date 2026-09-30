@@ -3,6 +3,7 @@ import {
   POLYGON_COLOURS,
   appendPolygon,
   centreForNewPolygon,
+  centreSelectedOnFixed,
   nextColour,
   reCentreSelected,
   removePolygon,
@@ -142,6 +143,28 @@ describe('fixed polygons', () => {
     const stacked = stackSelectedOn(items, { lng: 9, lat: 8 })
     expect(stacked[0].anchor).toEqual({ lng: 9, lat: 8 })
     expect(stacked[1].anchor).toEqual({ lng: 31, lat: 30 })
+  })
+})
+
+describe('centreSelectedOnFixed', () => {
+  it('moves switched-on non-fixed anchors onto the fixed anchor and leaves bearing alone', () => {
+    const items = [
+      item({ id: 'move', selected: true, fixed: false, anchor: { lng: 1, lat: 1 }, rotationDeg: 12 }),
+      item({ id: 'off', selected: false, fixed: false, anchor: { lng: 2, lat: 2 }, rotationDeg: 4 }),
+      item({ id: 'stay', selected: true, fixed: true, anchor: { lng: 9, lat: 8 }, rotationDeg: 0 }),
+    ]
+    const next = centreSelectedOnFixed(items, 'stay')
+    expect(next[0].anchor).toEqual({ lng: 9, lat: 8 })
+    expect(next[0].rotationDeg).toBe(12)
+    expect(next[1].anchor).toEqual({ lng: 2, lat: 2 })
+    expect(next[2].anchor).toEqual({ lng: 9, lat: 8 })
+    expect(next).not.toBe(items)
+  })
+
+  it('returns the same array when the id is missing or not fixed', () => {
+    const items = [item({ id: 'a', anchor: { lng: 1, lat: 1 } })]
+    expect(centreSelectedOnFixed(items, 'missing')).toBe(items)
+    expect(centreSelectedOnFixed(items, 'a')).toBe(items)
   })
 })
 

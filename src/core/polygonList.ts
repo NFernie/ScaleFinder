@@ -101,6 +101,16 @@ export function stackSelectedOn(items: readonly PolygonItem[], centre: LngLat): 
   )
 }
 
+/** Move switched-on, non-fixed Polygons onto a fixed row’s anchor. A bad id returns the same array. */
+export function centreSelectedOnFixed(items: readonly PolygonItem[], fixedId: string): PolygonItem[] {
+  const fixed = items.find((item) => item.id === fixedId)
+  if (!fixed?.fixed) return items as PolygonItem[]
+  const anchor = copyLngLat(fixed.anchor)
+  return items.map((item) =>
+    item.selected && !item.fixed ? { ...item, anchor: copyLngLat(anchor) } : item,
+  )
+}
+
 /** Raw vertices converted to metres with the unit stored on the Polygon. */
 export function partsForPolygon(item: PolygonItem): Vertex[][] {
   const source = item.parts && item.parts.length > 0 ? item.parts : [item.raw]

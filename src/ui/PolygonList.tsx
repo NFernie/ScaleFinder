@@ -107,6 +107,10 @@ export default function PolygonList({
     fixedItems.length > 0 && items.some((item) => item.selected && !item.fixed)
 
   useEffect(() => {
+    if (!canCentreOnFixed || fixedItems.length <= 1) setFixedPickerOpen(false)
+  }, [canCentreOnFixed, fixedItems.length])
+
+  useEffect(() => {
     if (!fixedPickerOpen) return
     function onPointerDown(event: PointerEvent) {
       if (!fixedPickerRef.current?.contains(event.target as Node)) setFixedPickerOpen(false)

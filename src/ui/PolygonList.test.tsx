@@ -149,4 +149,50 @@ describe('PolygonList centre on fixed', () => {
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
     expect(onCentreOnFixed).not.toHaveBeenCalled()
   })
+
+  it('closes the picker and hides Centre on fixed when the last movable is switched off', async () => {
+    const user = userEvent.setup()
+    const other = { ...fixed(), id: 'c', sourceName: 'Other (fixed)' }
+    const on = [movable(), fixed(), other]
+    const { rerender } = render(<PolygonList items={on} {...props} />)
+    await user.click(screen.getByRole('button', { name: 'Centre on fixed' }))
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+
+    const off = [{ ...movable(), selected: false }, fixed(), other]
+    rerender(<PolygonList items={off} {...props} />)
+    expect(screen.queryByRole('button', { name: 'Centre on fixed' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+
+    rerender(<PolygonList items={on} {...props} />)
+    expect(screen.getByRole('button', { name: 'Centre on fixed' })).toBeInTheDocument()
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+  })
+
+  it('closes the picker when the section heading is clicked while it is open', async () => {
+    const user = userEvent.setup()
+    const other = { ...fixed(), id: 'c', sourceName: 'Other (fixed)' }
+    render(<PolygonList items={[movable(), fixed(), other]} {...props} />)
+    await user.click(screen.getByRole('button', { name: 'Centre on fixed' }))
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Polygons' }))
+    expect(screen.getByRole('button', { name: 'Polygons' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Centre on fixed' })).toBeInTheDocument()
+  })
+
+  it('opens the picker when a fixed name is empty and a row has many parts', async () => {
+    const user = userEvent.setup()
+    const manyParts = Array.from({ length: 24 }, (_, i) => [
+      { x: i * 10, y: 0 },
+      { x: i * 10 + 8, y: 0 },
+      { x: i * 10 + 8, y: 8 },
+      { x: i * 10, y: 8 },
+    ])
+    const unnamed = { ...fixed(), sourceName: '' }
+    const other = { ...fixed(), id: 'c', sourceName: 'Other (fixed)', raw: manyParts.flat() }
+    render(<PolygonList items={[{ ...movable(), sourceName: '' }, unnamed, other]} {...props} />)
+    await user.click(screen.getByRole('button', { name: 'Centre on fixed' }))
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Other (fixed)' })).toBeInTheDocument()
+  })
 })

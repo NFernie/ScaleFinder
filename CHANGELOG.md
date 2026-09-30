@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Polygons heading action row wraps at the default sidebar width so Export selected, Re-centre, and Centre on fixed stay fully visible.
 - Centre on fixed’s name list closes when it can no longer run (last switched-on movable turned off, or fewer than two fixed Polygons), so it does not reopen on its own.
 - Polygons rename field uses the same accessible name as the name control (`Rename {name}`). Centre on fixed’s name list exposes `option` rows, and Extent/Outline only point `aria-controls` at a panel that is open.
 - Polygons sidebar heading shows the section index `2 · Polygons`, not the row count.

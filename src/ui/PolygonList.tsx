@@ -147,7 +147,7 @@ export default function PolygonList({
           </div>
         </div>
         {(selectedCount >= 2 || canCentreOnFixed) && (
-          <div className="flex shrink-0 gap-2">
+          <div className="flex max-w-full flex-wrap justify-end gap-2">
             {selectedCount >= 2 && (
               <>
                 <ControlTip id="sidebar-tip-export-selected" tip={exportSelectedTip}>

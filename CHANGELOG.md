@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `DESIGN.md` records the closed Extent and Outline disclosures, the stroke break, and Centre on fixed.
 - `docs/superpowers/plans/2026-09-29-sidebar-update.md` — Implementation plan for the Polygons sidebar. Tasks 7–16 are the Emil pass, polish, audit, harden, and the manual check.
 - `docs/superpowers/specs/2026-09-29-sidebar-update-design.md` — Approved Polygons sidebar spec. Critique amendments: an open thumbnail keeps the map fill and stops the stroke 8px short of each end; Centre on fixed is hidden until it can run.
 - `features/sidebar_update.md` — Sidebar UI workflow for Extent, the outline thumbnail, row layout, a collapsible Polygons list, Centre on fixed, and hover tooltips. Spec and product code wait on `/brainstorming`, then `/writing-plans`.

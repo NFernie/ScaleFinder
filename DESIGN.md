@@ -160,6 +160,8 @@ The page is a column: header, then the work area. From the `lg` breakpoint (1024
 
 Sidebar sections stack with 32px between them. Inside a section, the title sits 12px above the control. Controls are at least 44px tall. Sidebar padding is 20px, with extra inset for the safe area on a phone. Header padding is 16px, or 20px from the `sm` breakpoint, plus the safe area.
 
+The Polygons section starts open. Each row shows the rotation field, then the file name, then the switch, colour, Export, and Delete. Extent and Outline start closed. An open thumbnail part keeps a fill and an 8px stroke break. Centre on fixed appears only when it can move switched-on outlines onto a fixed anchor.
+
 The map scale bar is centred on the bottom edge. Zoom controls stay in the top right, clear of the home indicator. A region name and the ScaleFindr mark float on the map. They must not cover the zoom controls.
 
 ## Elevation & Depth

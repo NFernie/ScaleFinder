@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A closed Polygon draft can gain or lose a corner. The area readout follows the new corners.
 - Closed rings can gain a point on a side and lose a corner while at least three remain.
 - Ring hit-testing picks the nearest side and corner in CSS pixels, within 12px.
 - Outline Lasso closes the drawn stroke into the colour-ring slot and does not require a sampled ring.

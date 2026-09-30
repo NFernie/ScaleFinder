@@ -124,6 +124,29 @@ A person is not useful for palette, type, corner radius, shadow, or choosing a c
 
 Do not edit those source files in Prompts 1–4.
 
+## Tasks
+
+SDD runs this list in order. Steps and code are in [`docs/superpowers/plans/2026-09-29-sidebar-update.md`](../docs/superpowers/plans/2026-09-29-sidebar-update.md). Prompts 7, 8, and 9 are Tasks 7–16. Do not edit `src/` until implementation starts.
+
+| Task | What | Test command |
+| --- | --- | --- |
+| 1 | `centreSelectedOnFixed` | `npm run test -- src/core/polygonList.test.ts` |
+| 2 | Thumbnail parts and the 8px stroke break | `npm run test -- src/ui/PolygonPreview.test.tsx` |
+| 3 | Row order, Extent, Outline, tooltips | `npm run test -- src/ui/PolygonList.test.tsx` |
+| 4 | Centre on fixed button and name list | `npm run test -- src/ui/PolygonList.test.tsx` |
+| 5 | App `flyTo` and existing switch tests | `npm run test -- src/App.test.tsx src/ui/PolygonList.test.tsx src/ui/PolygonPreview.test.tsx src/core/polygonList.test.ts` |
+| 6 | `DESIGN.md` sentence | `grep -n "8px stroke break" DESIGN.md` |
+| 7 | Prompt 7: `/emil-design-eng`, no edits | `git diff --exit-code -- src/ui/PolygonList.tsx src/index.css` |
+| 8 | Prompt 7: `/find-animation-opportunities`, no edits | `git diff --exit-code -- src/ui/PolygonList.tsx src/index.css` |
+| 9 | Prompt 7: `/animate` approved motion only | `npm run test -- src/ui/PolygonList.test.tsx src/ui/PolygonPreview.test.tsx` |
+| 10 | Prompt 7: `/improve-animations` | `npm run test -- src/ui/PolygonList.test.tsx` |
+| 11 | Prompt 7: `/review-animations`, no edits | `git diff --exit-code -- src/index.css src/ui/PolygonList.tsx` |
+| 12 | Prompt 7: `/mobile-native` at 390px | `npm run test -- src/ui/PolygonList.test.tsx` |
+| 13 | Prompt 8: `/impeccable polish` | `npm run test -- src/ui/PolygonList.test.tsx src/ui/PolygonPreview.test.tsx` |
+| 14 | Prompt 8: `/impeccable audit` | `npm run test -- src/ui/PolygonList.test.tsx` |
+| 15 | Prompt 8: `/impeccable harden` | `npm run test -- src/ui/PolygonList.test.tsx src/ui/PolygonPreview.test.tsx src/core/polygonList.test.ts` |
+| 16 | Prompt 9: manual map check | `npm run test -- src/App.test.tsx src/ui/PolygonList.test.tsx src/ui/PolygonPreview.test.tsx src/core/polygonList.test.ts` |
+
 ## UI update workflow
 
 Run **one skill per message**. Product code waits until the spec is approved and `/writing-plans` has written the plan.

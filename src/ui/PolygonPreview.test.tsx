@@ -52,6 +52,28 @@ describe('PolygonPreview', () => {
     expect(stroke[1]).toBeCloseTo(80, 0)
   })
 
+  it('renders a two-vertex part as a full-segment stroke with no fill', () => {
+    const { container } = render(
+      <PolygonPreview
+        size={96}
+        parts={[
+          [
+            { x: 0, y: 0 },
+            { x: 100, y: 0 },
+          ],
+        ]}
+      />,
+    )
+    expect(container.textContent).not.toMatch(/Polygon preview/)
+    expect(container.querySelector('polygon')).toBeNull()
+    const stroke = container.querySelector('polyline')
+    expect(stroke).not.toBeNull()
+    const strokeNums = nums(stroke?.getAttribute('points') ?? null)
+    expect(strokeNums[0]).toBeCloseTo(16, 0)
+    expect(strokeNums[2]).toBeCloseTo(80, 0)
+    expect(strokeNums).toHaveLength(4)
+  })
+
   it('draws two parts as separate strokes and a two-vertex part as a line', () => {
     const { container } = render(
       <PolygonPreview

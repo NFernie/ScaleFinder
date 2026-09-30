@@ -55,9 +55,9 @@ export default function PolygonPreview({
   className = 'w-full',
 }: Props) {
   const resolvedParts = parts ?? (points ? [points] : [])
-  const allVertices = resolvedParts.flat()
+  const strokeableParts = resolvedParts.filter((part) => part.length >= 2)
 
-  if (allVertices.length < 3) {
+  if (strokeableParts.length === 0) {
     return (
       <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-surface-overlay text-sm text-slate-400">
         Polygon preview
@@ -66,8 +66,9 @@ export default function PolygonPreview({
   }
 
   const pad = 16
-  const xs = allVertices.map((p) => p.x)
-  const ys = allVertices.map((p) => p.y)
+  const bboxVertices = strokeableParts.flat()
+  const xs = bboxVertices.map((p) => p.x)
+  const ys = bboxVertices.map((p) => p.y)
   const minX = Math.min(...xs)
   const maxX = Math.max(...xs)
   const minY = Math.min(...ys)

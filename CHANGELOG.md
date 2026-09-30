@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The Lasso readout chooses Dynamic, Static, or Outline, with a tooltip on each, and hides Radius and Contrast for Outline. After the first point, or once the stroke is closed, those buttons stay visible and disabled. A closed ring shows the vertex hint.
 - The Toolbox session sets Lasso behaviour, skips sampling on an Outline click, and inserts or removes a vertex on a closed Lasso or Polygon without changing the Lasso guide.
 - A closed Polygon draft can gain or lose a corner. The area readout follows the new corners.
 - Closed rings can gain a point on a side and lose a corner while at least three remain.

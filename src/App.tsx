@@ -38,6 +38,7 @@ import {
   paintLassoSample,
   setLassoOutline,
   setLassoSettings,
+  setSessionLassoBehaviour,
   setSquareMode,
   takeDraft,
   takeLassoPair,
@@ -979,6 +980,7 @@ export default function App() {
                   onSettings={(radiusPx, maxChannelDelta) =>
                     setSession((current) => setLassoSettings(current, radiusPx, maxChannelDelta))
                   }
+                  onBehaviour={(behaviour) => setSession((current) => setSessionLassoBehaviour(current, behaviour))}
                   onAdd={handleAdd}
                   onDelete={handleDelete}
                 />

@@ -1,4 +1,11 @@
+import type { LassoBehaviour } from '../core/lasso'
 import type { ToolId } from '../core/toolboxSession'
+
+export const LASSO_BEHAVIOUR_TIPS: Record<LassoBehaviour, string> = {
+  dynamic: 'Each sample uses the colour under the pointer. The accepted colour can change along the stroke.',
+  static: 'Every sample is compared with the colour under the first point. Later colours do not replace it.',
+  outline: 'Click and drag the outline. The stroke is the Polygon. Map colour is ignored.',
+}
 
 /** Locked readout titles from features/toolbox_ui_update.md. */
 export const LASSO_RADIUS_TITLE =
@@ -21,7 +28,7 @@ export const TOOL_TIPS: Record<ToolId, { title: string; body: string }> = {
   lasso: {
     title: 'Lasso',
     body:
-      'Paint on the map to trace a region by colour. Double-click to close the stroke. Adjust Radius and Contrast in the readout while drawing.',
+      'Choose Dynamic, Static, or Outline in the readout, then paint on the map. Double-click to close.',
   },
   circle: {
     title: 'Circle',

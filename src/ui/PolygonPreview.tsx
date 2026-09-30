@@ -1,7 +1,9 @@
+import { Fragment } from 'react'
 import { Vertex } from '../core/types'
 
 interface Props {
-  points: Vertex[]
+  parts?: Vertex[][]
+  points?: Vertex[]
   size?: number
   colour?: string
   className?: string
@@ -18,14 +20,44 @@ function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`
 }
 
+function pull(
+  from: { px: number; py: number },
+  toward: { px: number; py: number },
+  inset: number,
+): { px: number; py: number } {
+  const length = Math.hypot(toward.px - from.px, toward.py - from.py)
+  if (length === 0) return { px: from.px, py: from.py }
+  const travel = Math.min(inset, length / 2)
+  const t = travel / length
+  return {
+    px: from.px + (toward.px - from.px) * t,
+    py: from.py + (toward.py - from.py) * t,
+  }
+}
+
+function isClosed(part: Vertex[]): boolean {
+  if (part.length < 2) return false
+  const first = part[0]
+  const last = part[part.length - 1]
+  return first.x === last.x && first.y === last.y
+}
+
+function toPointsString(projected: { px: number; py: number }[]): string {
+  return projected.map((p) => `${p.px},${p.py}`).join(' ')
+}
+
 /** Renders the polygon normalised to fit a square viewport, preserving aspect ratio. */
 export default function PolygonPreview({
+  parts,
   points,
   size = 220,
   colour = '#2dd4bf',
   className = 'w-full',
 }: Props) {
-  if (points.length < 3) {
+  const resolvedParts = parts ?? (points ? [points] : [])
+  const allVertices = resolvedParts.flat()
+
+  if (allVertices.length < 3) {
     return (
       <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-surface-overlay text-sm text-slate-400">
         Polygon preview
@@ -34,8 +66,8 @@ export default function PolygonPreview({
   }
 
   const pad = 16
-  const xs = points.map((p) => p.x)
-  const ys = points.map((p) => p.y)
+  const xs = allVertices.map((p) => p.x)
+  const ys = allVertices.map((p) => p.y)
   const minX = Math.min(...xs)
   const maxX = Math.max(...xs)
   const minY = Math.min(...ys)
@@ -46,11 +78,11 @@ export default function PolygonPreview({
   const offsetX = (size - spanX * scale) / 2
   const offsetY = (size - spanY * scale) / 2
 
-  const projected = points.map((p) => ({
-    px: offsetX + (p.x - minX) * scale,
-    py: size - (offsetY + (p.y - minY) * scale), // flip so north is up
-  }))
-  const path = projected.map((p) => `${p.px},${p.py}`).join(' ')
+  const projectPart = (part: Vertex[]) =>
+    part.map((p) => ({
+      px: offsetX + (p.x - minX) * scale,
+      py: size - (offsetY + (p.y - minY) * scale),
+    }))
 
   return (
     <svg
@@ -59,16 +91,47 @@ export default function PolygonPreview({
       aria-label="Field Polygon preview"
       className={`h-auto rounded-lg bg-surface-overlay ${className}`}
     >
-      <polygon
-        points={path}
-        fill={withAlpha(colour, 0.18)}
-        stroke={colour}
-        strokeWidth={2}
-        strokeLinejoin="round"
-      />
-      {projected.map((p, i) => (
-        <circle key={i} cx={p.px} cy={p.py} r={3} fill="#eafffb" stroke="#0f766e" />
-      ))}
+      {resolvedParts.map((part, index) => {
+        if (part.length < 2) return null
+        const projected = projectPart(part)
+        const closed = isClosed(part)
+
+        let strokeProjected = projected
+        if (!closed && projected.length >= 3) {
+          const first = pull(projected[0], projected[1], 8)
+          const last = pull(
+            projected[projected.length - 1],
+            projected[projected.length - 2],
+            8,
+          )
+          strokeProjected = [first, ...projected.slice(1, -1), last]
+        }
+
+        let fillProjected: { px: number; py: number }[] | null = null
+        if (projected.length >= 3) {
+          fillProjected = closed
+            ? projected
+            : [...projected, projected[0]]
+        }
+
+        return (
+          <Fragment key={index}>
+            {fillProjected && (
+              <polygon
+                points={toPointsString(fillProjected)}
+                fill={withAlpha(colour, 0.18)}
+              />
+            )}
+            <polyline
+              points={toPointsString(strokeProjected)}
+              fill="none"
+              stroke={colour}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
+          </Fragment>
+        )
+      })}
     </svg>
   )
 }

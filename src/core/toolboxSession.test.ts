@@ -9,8 +9,10 @@ import {
   deleteDraft,
   doneDraft,
   insertLassoVertex,
+  insertPolygonVertex,
   overlayOf,
   removeLassoVertex,
+  removePolygonVertex,
   setLassoOutline,
   setLassoSettings,
   setSessionLassoBehaviour,
@@ -213,5 +215,22 @@ describe('toolbox session', () => {
     expect(vertexRings(chooseTool(closedSession(), 'lasso'))).toEqual([])
     const again = chooseTool(deleteDraft(session), 'lasso')
     expect(again.lasso?.behaviour).toBe('dynamic')
+  })
+
+  it('edits a closed polygon ring and still samples a Static lasso click', () => {
+    let session = chooseTool(closedSession(), 'polygon')
+    session = acceptClick(session, a).session
+    session = acceptClick(session, b).session
+    session = acceptClick(session, c).session
+    session = acceptDoubleClick(session, c)
+    expect(vertexRings(session)[0]).toEqual(session.polygon?.corners)
+    const inserted = insertPolygonVertex(session, 0, { lng: a.lng, lat: a.lat + 0.01 })
+    expect(inserted.polygon?.corners).toHaveLength((session.polygon?.corners.length ?? 0) + 1)
+    expect(inserted.polygon?.corners[1]).toEqual({ lng: a.lng, lat: a.lat + 0.01 })
+    const refused = removePolygonVertex(session, 0)
+    expect(refused.polygon?.corners).toHaveLength(3)
+    expect(refused.polygon?.message).toBe('A Polygon needs at least three corners.')
+    const lasso = setSessionLassoBehaviour(chooseTool(closedSession(), 'lasso'), 'static')
+    expect(acceptClick(lasso, a).sample).toBe(true)
   })
 })

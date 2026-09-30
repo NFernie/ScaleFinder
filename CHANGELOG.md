@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
+- Toolbox session tests cover polygon vertex insert and delete, closed polygon rings, and a Static lasso click still asking for a sample.
 - Centre-on-fixed App test asserts `flyTo` receives the fixed polygon geographic anchor as `center`.
 
 ### Changed

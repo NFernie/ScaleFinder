@@ -10,6 +10,7 @@ export interface RingHit {
   part: number
   side: number
   corner: number
+  cornerPart: number
   at: ScreenPoint
   onCorner: boolean
 }
@@ -56,6 +57,7 @@ export function nearestRingHit(rings: ScreenPoint[][], click: ScreenPoint, maxPx
     part: bestSide.part,
     side: bestSide.side,
     corner: bestCorner.corner,
+    cornerPart: bestCorner.part,
     at: bestSide.at,
     onCorner,
   }

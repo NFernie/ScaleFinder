@@ -15,6 +15,7 @@ describe('nearestRingHit', () => {
       part: 0,
       side: 0,
       corner: 0,
+      cornerPart: 0,
       at: { x: 40, y: 0 },
       onCorner: false,
     })
@@ -34,6 +35,28 @@ describe('nearestRingHit', () => {
     const hit = nearestRingHit([square, square], { x: 50, y: 5 })
     expect(hit?.part).toBe(0)
     expect(hit?.side).toBe(0)
+  })
+
+  it('records a nearer corner on another ring than the nearest side', () => {
+    const longBase = [
+      { x: 0, y: 0 },
+      { x: 200, y: 0 },
+      { x: 100, y: 80 },
+    ]
+    const tiny = [
+      { x: 90, y: -40 },
+      { x: 110, y: -40 },
+      { x: 100, y: -20 },
+    ]
+    const hit = nearestRingHit([longBase, tiny], { x: 100, y: 8 })
+    expect(hit).toEqual({
+      part: 0,
+      side: 0,
+      corner: 2,
+      cornerPart: 1,
+      at: { x: 100, y: 0 },
+      onCorner: false,
+    })
   })
 
   it('marks a point that lands on a corner', () => {

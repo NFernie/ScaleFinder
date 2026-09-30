@@ -56,6 +56,11 @@ const props = {
 }
 
 describe('PolygonList bearing', () => {
+  it('shows section number 2 in the Polygons heading regardless of row count', () => {
+    render(<PolygonList items={[movable()]} {...props} />)
+    expect(screen.getByRole('button', { name: 'Polygons' })).toHaveTextContent('2 · Polygons')
+  })
+
   it('shows a bearing field on a movable row and not on a fixed row', () => {
     render(<PolygonList items={[movable(), fixed()]} {...props} />)
     expect(screen.getByRole('button', { name: 'Rotation for Field' })).toBeInTheDocument()

@@ -104,7 +104,7 @@ export default function PolygonList({
             onClick={() => setSectionOpen((open) => !open)}
             className="pressable flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-1 text-left text-sm font-semibold text-slate-100"
           >
-            {items.length} · Polygons
+            2 · Polygons
           </button>
           <div id="sidebar-tip-section" role="tooltip" className={TIP_PANEL}>
             <p className="font-medium text-white">{sectionTip.title}</p>

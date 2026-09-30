@@ -219,8 +219,8 @@
   transform: translateY(4px) scale(0.97);
   transform-origin: top left;
   transition:
-    opacity 400ms ease-out,
-    transform 400ms ease-out;
+    opacity 1000ms ease-out,
+    transform 1000ms ease-out;
 }
 
 @media (hover: hover) and (pointer: fine) {

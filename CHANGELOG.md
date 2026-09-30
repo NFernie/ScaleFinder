@@ -25,8 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Polygons heading puts Export selected, Re-centre, and Centre on fixed on the row below the section disclosure. Sidebar hover tooltips fade and rise over 400ms ease-out (keyboard focus and reduced motion still snap).
 - Polygons section: heading chevron matches Extent and Outline, tooltips stay 14rem instead of shrinking to the control, Delete’s tip aligns to the trailing edge, and the outline placeholder uses the same width as the thumbnail.
-- Sidebar tooltips fade and rise 4px over 125ms ease-out (opacity and transform only), snap on keyboard focus and when reduced motion is on. Centre on fixed’s name list uses the 160ms `.toolbox-pop` enter. Extent and Outline chevrons stay at 150ms with no panel motion.
+- Centre on fixed’s name list uses the 160ms `.toolbox-pop` enter. Extent and Outline chevrons stay at 150ms with no panel motion.
 - Centre on fixed flies the map to the fixed anchor at the current zoom. Sidebar switches are named Show on map.
 - Polygons rows show rotation, then the file name, then the controls. Extent and Outline start closed.
 - Polygon thumbnail draws one path per part. An open part stays filled and its stroke stops 8px short of each end.

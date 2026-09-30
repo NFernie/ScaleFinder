@@ -213,14 +213,14 @@
   }
 }
 
-/* Sidebar ControlTip / section tooltip — same 125ms family as .toolbox-bento-tip. */
+/* Sidebar ControlTip / section tooltip — slower hover reveal than toolbox bento tips. */
 .sidebar-tip {
   opacity: 0;
   transform: translateY(4px) scale(0.97);
   transform-origin: top left;
   transition:
-    opacity 125ms ease-out,
-    transform 125ms ease-out;
+    opacity 400ms ease-out,
+    transform 400ms ease-out;
 }
 
 @media (hover: hover) and (pointer: fine) {

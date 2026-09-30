@@ -128,7 +128,7 @@ export default function PolygonList({
 
   return (
     <section>
-      <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="mb-3 flex flex-col gap-2">
         <div className="group relative min-w-0">
           <button
             type="button"
@@ -147,7 +147,7 @@ export default function PolygonList({
           </div>
         </div>
         {(selectedCount >= 2 || canCentreOnFixed) && (
-          <div className="flex max-w-full flex-wrap justify-end gap-2">
+          <div className="flex flex-wrap gap-2">
             {selectedCount >= 2 && (
               <>
                 <ControlTip id="sidebar-tip-export-selected" tip={exportSelectedTip}>

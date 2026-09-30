@@ -184,3 +184,24 @@ describe('static reference', () => {
     expect(referenceFromRaster(raster, { x: 9, y: 0 })).toBeNull()
   })
 })
+
+describe('outline close', () => {
+  it('stores the stroke and does not ask for a colour ring', () => {
+    const a = { lng: 10, lat: 45 }
+    const b = { lng: 10.01, lat: 45 }
+    const c = { lng: 10.02, lat: 45.01 }
+    let draft = setLassoBehaviour(beginLasso(), 'outline')
+    draft = appendGuidePoint(draft, a)
+    draft = appendGuidePoint(draft, b)
+    const open = closeGuide(draft)
+    expect(open.status).toBe('drawing')
+    expect(open.message).toBe('Add at least three corners to close a polygon.')
+    draft = appendGuidePoint(open, c)
+    const closed = closeGuide(draft)
+    expect(closed.status).toBe('closed')
+    expect(closed.message).toBeNull()
+    expect(closed.parts).toEqual([[a, b, c]])
+    expect(closed.guide).toEqual([a, b, c])
+    expect(closed.parts[0]).not.toBe(closed.guide)
+  })
+})

@@ -138,6 +138,14 @@ export function closeGuide(draft: LassoDraft): LassoDraft {
   if (draft.guide.length < 3) {
     return { ...draft, message: 'Add at least three corners to close a polygon.' }
   }
+  if (draft.behaviour === 'outline') {
+    return {
+      ...draft,
+      status: 'closed',
+      parts: [draft.guide.map((point) => ({ lng: point.lng, lat: point.lat }))],
+      message: null,
+    }
+  }
   const parts = draft.parts.filter((part) => part.length >= 3)
   if (parts.length === 0) {
     const message =

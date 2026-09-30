@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Outline Lasso closes the drawn stroke into the colour-ring slot and does not require a sampled ring.
 - Static Lasso compares every sample with a stored red, green, and blue. A sample pixel outside that contrast adds nothing.
 - Lasso draft stores a behaviour: dynamic, static, or outline. The choice sticks after the first guide point.
 - Centre on fixed shows only when it can run. Several fixed Polygons open a name list first.

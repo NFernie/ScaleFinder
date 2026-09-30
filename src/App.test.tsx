@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
+import { fixedAnchor, parseUtmTable } from './core/polygonExport'
 import { mapFlyTo, mapGetZoom } from './test/MapViewStub'
 
 vi.mock('./map/MapView', () => import('./test/MapViewStub'))
@@ -290,13 +291,20 @@ describe('App polygon list', () => {
       '1,3,501000.00,3321000.00,0',
       '1,4,500000.00,3321000.00,0',
     ].join('\n')
+    const parsed = parseUtmTable(utm)
+    if (!parsed?.zone) throw new Error('expected UTM zone')
+    const anchor = fixedAnchor(parsed.parts, parsed.zone)
     await user.upload(screen.getByLabelText('Choose Polygon file'), csv('utm-field.csv', utm))
     const bearing = await screen.findByRole('button', { name: 'Rotation for utm-field.csv' })
     const before = bearing.textContent
     await user.click(screen.getByRole('button', { name: 'Centre on fixed' }))
     expect(bearing.textContent).toBe(before)
     expect(mapFlyTo).toHaveBeenCalledWith(
-      expect.objectContaining({ zoom: 5, duration: 1200 }),
+      expect.objectContaining({
+        zoom: 5,
+        duration: 1200,
+        center: [anchor.lng, anchor.lat],
+      }),
     )
     expect(mapGetZoom).toHaveBeenCalled()
   })

@@ -1,3 +1,4 @@
+import type { LassoBehaviour } from '../core/lasso'
 import type { ToolId } from '../core/toolboxSession'
 import { lassoCursorDiameterPx } from './toolCursor'
 
@@ -7,6 +8,7 @@ const SHAPE_SIZE_PX = 24
 
 interface Props {
   tool: ToolId
+  lassoBehaviour?: LassoBehaviour
   lassoRadiusPx?: number
   x: number
   y: number
@@ -62,7 +64,15 @@ function SquareMark() {
   )
 }
 
-function Mark({ tool, lassoRadiusPx }: { tool: ToolId; lassoRadiusPx?: number }) {
+function Mark({
+  tool,
+  lassoBehaviour,
+  lassoRadiusPx,
+}: {
+  tool: ToolId
+  lassoBehaviour?: LassoBehaviour
+  lassoRadiusPx?: number
+}) {
   switch (tool) {
     case 'polygon':
     case 'ruler':
@@ -72,17 +82,20 @@ function Mark({ tool, lassoRadiusPx }: { tool: ToolId; lassoRadiusPx?: number })
     case 'square':
       return <SquareMark />
     case 'lasso':
+      if (lassoBehaviour === 'outline') return <Crosshair />
       return <Ring diameter={lassoCursorDiameterPx(lassoRadiusPx)} />
   }
 }
 
-export default function MapToolCursor({ tool, lassoRadiusPx, x, y }: Props) {
+export default function MapToolCursor({ tool, lassoBehaviour, lassoRadiusPx, x, y }: Props) {
   const pad =
-    tool === 'lasso'
-      ? lassoCursorDiameterPx(lassoRadiusPx) / 2 + 4
-      : tool === 'polygon' || tool === 'ruler'
-        ? 14
-        : SHAPE_SIZE_PX / 2 + 4
+    tool === 'lasso' && lassoBehaviour === 'outline'
+      ? 14
+      : tool === 'lasso'
+        ? lassoCursorDiameterPx(lassoRadiusPx) / 2 + 4
+        : tool === 'polygon' || tool === 'ruler'
+          ? 14
+          : SHAPE_SIZE_PX / 2 + 4
   const size = pad * 2
 
   return (
@@ -92,7 +105,7 @@ export default function MapToolCursor({ tool, lassoRadiusPx, x, y }: Props) {
       aria-hidden="true"
     >
       <svg width={size} height={size} viewBox={`${-pad} ${-pad} ${size} ${size}`} className="overflow-visible">
-        <Mark tool={tool} lassoRadiusPx={lassoRadiusPx} />
+        <Mark tool={tool} lassoBehaviour={lassoBehaviour} lassoRadiusPx={lassoRadiusPx} />
       </svg>
     </div>
   )

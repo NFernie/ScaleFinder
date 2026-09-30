@@ -926,6 +926,7 @@ export default function App() {
             {session.tool && toolPointer && (
               <MapToolCursor
                 tool={session.tool}
+                lassoBehaviour={session.lasso?.behaviour}
                 lassoRadiusPx={session.lasso?.radiusPx}
                 x={toolPointer.x}
                 y={toolPointer.y}

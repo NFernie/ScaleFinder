@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Outline Lasso uses the Polygon crosshair. Dynamic and Static keep the radius ring.
 - Polygons heading puts Export selected, Re-centre, and Centre on fixed on the row below the section disclosure. Sidebar hover tooltips wait 1s with the pointer on the control, then fade and rise over 500ms ease-out (keyboard focus and reduced motion still snap).
 - Polygons section: heading chevron matches Extent and Outline, tooltips stay 14rem instead of shrinking to the control, Delete’s tip aligns to the trailing edge, and the outline placeholder uses the same width as the thumbnail.
 - Centre on fixed’s name list uses the 160ms `.toolbox-pop` enter. Extent and Outline chevrons stay at 150ms with no panel motion.

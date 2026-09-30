@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Ring hit-testing type-checks under tsc -b. The nearest side and corner are tracked in the same function, not inside a forEach callback.
 - Ring hit-testing records the part that owns the nearest corner, separate from the part that owns the nearest side.
 - Polygons heading action row wraps at the default sidebar width so Export selected, Re-centre, and Centre on fixed stay fully visible.
 - Centre on fixed’s name list closes when it can no longer run (last switched-on movable turned off, or fewer than two fixed Polygons), so it does not reopen on its own.

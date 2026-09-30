@@ -32,10 +32,12 @@ function closestOnSegment(a: ScreenPoint, b: ScreenPoint, p: ScreenPoint): { at:
 export function nearestRingHit(rings: ScreenPoint[][], click: ScreenPoint, maxPx = RING_HIT_PX): RingHit | null {
   let bestSide: { part: number; side: number; at: ScreenPoint; distance: number } | null = null
   let bestCorner: { part: number; corner: number; distance: number } | null = null
-  rings.forEach((ring, part) => {
-    ring.forEach((point, index) => {
+  for (let part = 0; part < rings.length; part++) {
+    const ring = rings[part]
+    if (ring.length < 2) continue
+    for (let index = 0; index < ring.length; index++) {
+      const point = ring[index]
       const next = ring[(index + 1) % ring.length]
-      if (!next || ring.length < 2) return
       const projected = closestOnSegment(point, next, click)
       if (!bestSide || projected.distance < bestSide.distance) {
         bestSide = { part, side: index, at: projected.at, distance: projected.distance }
@@ -44,8 +46,8 @@ export function nearestRingHit(rings: ScreenPoint[][], click: ScreenPoint, maxPx
       if (!bestCorner || cornerDistance < bestCorner.distance) {
         bestCorner = { part, corner: index, distance: cornerDistance }
       }
-    })
-  })
+    }
+  }
   if (!bestSide || !bestCorner) return null
   if (bestSide.distance > maxPx && bestCorner.distance > maxPx) return null
   const end = rings[bestSide.part][(bestSide.side + 1) % rings[bestSide.part].length]

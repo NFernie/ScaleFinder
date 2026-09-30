@@ -65,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- PRODUCT.md, ScaleFinderPurpose.md, and DESIGN.md name Lasso Dynamic, Static, and Outline, and the closed-draft vertex edit.
 - `features/lasso-poly-update.md` — implementation plan for Lasso Dynamic, Static, and Outline, and vertex edit on a closed Polygon or Lasso. A ring hit stores the corner's own part separately from the side's part. UI tasks require UI UX Pro Max, Impeccable, and Emil Kowalski before the screen ships.
 - `docs/superpowers/specs/2026-09-30-lasso-behaviours-and-vertex-edit-design.md` — accepted Lasso behaviours Dynamic, Static, and Outline, and add or delete a vertex on a closed Polygon or Lasso before Add to list. Product copy updates happen in the implementation.
 - `DESIGN.md` records the closed Extent and Outline disclosures, the stroke break, and Centre on fixed.

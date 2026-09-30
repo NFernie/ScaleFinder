@@ -228,6 +228,10 @@ The Toolbox replaces Measure. It sits on the map in the top-left slot, outside t
 
 **Map interaction while a tool is active:** The map frame hides the native pointer (`cursor-none`) and draws a **tool-matched cursor overlay** above the map: crosshair for Polygon and Ruler, ring for Circle, square mark for Square, and a ring for Lasso whose diameter follows the Lasso **Radius** setting (8–128 CSS px, default 48). **Edge pan:** when the session is accepting map points (adding polygon/ruler, placing circle/square clicks, or lasso drawing), moving the pointer within the edge band pans the map so the user can keep drawing without leaving the viewport. **Polygon and Ruler preview:** the rubber-band segment from the last confirmed corner to the hover point is drawn on the map **behind** the cursor overlay (confirmed stroke above preview line).
 
+**Lasso behaviours:** The readout offers Dynamic, Static, and Outline in one wrapping row, using the same pressed style as Rectangle and Square. Outline hides Radius and Contrast. After the first point the row stays visible and the buttons are disabled.
+
+**Vertex menu:** After a Polygon or Lasso draft is closed, 8px white dots mark the editable corners in HTML over the map, with the same #0f172a casing as the line. A right-click within 12 CSS pixels opens a floating menu, Add vertex and Delete vertex, using the Toolbox panel, 12px corners, and the Float shadow. The dots and the menu sit outside the snapshot frame. The map line does not move with an animation.
+
 ## Do's and Don'ts
 
 ### Do:

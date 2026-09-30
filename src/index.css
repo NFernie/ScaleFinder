@@ -212,3 +212,38 @@
     transform: translateX(-50%);
   }
 }
+
+/* Sidebar ControlTip / section tooltip — same 125ms family as .toolbox-bento-tip. */
+.sidebar-tip {
+  opacity: 0;
+  transform: translateY(4px) scale(0.97);
+  transform-origin: top left;
+  transition:
+    opacity 125ms ease-out,
+    transform 125ms ease-out;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .group:hover > .sidebar-tip {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.group:focus-within > .sidebar-tip {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.group:focus-within:not(:hover) > .sidebar-tip {
+  transition-duration: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-tip,
+  .group:hover > .sidebar-tip,
+  .group:focus-within > .sidebar-tip {
+    transition: none;
+    transform: none;
+  }
+}

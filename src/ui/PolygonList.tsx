@@ -21,7 +21,7 @@ interface Props {
 }
 
 const TIP_PANEL =
-  'pointer-events-none invisible absolute left-0 top-full z-20 mt-1 w-56 max-w-full rounded-lg border border-white/15 bg-surface-raised/95 p-2 text-left text-xs text-slate-200 shadow-[0_2px_8px_rgb(0_0_0/0.35)] group-hover:visible group-focus-within:visible'
+  'sidebar-tip pointer-events-none absolute left-0 top-full z-20 mt-1 w-56 max-w-full rounded-lg border border-white/15 bg-surface-raised/95 p-2 text-left text-xs text-slate-200 shadow-[0_2px_8px_rgb(0_0_0/0.35)]'
 
 function ControlTip({
   id,
@@ -174,7 +174,7 @@ export default function PolygonList({
                 {fixedPickerOpen && fixedItems.length > 1 && (
                   <div
                     role="listbox"
-                    className="absolute left-0 top-full z-20 mt-1 w-full min-w-[12rem] rounded-xl border border-white/15 bg-surface-raised/95 p-1 shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
+                    className="toolbox-pop absolute left-0 top-full z-20 mt-1 w-full min-w-[12rem] origin-top-left rounded-xl border border-white/15 bg-surface-raised/95 p-1 shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
                   >
                     {fixedItems.map((item) => {
                       const pickTip = tipFor('fixedPick', item.sourceName)

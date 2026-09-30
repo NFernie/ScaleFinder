@@ -171,6 +171,9 @@ export default function PolygonList({
                 <ControlTip id="sidebar-tip-centre-on-fixed" tip={centreOnFixedTip}>
                   <button
                     type="button"
+                    aria-label={centreOnFixedTip.title}
+                    aria-haspopup={fixedItems.length > 1 ? 'listbox' : undefined}
+                    aria-expanded={fixedItems.length > 1 ? fixedPickerOpen : undefined}
                     onClick={() => {
                       if (fixedItems.length === 1) onCentreOnFixed(fixedItems[0].id)
                       else setFixedPickerOpen(true)
@@ -183,6 +186,7 @@ export default function PolygonList({
                 {fixedPickerOpen && fixedItems.length > 1 && (
                   <div
                     role="listbox"
+                    aria-label={centreOnFixedTip.title}
                     className="toolbox-pop absolute left-0 top-full z-20 mt-1 w-full min-w-[12rem] origin-top-left rounded-xl border border-white/15 bg-surface-raised/95 p-1 shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
                   >
                     {fixedItems.map((item) => {
@@ -195,6 +199,9 @@ export default function PolygonList({
                         >
                           <button
                             type="button"
+                            role="option"
+                            aria-selected="false"
+                            aria-label={pickTip.title}
                             onClick={() => {
                               onCentreOnFixed(item.id)
                               setFixedPickerOpen(false)
@@ -305,7 +312,7 @@ export default function PolygonList({
                   {editingId === item.id ? (
                     <ControlTip id={`sidebar-tip-rename-${item.id}`} tip={renameTip} className="min-w-0 w-full">
                       <input
-                        aria-label="Name"
+                        aria-label={renameTip.title}
                         value={draftName}
                         autoFocus
                         onChange={(event) => setDraftName(event.target.value)}
@@ -407,7 +414,7 @@ export default function PolygonList({
                           type="button"
                           aria-label={extentTip.title}
                           aria-expanded={figuresShown}
-                          aria-controls={figuresId}
+                          aria-controls={figuresShown ? figuresId : undefined}
                           onClick={() =>
                             setFiguresOpen((current) => ({ ...current, [item.id]: !figuresShown }))
                           }
@@ -439,7 +446,7 @@ export default function PolygonList({
                           type="button"
                           aria-label={outlineTip.title}
                           aria-expanded={outlineShown}
-                          aria-controls={outlineId}
+                          aria-controls={outlineShown ? outlineId : undefined}
                           onClick={() =>
                             setOutlineOpen((current) => ({ ...current, [item.id]: !outlineShown }))
                           }

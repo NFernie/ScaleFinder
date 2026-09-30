@@ -257,7 +257,7 @@ describe('App polygon list', () => {
     await user.click(screen.getByRole('button', { name: /small field/i }))
     const rename = await screen.findByRole('button', { name: 'Rename sample-small-field.csv' })
     await user.click(rename)
-    const field = screen.getByRole('textbox', { name: 'Name' })
+    const field = screen.getByRole('textbox', { name: 'Rename sample-small-field.csv' })
     await user.clear(field)
     await user.type(field, 'Nile field')
     await user.keyboard('{Enter}')

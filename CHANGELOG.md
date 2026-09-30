@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Polygons rename field uses the same accessible name as the name control (`Rename {name}`). Centre on fixed’s name list exposes `option` rows, and Extent/Outline only point `aria-controls` at a panel that is open.
 - Polygons sidebar heading shows the section index `2 · Polygons`, not the row count.
 - Polygon thumbnails with only a two-vertex part render a full stroke with no fill instead of the placeholder.
 - While a tool is active, `map-hide-native-cursor` on the MapLibre canvas container sets `cursor: none` with higher specificity than `.maplibregl-interactive`, `.maplibregl-track-pointer`, and `:active`, so the SVG tool cursor is the only pointer.

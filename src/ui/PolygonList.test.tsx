@@ -135,7 +135,7 @@ describe('PolygonList centre on fixed', () => {
     expect(onCentreOnFixed).not.toHaveBeenCalled()
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Centre on fixed' }))
-    await user.click(screen.getByRole('button', { name: 'Other (fixed)' }))
+    await user.click(screen.getByRole('option', { name: 'Other (fixed)' }))
     expect(onCentreOnFixed).toHaveBeenCalledWith('c')
   })
 

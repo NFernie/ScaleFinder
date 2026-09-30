@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A closed Polygon readout tells the user they can right-click a side or corner. The hint stays hidden while the chain is still open.
 - Right-click within 12 CSS pixels of a closed side or corner opens Add vertex and Delete vertex. The dots and the menu stay outside the snapshot.
 - A two-row vertex menu adds or deletes the vertex under a right-click. It uses the toolbox pop enter, focuses Add vertex, closes on Escape, and shifts inward when it would leave the frame.
 - The Lasso readout chooses Dynamic, Static, or Outline, with a tooltip on each, and hides Radius and Contrast for Outline. After the first point, or once the stroke is closed, those buttons stay visible and disabled. A closed ring shows the vertex hint.

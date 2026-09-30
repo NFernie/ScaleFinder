@@ -40,6 +40,11 @@ export default function MeasureMenu({ measurement, onDone, onDelete, onAdd }: Pr
             {measurement.message}
           </p>
         )}
+        {closed && measurement.corners.length >= 3 && (
+          <p className="text-sm text-slate-300">
+            Right-click a side or corner to add or delete a vertex.
+          </p>
+        )}
       </div>
       <div className="flex flex-wrap gap-2">
         {measurement.status === 'adding' && (

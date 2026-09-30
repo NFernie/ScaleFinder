@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
@@ -22,6 +23,7 @@ import {
 import { circleRadiusM, circleRing } from './core/circle'
 import { polygonAreaM2 } from './core/geometry'
 import { haversineM } from './core/projection'
+import { nearestRingHit, RING_HIT_PX } from './core/ringHit'
 import { ringToDraft } from './core/ringDraft'
 import { squareCorners } from './core/square'
 import {
@@ -48,9 +50,14 @@ import {
   setLassoSettings,
   setSessionLassoBehaviour,
   setSquareMode,
+  insertLassoVertex,
+  insertPolygonVertex,
+  removeLassoVertex,
+  removePolygonVertex,
   takeDraft,
   takeLassoPair,
   toggleMenu,
+  vertexRings,
   ToolboxSession,
 } from './core/toolboxSession'
 import {
@@ -92,6 +99,7 @@ import RulerMenu from './ui/RulerMenu'
 import ShapeMenu from './ui/ShapeMenu'
 import PolygonList from './ui/PolygonList'
 import Toolbox from './ui/Toolbox'
+import VertexMenu from './ui/VertexMenu'
 import RegionSearch from './ui/RegionSearch'
 import { SAMPLES } from './data/samples'
 
@@ -119,6 +127,17 @@ function Mark() {
   )
 }
 
+interface VertexMenuState {
+  x: number
+  y: number
+  part: number
+  side: number
+  cornerPart: number
+  corner: number
+  at: { x: number; y: number }
+  onCorner: boolean
+}
+
 function stampRotation(item: PolygonItem): PolygonItem {
   if (item.fixed) return item
   const state = rotationState(partsForPolygon(item), item.anchor)
@@ -138,6 +157,9 @@ export default function App() {
   const [session, setSession] = useState<ToolboxSession>(closedSession())
   const [toolPointer, setToolPointer] = useState<{ x: number; y: number } | null>(null)
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_PX)
+  const [vertexMenu, setVertexMenu] = useState<VertexMenuState | null>(null)
+  const [mapReady, setMapReady] = useState(false)
+  const [mapTick, setMapTick] = useState(0)
 
   const basemaps = useMemo(() => getBasemaps(MAPTILER_KEY), [])
   const [basemapId, setBasemapId] = useState(basemaps[0].id)
@@ -158,6 +180,9 @@ export default function App() {
   const guideCount = useRef(0)
   const layoutRef = useRef<HTMLDivElement>(null)
   const lastFramePointerClient = useRef<{ x: number; y: number } | null>(null)
+  const sessionRef = useRef(session)
+  const vertexMenuRef = useRef<HTMLDivElement>(null)
+  sessionRef.current = session
 
   const canExport = items.some(
     (item) => item.selected && verticesForPolygon(item).length >= 3,
@@ -661,8 +686,83 @@ export default function App() {
   const handleDelete = useCallback(() => {
     resetLassoScratch()
     setToolPointer(null)
+    setVertexMenu(null)
     setSession(closedSession())
   }, [resetLassoScratch])
+
+  const closeVertexMenu = useCallback(() => {
+    setVertexMenu(null)
+  }, [])
+
+  const handleFrameContextMenu = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    const rings = vertexRings(session)
+    const map = mapRef.current && 'getMap' in mapRef.current ? mapRef.current.getMap() : null
+    const frame = frameRef.current
+    if (!map || !frame || rings.length === 0) return
+    const rect = frame.getBoundingClientRect()
+    const click = { x: event.clientX - rect.left, y: event.clientY - rect.top }
+    const screen = rings.map((ring) =>
+      ring.map((point) => {
+        const projected = map.project([point.lng, point.lat])
+        return { x: projected.x, y: projected.y }
+      }),
+    )
+    const hit = nearestRingHit(screen, click, RING_HIT_PX)
+    if (!hit) return
+    event.preventDefault()
+    setVertexMenu({ x: click.x, y: click.y, ...hit })
+  }, [session])
+
+  const handleVertexAdd = useCallback(() => {
+    const menu = vertexMenu
+    setVertexMenu(null)
+    if (!menu || menu.onCorner) return
+    const map = mapRef.current && 'getMap' in mapRef.current ? mapRef.current.getMap() : null
+    if (!map) return
+    const lngLat = map.unproject([menu.at.x, menu.at.y])
+    const point = { lng: lngLat.lng, lat: lngLat.lat }
+    setSession((current) =>
+      current.polygon?.status === 'polygon'
+        ? insertPolygonVertex(current, menu.side, point)
+        : insertLassoVertex(current, menu.part, menu.side, point),
+    )
+  }, [vertexMenu])
+
+  const handleVertexDelete = useCallback(() => {
+    const menu = vertexMenu
+    setVertexMenu(null)
+    if (!menu) return
+    setSession((current) =>
+      current.polygon?.status === 'polygon'
+        ? removePolygonVertex(current, menu.corner)
+        : removeLassoVertex(current, menu.cornerPart, menu.corner),
+    )
+  }, [vertexMenu])
+
+  useEffect(() => {
+    if (!mapReady) return
+    const map = mapRef.current && 'getMap' in mapRef.current ? mapRef.current.getMap() : null
+    if (!map) return
+    const onMove = () => {
+      setVertexMenu(null)
+      if (vertexRings(sessionRef.current).length > 0) setMapTick((tick) => tick + 1)
+    }
+    map.on('move', onMove)
+    return () => {
+      map.off('move', onMove)
+    }
+  }, [mapReady])
+
+  useEffect(() => {
+    if (!vertexMenu) return
+    const onPointerDown = (event: PointerEvent) => {
+      const node = vertexMenuRef.current
+      if (node && event.target instanceof Node && node.contains(event.target)) return
+      setVertexMenu(null)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [vertexMenu])
 
   const syncToolPointer = useCallback((clientX: number, clientY: number) => {
     const frame = frameRef.current
@@ -698,6 +798,7 @@ export default function App() {
   }, [session.tool, syncToolPointer])
 
   const handleAdd = useCallback(() => {
+    setVertexMenu(null)
     setSession((current) => {
       if (current.lasso) {
         const pairId = crypto.randomUUID()
@@ -800,6 +901,20 @@ export default function App() {
       setExporting(false)
     }
   }, [regionName, canExport])
+
+  const vertexMap = mapReady && mapRef.current && 'getMap' in mapRef.current ? mapRef.current.getMap() : null
+  const vertexDots =
+    vertexMap && mapTick >= 0
+      ? vertexRings(session).flatMap((ring, part) =>
+          ring.map((point, corner) => {
+            const projected = vertexMap.project([point.lng, point.lat])
+            return { part, corner, x: projected.x, y: projected.y }
+          }),
+        )
+      : []
+  const vertexFrame = frameRef.current
+    ? { width: frameRef.current.clientWidth, height: frameRef.current.clientHeight }
+    : { width: 0, height: 0 }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -904,10 +1019,12 @@ export default function App() {
             className={`absolute inset-0 ${session.tool ? 'cursor-none' : ''}`}
             onPointerMove={handleFramePointerMove}
             onPointerLeave={handleFramePointerLeave}
+            onContextMenu={handleFrameContextMenu}
           >
             <MapView
               ref={mapRef}
               basemap={basemap}
+              onLoad={() => setMapReady(true)}
               onMapClick={mapAcceptsPoints ? handleMapClick : undefined}
               onMapDoubleClick={session.polygon || session.ruler || session.lasso ? handleMapDoubleClick : undefined}
               onMapMouseMove={handleMapMouseMove}
@@ -976,11 +1093,37 @@ export default function App() {
             )}
           </div>
 
+          <div className="pointer-events-none absolute inset-0 z-20">
+            {vertexDots.map((dot) => (
+              <span
+                key={`${dot.part}-${dot.corner}`}
+                aria-hidden="true"
+                className="pointer-events-none absolute z-20 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-slate-900 bg-white"
+                style={{ left: dot.x, top: dot.y }}
+              />
+            ))}
+            {vertexMenu && (
+              <div ref={vertexMenuRef} className="pointer-events-auto">
+                <VertexMenu
+                  x={vertexMenu.x}
+                  y={vertexMenu.y}
+                  frame={vertexFrame}
+                  onAdd={handleVertexAdd}
+                  onDelete={handleVertexDelete}
+                  onClose={closeVertexMenu}
+                />
+              </div>
+            )}
+          </div>
+
           <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-h-[calc(100%-1.5rem)] w-[min(18rem,calc(100%-5.5rem))] flex-col items-start gap-2">
             <Toolbox
               session={session}
               onToggle={() => setSession((current) => toggleMenu(current))}
-              onChoose={(tool) => setSession((current) => chooseTool(current, tool))}
+              onChoose={(tool) => {
+                setVertexMenu(null)
+                setSession((current) => chooseTool(current, tool))
+              }}
             />
             {session.polygon && (
               <div className="pointer-events-auto min-h-0 w-full">

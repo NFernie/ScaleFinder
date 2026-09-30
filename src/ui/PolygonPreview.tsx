@@ -56,7 +56,9 @@ export default function PolygonPreview({
 
   if (strokeableParts.length === 0) {
     return (
-      <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-surface-overlay text-sm text-slate-400">
+      <div
+        className={`flex aspect-square items-center justify-center rounded-lg bg-surface-overlay text-sm text-slate-400 ${className}`}
+      >
         Polygon preview
       </div>
     )

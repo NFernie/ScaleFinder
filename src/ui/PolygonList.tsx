@@ -21,21 +21,29 @@ interface Props {
 }
 
 const TIP_PANEL =
-  'sidebar-tip pointer-events-none absolute left-0 top-full z-20 mt-1 w-56 max-w-full rounded-lg border border-white/15 bg-surface-raised/95 p-2 text-left text-xs text-slate-200 shadow-[0_2px_8px_rgb(0_0_0/0.35)]'
+  'sidebar-tip pointer-events-none absolute top-full z-20 mt-1 w-56 rounded-lg border border-white/15 bg-surface-raised/95 p-2 text-left text-xs text-slate-200 shadow-[0_2px_8px_rgb(0_0_0/0.35)]'
 
 function ControlTip({
   id,
   tip,
   children,
+  align = 'start',
+  className = '',
 }: {
   id: string
   tip: { title: string; body: string }
   children: ReactElement
+  align?: 'start' | 'end'
+  className?: string
 }) {
   return (
-    <div className="group relative">
+    <div className={`group relative ${className}`.trim()}>
       {cloneElement(children, { 'aria-describedby': id })}
-      <div id={id} role="tooltip" className={TIP_PANEL}>
+      <div
+        id={id}
+        role="tooltip"
+        className={`${TIP_PANEL} ${align === 'end' ? 'right-0' : 'left-0'}`}
+      >
         <p className="font-medium text-white">{tip.title}</p>
         <p className="mt-0.5 leading-snug text-slate-300">{tip.body}</p>
       </div>
@@ -127,6 +135,7 @@ export default function PolygonList({
             className="pressable flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-1 text-left text-sm font-semibold text-slate-100"
           >
             2 · Polygons
+            <Chevron open={sectionOpen} />
           </button>
           <div id="sidebar-tip-section" role="tooltip" className={TIP_PANEL}>
             <p className="font-medium text-white">{sectionTip.title}</p>
@@ -294,7 +303,7 @@ export default function PolygonList({
                       </ControlTip>
                     ))}
                   {editingId === item.id ? (
-                    <ControlTip id={`sidebar-tip-rename-${item.id}`} tip={renameTip}>
+                    <ControlTip id={`sidebar-tip-rename-${item.id}`} tip={renameTip} className="min-w-0 w-full">
                       <input
                         aria-label="Name"
                         value={draftName}
@@ -318,7 +327,7 @@ export default function PolygonList({
                       />
                     </ControlTip>
                   ) : (
-                    <ControlTip id={`sidebar-tip-rename-${item.id}`} tip={renameTip}>
+                    <ControlTip id={`sidebar-tip-rename-${item.id}`} tip={renameTip} className="min-w-0 w-full">
                       <button
                         type="button"
                         aria-label={renameTip.title}
@@ -375,7 +384,7 @@ export default function PolygonList({
                         Export
                       </button>
                     </ControlTip>
-                    <ControlTip id={`sidebar-tip-delete-${item.id}`} tip={deleteTip}>
+                    <ControlTip id={`sidebar-tip-delete-${item.id}`} tip={deleteTip} align="end">
                       <button
                         type="button"
                         aria-label={deleteTip.title}
@@ -402,7 +411,7 @@ export default function PolygonList({
                           onClick={() =>
                             setFiguresOpen((current) => ({ ...current, [item.id]: !figuresShown }))
                           }
-                          className="pressable flex min-h-11 w-full items-center justify-between gap-3 rounded-lg bg-surface-overlay px-3 text-sm text-slate-200 hover:bg-white/10"
+                          className="pressable flex min-h-11 w-full items-center justify-between gap-2 rounded-lg bg-surface-overlay px-3 text-sm text-slate-200 hover:bg-white/10"
                         >
                           {extentTip.title}
                           <Chevron open={figuresShown} />
@@ -434,7 +443,7 @@ export default function PolygonList({
                           onClick={() =>
                             setOutlineOpen((current) => ({ ...current, [item.id]: !outlineShown }))
                           }
-                          className="pressable flex min-h-11 w-full items-center justify-between gap-3 rounded-lg bg-surface-overlay px-3 text-sm text-slate-200 hover:bg-white/10"
+                          className="pressable flex min-h-11 w-full items-center justify-between gap-2 rounded-lg bg-surface-overlay px-3 text-sm text-slate-200 hover:bg-white/10"
                         >
                           {outlineTip.title}
                           <Chevron open={outlineShown} />

@@ -213,7 +213,7 @@
   }
 }
 
-/* Sidebar ControlTip / section tooltip — 2s hover dwell, then 500ms reveal. */
+/* Sidebar ControlTip / section tooltip — 1s hover dwell, then 500ms reveal. */
 .sidebar-tip {
   opacity: 0;
   transform: translateY(4px) scale(0.97);
@@ -228,7 +228,7 @@
   .group:hover > .sidebar-tip {
     opacity: 1;
     transform: translateY(0) scale(1);
-    transition-delay: 2s;
+    transition-delay: 1s;
   }
 }
 

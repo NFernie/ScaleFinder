@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { appendGuidePoint, beginLasso, closeGuide, setLassoAim, setLassoBehaviour, traceBrush, traceContrast, type Raster } from './lasso'
+import { appendGuidePoint, beginLasso, closeGuide, lockReference, referenceFromRaster, setLassoAim, setLassoBehaviour, traceBrush, traceContrast, type Raster } from './lasso'
 
 function solid(width: number, height: number, paint: (x: number, y: number) => [number, number, number]): Raster {
   const data = new Uint8ClampedArray(width * height * 4)
@@ -132,5 +132,55 @@ describe('lasso behaviour', () => {
     expect(chosen.behaviour).toBe('static')
     const pointed = appendGuidePoint(chosen, { lng: 10, lat: 45 })
     expect(setLassoBehaviour(pointed, 'outline').behaviour).toBe('static')
+  })
+})
+
+describe('static reference', () => {
+  it('includes a later red sample and drops a blue sample', () => {
+    const raster = solid(16, 9, (x, y) => {
+      if (y < 2 || y > 6) return [20, 20, 20]
+      if (x >= 1 && x <= 4) return [200, 40, 40]
+      if (x >= 10 && x <= 13) return [200, 40, 40]
+      if (x >= 6 && x <= 8) return [40, 40, 200]
+      return [20, 20, 20]
+    })
+    const reference = { r: 200, g: 40, b: 40 }
+    const parts = traceBrush(
+      raster,
+      [
+        { pixel: { x: 2, y: 4 }, radiusPx: 6, maxChannelDelta: 12 },
+        { pixel: { x: 11, y: 4 }, radiusPx: 6, maxChannelDelta: 12 },
+        { pixel: { x: 7, y: 4 }, radiusPx: 6, maxChannelDelta: 12 },
+      ],
+      reference,
+    )
+    expect(parts).toHaveLength(2)
+    const bands = parts!.map((part) => Math.min(...part.map((point) => point.x)))
+    expect(bands.some((x) => x <= 1)).toBe(true)
+    expect(bands.some((x) => x >= 10)).toBe(true)
+    expect(parts!.some((part) => part.some((point) => point.x === 7))).toBe(false)
+  })
+
+  it('keeps a red pixel outside that sample radius out of the ring', () => {
+    const raster = solid(16, 9, (x, y) => {
+      if (y >= 2 && y <= 6 && x >= 1 && x <= 4) return [200, 40, 40]
+      if (x === 15 && y === 4) return [200, 40, 40]
+      return [20, 20, 20]
+    })
+    const parts = traceBrush(
+      raster,
+      [{ pixel: { x: 2, y: 4 }, radiusPx: 4, maxChannelDelta: 12 }],
+      { r: 200, g: 40, b: 40 },
+    )
+    expect(parts![0].some((point) => point.x === 15)).toBe(false)
+  })
+
+  it('does not invent a reference when lock is refused', () => {
+    const draft = setLassoBehaviour(beginLasso(), 'static')
+    expect(lockReference(draft, { r: 1, g: 2, b: 3 }).reference).toEqual({ r: 1, g: 2, b: 3 })
+    expect(lockReference(beginLasso(), { r: 1, g: 2, b: 3 }).reference).toBeNull()
+    const raster = solid(2, 2, () => [9, 8, 7])
+    expect(referenceFromRaster(raster, { x: 0, y: 0 })).toEqual({ r: 9, g: 8, b: 7 })
+    expect(referenceFromRaster(raster, { x: 9, y: 0 })).toBeNull()
   })
 })

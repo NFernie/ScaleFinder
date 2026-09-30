@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { PolygonItem } from '../core/polygonList'
@@ -102,5 +102,51 @@ describe('PolygonList bearing', () => {
     const tip = document.getElementById(button.getAttribute('aria-describedby') ?? '')
     expect(tip).toHaveAttribute('role', 'tooltip')
     expect(tip).toHaveTextContent('Download this Polygon as UTM easting and northing where it sits.')
+  })
+})
+
+describe('PolygonList centre on fixed', () => {
+  it('hides Centre on fixed until a fixed polygon and a switched-on movable polygon both exist', () => {
+    const { rerender } = render(<PolygonList items={[movable()]} {...props} />)
+    expect(screen.queryByRole('button', { name: 'Centre on fixed' })).not.toBeInTheDocument()
+    rerender(<PolygonList items={[movable(), fixed()]} {...props} />)
+    expect(screen.getByRole('button', { name: 'Centre on fixed' })).toBeInTheDocument()
+  })
+
+  it('calls the fixed id immediately when only one fixed polygon exists', async () => {
+    const user = userEvent.setup()
+    const onCentreOnFixed = vi.fn()
+    render(<PolygonList items={[movable(), fixed()]} {...props} onCentreOnFixed={onCentreOnFixed} />)
+    await user.click(screen.getByRole('button', { name: 'Centre on fixed' }))
+    expect(onCentreOnFixed).toHaveBeenCalledWith('b')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+  })
+
+  it('opens a name list for several fixed polygons and ignores Escape', async () => {
+    const user = userEvent.setup()
+    const onCentreOnFixed = vi.fn()
+    const other = { ...fixed(), id: 'c', sourceName: 'Other (fixed)' }
+    render(
+      <PolygonList items={[movable(), fixed(), other]} {...props} onCentreOnFixed={onCentreOnFixed} />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Centre on fixed' }))
+    expect(onCentreOnFixed).not.toHaveBeenCalled()
+    await user.keyboard('{Escape}')
+    expect(onCentreOnFixed).not.toHaveBeenCalled()
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Centre on fixed' }))
+    await user.click(screen.getByRole('button', { name: 'Other (fixed)' }))
+    expect(onCentreOnFixed).toHaveBeenCalledWith('c')
+  })
+
+  it('closes the fixed list on a pointer down outside', async () => {
+    const onCentreOnFixed = vi.fn()
+    const other = { ...fixed(), id: 'c', sourceName: 'Other (fixed)' }
+    render(<PolygonList items={[movable(), fixed(), other]} {...props} onCentreOnFixed={onCentreOnFixed} />)
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Centre on fixed' }))
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    fireEvent.pointerDown(document.body)
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(onCentreOnFixed).not.toHaveBeenCalled()
   })
 })

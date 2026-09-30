@@ -1,4 +1,4 @@
-import { cloneElement, ReactElement, useRef, useState } from 'react'
+import { cloneElement, ReactElement, useEffect, useRef, useState } from 'react'
 import { commitPolygonName } from '../core/polygonExport'
 import { displayStats, partsForPolygon, PolygonItem, verticesForPolygon } from '../core/polygonList'
 import { commitBearing, measureEdgeBearing, turnedParts } from '../core/rotation'
@@ -74,10 +74,12 @@ export default function PolygonList({
   onBearing,
   onExport,
   onExportSelected,
-  onCentreOnFixed: _onCentreOnFixed,
+  onCentreOnFixed,
   exportNotes,
 }: Props) {
   const [sectionOpen, setSectionOpen] = useState(true)
+  const [fixedPickerOpen, setFixedPickerOpen] = useState(false)
+  const fixedPickerRef = useRef<HTMLDivElement>(null)
   const [openNote, setOpenNote] = useState<{ id: string; label: string } | null>(null)
   const [figuresOpen, setFiguresOpen] = useState<Record<string, boolean>>({})
   const [outlineOpen, setOutlineOpen] = useState<Record<string, boolean>>({})
@@ -91,6 +93,26 @@ export default function PolygonList({
   const sectionTip = tipFor('section', '')
   const exportSelectedTip = tipFor('exportSelected', '')
   const reCentreTip = tipFor('reCentre', '')
+  const centreOnFixedTip = tipFor('centreOnFixed', '')
+  const fixedItems = items.filter((item) => item.fixed)
+  const canCentreOnFixed =
+    fixedItems.length > 0 && items.some((item) => item.selected && !item.fixed)
+
+  useEffect(() => {
+    if (!fixedPickerOpen) return
+    function onPointerDown(event: PointerEvent) {
+      if (!fixedPickerRef.current?.contains(event.target as Node)) setFixedPickerOpen(false)
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') setFixedPickerOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [fixedPickerOpen])
 
   return (
     <section>
@@ -111,26 +133,74 @@ export default function PolygonList({
             <p className="mt-0.5 leading-snug text-slate-300">{sectionTip.body}</p>
           </div>
         </div>
-        {selectedCount >= 2 && (
+        {(selectedCount >= 2 || canCentreOnFixed) && (
           <div className="flex shrink-0 gap-2">
-            <ControlTip id="sidebar-tip-export-selected" tip={exportSelectedTip}>
-              <button
-                type="button"
-                onClick={onExportSelected}
-                className="pressable min-h-11 rounded-lg bg-surface-overlay px-3 text-sm text-slate-200 hover:bg-white/10"
-              >
-                Export selected
-              </button>
-            </ControlTip>
-            <ControlTip id="sidebar-tip-re-centre" tip={reCentreTip}>
-              <button
-                type="button"
-                onClick={onReCentre}
-                className="pressable min-h-11 rounded-lg bg-surface-overlay px-3 text-sm text-slate-200 hover:bg-white/10"
-              >
-                Re-centre
-              </button>
-            </ControlTip>
+            {selectedCount >= 2 && (
+              <>
+                <ControlTip id="sidebar-tip-export-selected" tip={exportSelectedTip}>
+                  <button
+                    type="button"
+                    onClick={onExportSelected}
+                    className="pressable min-h-11 rounded-lg bg-surface-overlay px-3 text-sm text-slate-200 hover:bg-white/10"
+                  >
+                    Export selected
+                  </button>
+                </ControlTip>
+                <ControlTip id="sidebar-tip-re-centre" tip={reCentreTip}>
+                  <button
+                    type="button"
+                    onClick={onReCentre}
+                    className="pressable min-h-11 rounded-lg bg-surface-overlay px-3 text-sm text-slate-200 hover:bg-white/10"
+                  >
+                    Re-centre
+                  </button>
+                </ControlTip>
+              </>
+            )}
+            {canCentreOnFixed && onCentreOnFixed && (
+              <div ref={fixedPickerRef} className="relative">
+                <ControlTip id="sidebar-tip-centre-on-fixed" tip={centreOnFixedTip}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (fixedItems.length === 1) onCentreOnFixed(fixedItems[0].id)
+                      else setFixedPickerOpen(true)
+                    }}
+                    className="pressable min-h-11 rounded-lg bg-surface-overlay px-3 text-sm text-slate-200 hover:bg-white/10"
+                  >
+                    Centre on fixed
+                  </button>
+                </ControlTip>
+                {fixedPickerOpen && fixedItems.length > 1 && (
+                  <div
+                    role="listbox"
+                    className="absolute left-0 top-full z-20 mt-1 w-full min-w-[12rem] rounded-xl border border-white/15 bg-surface-raised/95 p-1 shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
+                  >
+                    {fixedItems.map((item) => {
+                      const pickTip = tipFor('fixedPick', item.sourceName)
+                      return (
+                        <ControlTip
+                          key={item.id}
+                          id={`sidebar-tip-fixed-pick-${item.id}`}
+                          tip={pickTip}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onCentreOnFixed(item.id)
+                              setFixedPickerOpen(false)
+                            }}
+                            className="pressable flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm text-slate-200 hover:bg-white/10"
+                          >
+                            {item.sourceName}
+                          </button>
+                        </ControlTip>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

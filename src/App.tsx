@@ -1098,7 +1098,7 @@ export default function App() {
               <span
                 key={`${dot.part}-${dot.corner}`}
                 aria-hidden="true"
-                className="pointer-events-none absolute z-20 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-slate-900 bg-white"
+                className="pointer-events-none absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_0_1px_#0f172a]"
                 style={{ left: dot.x, top: dot.y }}
               />
             ))}

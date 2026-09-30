@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Closed rings can gain a point on a side and lose a corner while at least three remain.
 - Ring hit-testing picks the nearest side and corner in CSS pixels, within 12px.
 - Outline Lasso closes the drawn stroke into the colour-ring slot and does not require a sampled ring.
 - Static Lasso compares every sample with a stored red, green, and blue. A sample pixel outside that contrast adds nothing.
@@ -53,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
-- `features/lasso-poly-update.md` — implementation plan for Lasso Dynamic, Static, and Outline, and vertex edit on a closed Polygon or Lasso. UI tasks require UI UX Pro Max, Impeccable, and Emil Kowalski before the screen ships.
+- `features/lasso-poly-update.md` — implementation plan for Lasso Dynamic, Static, and Outline, and vertex edit on a closed Polygon or Lasso. A ring hit stores the corner's own part separately from the side's part. UI tasks require UI UX Pro Max, Impeccable, and Emil Kowalski before the screen ships.
 - `docs/superpowers/specs/2026-09-30-lasso-behaviours-and-vertex-edit-design.md` — accepted Lasso behaviours Dynamic, Static, and Outline, and add or delete a vertex on a closed Polygon or Lasso before Add to list. Product copy updates happen in the implementation.
 - `DESIGN.md` records the closed Extent and Outline disclosures, the stroke break, and Centre on fixed.
 - `docs/superpowers/plans/2026-09-29-sidebar-update.md` — Implementation plan for the Polygons sidebar. Tasks 7–16 are the Emil pass, polish, audit, harden, and the manual check.

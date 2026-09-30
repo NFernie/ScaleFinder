@@ -2,8 +2,7 @@ import { Fragment } from 'react'
 import { Vertex } from '../core/types'
 
 interface Props {
-  parts?: Vertex[][]
-  points?: Vertex[]
+  parts: Vertex[][]
   size?: number
   colour?: string
   className?: string
@@ -49,13 +48,11 @@ function toPointsString(projected: { px: number; py: number }[]): string {
 /** Renders the polygon normalised to fit a square viewport, preserving aspect ratio. */
 export default function PolygonPreview({
   parts,
-  points,
   size = 220,
   colour = '#2dd4bf',
   className = 'w-full',
 }: Props) {
-  const resolvedParts = parts ?? (points ? [points] : [])
-  const strokeableParts = resolvedParts.filter((part) => part.length >= 2)
+  const strokeableParts = parts.filter((part) => part.length >= 2)
 
   if (strokeableParts.length === 0) {
     return (
@@ -92,7 +89,7 @@ export default function PolygonPreview({
       aria-label="Field Polygon preview"
       className={`h-auto rounded-lg bg-surface-overlay ${className}`}
     >
-      {resolvedParts.map((part, index) => {
+      {parts.map((part, index) => {
         if (part.length < 2) return null
         const projected = projectPart(part)
         const closed = isClosed(part)

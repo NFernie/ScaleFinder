@@ -24,8 +24,19 @@ export interface BrushSample {
   maxChannelDelta: number
 }
 
+export type LassoBehaviour = 'dynamic' | 'static' | 'outline'
+
+export interface Rgb {
+  r: number
+  g: number
+  b: number
+}
+
 export interface LassoDraft {
   status: 'drawing' | 'closed'
+  behaviour: LassoBehaviour
+  /** Static only. The colour under the first sample. Alpha is ignored. */
+  reference: Rgb | null
   radiusPx: number
   maxChannelDelta: number
   /** Stroke the user drew. Each point is one brush sample. */
@@ -42,6 +53,8 @@ export const CANNOT_SAMPLE = 'This basemap does not allow colour sampling.'
 export function beginLasso(): LassoDraft {
   return {
     status: 'drawing',
+    behaviour: 'dynamic',
+    reference: null,
     radiusPx: 48,
     maxChannelDelta: 32,
     guide: [],
@@ -49,6 +62,12 @@ export function beginLasso(): LassoDraft {
     parts: [],
     message: null,
   }
+}
+
+export function setLassoBehaviour(draft: LassoDraft, behaviour: LassoBehaviour): LassoDraft {
+  if (draft.status !== 'drawing' || draft.guide.length > 0) return draft
+  if (behaviour === draft.behaviour) return draft
+  return { ...draft, behaviour, reference: null, message: null }
 }
 
 export function setLassoAim(draft: LassoDraft, radiusPx: number, maxChannelDelta: number): LassoDraft {

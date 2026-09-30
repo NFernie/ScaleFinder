@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { beginLasso, closeGuide, setLassoAim, traceBrush, traceContrast, type Raster } from './lasso'
+import { appendGuidePoint, beginLasso, closeGuide, setLassoAim, setLassoBehaviour, traceBrush, traceContrast, type Raster } from './lasso'
 
 function solid(width: number, height: number, paint: (x: number, y: number) => [number, number, number]): Raster {
   const data = new Uint8ClampedArray(width * height * 4)
@@ -120,5 +120,17 @@ describe('lasso brush', () => {
     const bands = parts!.map((part) => Math.min(...part.map((point) => point.x)))
     expect(bands.some((x) => x <= 1)).toBe(true)
     expect(bands.some((x) => x >= 8)).toBe(true)
+  })
+})
+
+describe('lasso behaviour', () => {
+  it('starts on Dynamic and ignores a change after the first point', () => {
+    const empty = beginLasso()
+    expect(empty.behaviour).toBe('dynamic')
+    expect(empty.reference).toBeNull()
+    const chosen = setLassoBehaviour(empty, 'static')
+    expect(chosen.behaviour).toBe('static')
+    const pointed = appendGuidePoint(chosen, { lng: 10, lat: 45 })
+    expect(setLassoBehaviour(pointed, 'outline').behaviour).toBe('static')
   })
 })

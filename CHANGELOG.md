@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Lasso draft stores a behaviour: dynamic, static, or outline. The choice sticks after the first guide point.
 - Centre on fixed shows only when it can run. Several fixed Polygons open a name list first.
 - `centreSelectedOnFixed` copies a fixed Polygon’s anchor onto switched-on, non-fixed rows and returns the same array for a bad id.
 - Polygon and Ruler rubber-band: while status is `adding`, `overlayOf` sets `preview` to the confirmed corners plus `session.hover`. `MeasurementOverlay` draws that line under the confirmed stroke (white 2px, navy 4px casing) so it sits behind the tool cursor.

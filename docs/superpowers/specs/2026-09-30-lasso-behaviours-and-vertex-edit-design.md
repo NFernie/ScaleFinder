@@ -1,6 +1,6 @@
 # Lasso behaviours and vertex edit — Design Spec
 
-- **Status:** Pending review
+- **Status:** Accepted on 2026-09-30
 - **Date:** 2026-09-30
 - **Branch:** `cursor/lasso-behaviours-vertex-edit-53a3`
 - **Purpose doc:** [`ScaleFinderPurpose.md`](../../../ScaleFinderPurpose.md)

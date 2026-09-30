@@ -213,26 +213,29 @@
   }
 }
 
-/* Sidebar ControlTip / section tooltip — slower hover reveal than toolbox bento tips. */
+/* Sidebar ControlTip / section tooltip — 2s hover dwell, then 500ms reveal. */
 .sidebar-tip {
   opacity: 0;
   transform: translateY(4px) scale(0.97);
   transform-origin: top left;
   transition:
-    opacity 1000ms ease-out,
-    transform 1000ms ease-out;
+    opacity 500ms ease-out,
+    transform 500ms ease-out;
+  transition-delay: 0s;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .group:hover > .sidebar-tip {
     opacity: 1;
     transform: translateY(0) scale(1);
+    transition-delay: 2s;
   }
 }
 
 .group:focus-within > .sidebar-tip {
   opacity: 1;
   transform: translateY(0) scale(1);
+  transition-delay: 0s;
 }
 
 .group:focus-within:not(:hover) > .sidebar-tip {

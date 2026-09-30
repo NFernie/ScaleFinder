@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Centre on fixed flies the map to the fixed anchor at the current zoom. Sidebar switches are named Show on map.
 - Polygons rows show rotation, then the file name, then the controls. Extent and Outline start closed.
 - Polygon thumbnail draws one path per part. An open part stays filled and its stroke stops 8px short of each end.
 - Toolbox motion: `.pressable` is scale 0.97 in 120ms ease-out. Bento cells transition transform and opacity only. Tooltips rise 4px and fade in over 125ms ease-out, snap when reduced motion is on, and skip that motion for keyboard focus and for the next cell once one tip is open. `.toolbox-pop` stays 160ms ease-out.

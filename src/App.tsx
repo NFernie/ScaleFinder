@@ -24,7 +24,15 @@ import { polygonAreaM2 } from './core/geometry'
 import { haversineM } from './core/projection'
 import { ringToDraft } from './core/ringDraft'
 import { squareCorners } from './core/square'
-import { CANNOT_SAMPLE, traceBrush, type LassoSample, type Raster } from './core/lasso'
+import {
+  CANNOT_SAMPLE,
+  lockReference,
+  referenceFromRaster,
+  traceBrush,
+  type LassoSample,
+  type Raster,
+  type Rgb,
+} from './core/lasso'
 import {
   acceptClick,
   acceptDoubleClick,
@@ -146,6 +154,7 @@ export default function App() {
   const touchAt = useRef(0)
   const painting = useRef(false)
   const lassoDrawing = useRef(false)
+  const lassoOutline = useRef(false)
   const guideCount = useRef(0)
   const layoutRef = useRef<HTMLDivElement>(null)
   const lastFramePointerClient = useRef<{ x: number; y: number } | null>(null)
@@ -402,6 +411,7 @@ export default function App() {
   }, [])
 
   lassoDrawing.current = session.lasso?.status === 'drawing'
+  lassoOutline.current = session.lasso?.behaviour === 'outline'
   if (!session.lasso) guideCount.current = 0
   else if (session.lasso.guide.length >= guideCount.current) guideCount.current = session.lasso.guide.length
   const mapAcceptsPoints =
@@ -421,7 +431,7 @@ export default function App() {
     guideCount.current = 0
   }, [])
 
-  const colourParts = useCallback((samples: LassoSample[]) => {
+  const colourParts = useCallback((samples: LassoSample[], reference: Rgb | null) => {
     const map = mapRef.current && 'getMap' in mapRef.current ? mapRef.current.getMap() : null
     const raster = lassoRaster.current
     if (!map || !raster) return null
@@ -437,7 +447,7 @@ export default function App() {
           ]
         : [],
     )
-    const rings = traceBrush(raster, ready)
+    const rings = traceBrush(raster, ready, reference)
     if (!rings) return []
     return rings.map((ring) =>
       ring.map((pixel) => {
@@ -463,8 +473,18 @@ export default function App() {
         const pixel = bufferPixel(css.x, css.y, raster.width, raster.height, canvas.clientWidth, canvas.clientHeight)
         setSession((current) => {
           if (!current.lasso || current.lasso.status !== 'drawing') return current
-          const painted = paintLassoSample(current, index, pixel)
-          const parts = painted.lasso ? colourParts(painted.lasso.samples) : null
+          let painted = paintLassoSample(current, index, pixel)
+          if (
+            painted.lasso?.behaviour === 'static' &&
+            index === 0 &&
+            painted.lasso.reference === null
+          ) {
+            const colour = referenceFromRaster(raster, pixel)
+            if (colour && painted.lasso) {
+              painted = { ...painted, lasso: lockReference(painted.lasso, colour) }
+            }
+          }
+          const parts = painted.lasso ? colourParts(painted.lasso.samples, painted.lasso.reference) : null
           if (!painted.lasso || !parts) return painted
           return setLassoOutline(painted, parts)
         })
@@ -491,6 +511,7 @@ export default function App() {
       })
       if (fromPress) appendedOnLastDown.current = true
       if (css) lastCss.current = css
+      if (lassoOutline.current) return
       const point = css ?? { x: 0, y: 0 }
       lassoChain.current = lassoChain.current.then(() => paintLasso(index, point))
     },
@@ -534,8 +555,10 @@ export default function App() {
             next = dropLastLassoPoint(next)
             appendedOnLastDown.current = false
             guideCount.current = Math.max(0, guideCount.current - 1)
-            const parts = next.lasso ? colourParts(next.lasso.samples) : null
-            if (parts) next = setLassoOutline(next, parts)
+            if (next.lasso?.behaviour !== 'outline') {
+              const parts = next.lasso ? colourParts(next.lasso.samples, next.lasso.reference) : null
+              if (parts) next = setLassoOutline(next, parts)
+            }
           }
           return acceptDoubleClick(next, corner)
         })

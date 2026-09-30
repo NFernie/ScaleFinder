@@ -13,17 +13,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Centre on fixed shows only when it can run. Several fixed Polygons open a name list first.
+- `centreSelectedOnFixed` copies a fixed Polygon’s anchor onto switched-on, non-fixed rows and returns the same array for a bad id.
 - Polygon and Ruler rubber-band: while status is `adding`, `overlayOf` sets `preview` to the confirmed corners plus `session.hover`. `MeasurementOverlay` draws that line under the confirmed stroke (white 2px, navy 4px casing) so it sits behind the tool cursor.
 - Map tool cursor overlay (`MapToolCursor`) with inline SVG marks per active tool; native cursor is hidden on the map frame while drawing. Lasso ring diameter follows Radius (8–128 CSS px, default 48).
 - Edge pan while drawing: `edgePanDelta` in `src/map/mapEdgePan.ts` (32px band, ±16px cap); `App` calls `map.panBy` on pointer move when the map is accepting points.
 
+### Tests
+
+- Centre-on-fixed App test asserts `flyTo` receives the fixed polygon geographic anchor as `center`.
+
 ### Changed
 
+- Polygons heading puts Export selected, Re-centre, and Centre on fixed on the row below the section disclosure. Sidebar hover tooltips wait 1s with the pointer on the control, then fade and rise over 500ms ease-out (keyboard focus and reduced motion still snap).
+- Polygons section: heading chevron matches Extent and Outline, tooltips stay 14rem instead of shrinking to the control, Delete’s tip aligns to the trailing edge, and the outline placeholder uses the same width as the thumbnail.
+- Centre on fixed’s name list uses the 160ms `.toolbox-pop` enter. Extent and Outline chevrons stay at 150ms with no panel motion.
+- Centre on fixed flies the map to the fixed anchor at the current zoom. Sidebar switches are named Show on map.
+- Polygons rows show rotation, then the file name, then the controls. Extent and Outline start closed.
+- Polygon thumbnail draws one path per part. An open part stays filled and its stroke stops 8px short of each end.
 - Toolbox motion: `.pressable` is scale 0.97 in 120ms ease-out. Bento cells transition transform and opacity only. Tooltips rise 4px and fade in over 125ms ease-out, snap when reduced motion is on, and skip that motion for keyboard focus and for the next cell once one tip is open. `.toolbox-pop` stays 160ms ease-out.
 - Toolbox popup tool picker is a bento grid of shape icons with hover/focus tooltips (`ToolIcon`, `TOOL_TIPS`) instead of a vertical text list.
 
 ### Fixed
 
+- Polygons heading action row wraps at the default sidebar width so Export selected, Re-centre, and Centre on fixed stay fully visible.
+- Centre on fixed’s name list closes when it can no longer run (last switched-on movable turned off, or fewer than two fixed Polygons), so it does not reopen on its own.
+- Polygons rename field uses the same accessible name as the name control (`Rename {name}`). Centre on fixed’s name list exposes `option` rows, and Extent/Outline only point `aria-controls` at a panel that is open.
+- Polygons sidebar heading shows the section index `2 · Polygons`, not the row count.
+- Polygon thumbnails with only a two-vertex part render a full stroke with no fill instead of the placeholder.
 - While a tool is active, `map-hide-native-cursor` on the MapLibre canvas container sets `cursor: none` with higher specificity than `.maplibregl-interactive`, `.maplibregl-track-pointer`, and `:active`, so the SVG tool cursor is the only pointer.
 - Lasso Radius and Contrast readout labels use the locked title sentences (Radius 8–128 and Contrast 0–255 meanings). Numeric ranges are unchanged.
 - Touch move edge-pans with `edgePanDelta` and `panBy` whenever a drawing tool accepts points, and still extends the lasso stroke while painting.
@@ -31,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `DESIGN.md` records the closed Extent and Outline disclosures, the stroke break, and Centre on fixed.
+- `docs/superpowers/plans/2026-09-29-sidebar-update.md` — Implementation plan for the Polygons sidebar. Tasks 7–16 are the Emil pass, polish, audit, harden, and the manual check.
+- `docs/superpowers/specs/2026-09-29-sidebar-update-design.md` — Approved Polygons sidebar spec. Critique amendments: an open thumbnail keeps the map fill and stops the stroke 8px short of each end; Centre on fixed is hidden until it can run.
+- `features/sidebar_update.md` — Sidebar UI workflow for Extent, the outline thumbnail, row layout, a collapsible Polygons list, Centre on fixed, and hover tooltips. Spec and product code wait on `/brainstorming`, then `/writing-plans`.
 - `DESIGN.md` — Toolbox subsection documents the bento icon grid, hover/focus tooltips, tool-matched cursors (lasso radius scaling), edge pan while drawing, and polygon/ruler preview behind the pointer.
 - `docs/superpowers/specs/2026-09-29-toolbox-ui-update.md` — approved Toolbox UI addendum: bento icon grid, tool cursors, hover tooltips, edge pan, and polygon/ruler preview behind the pointer. Lasso Radius stays 8–128 (default 48) and Contrast stays 0–255 (default 32). Geometry stays in `src/core`.
 - `features/toolbox_ui_update.md` — Toolbox UI update plan (bento grid, cursors, tooltips, edge pan, preview stacking, Emil animation workflow). Supersedes UI prompts in `feature/toolbox.md` for new UI work.

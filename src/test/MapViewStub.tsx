@@ -1,4 +1,5 @@
-import { forwardRef, ReactNode, useRef } from 'react'
+import { forwardRef, ReactNode, useImperativeHandle, useRef } from 'react'
+import { vi } from 'vitest'
 
 interface MapClick {
   lngLat: { lng: number; lat: number }
@@ -11,12 +12,21 @@ interface Props {
   onMapDoubleClick?: (event: MapClick) => void
 }
 
-const MapViewStub = forwardRef<HTMLDivElement, Props>(function MapViewStub(
-  { children, onMapClick, onMapDoubleClick },
-  _ref,
+export const mapFlyTo = vi.fn()
+export const mapGetZoom = vi.fn(() => 5)
+
+const MapViewStub = forwardRef(function MapViewStub(
+  { children, onMapClick, onMapDoubleClick }: Props,
+  ref,
 ) {
   const count = useRef(0)
   const last = useRef({ lng: 10, lat: 20 })
+
+  useImperativeHandle(ref, () => ({
+    flyTo: mapFlyTo,
+    getZoom: mapGetZoom,
+    getCenter: () => ({ lng: 10, lat: 20 }),
+  }))
 
   const point = () => {
     count.current += 1

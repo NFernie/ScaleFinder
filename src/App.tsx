@@ -46,6 +46,7 @@ import {
 } from './core/toolboxSession'
 import {
   appendPolygon,
+  centreSelectedOnFixed,
   nextColour,
   PolygonItem,
   reCentreSelected,
@@ -278,6 +279,22 @@ export default function App() {
       }),
     )
   }, [])
+
+  const handleCentreOnFixed = useCallback(
+    (fixedId: string) => {
+      const next = centreSelectedOnFixed(items, fixedId)
+      if (next === items) return
+      const fixed = items.find((item) => item.id === fixedId && item.fixed)
+      setItems(next)
+      if (!fixed || !mapRef.current) return
+      mapRef.current.flyTo({
+        center: [fixed.anchor.lng, fixed.anchor.lat],
+        zoom: mapRef.current.getZoom(),
+        duration: 1200,
+      })
+    },
+    [items],
+  )
 
   const handleRemovePolygon = useCallback((id: string) => {
     setItems((prev) => removePolygon(prev, id))
@@ -830,6 +847,7 @@ export default function App() {
               onBearing={handleBearing}
               onExport={handleExportPolygon}
               onExportSelected={handleExportSelected}
+              onCentreOnFixed={handleCentreOnFixed}
               exportNotes={exportNotes}
             />
           )}

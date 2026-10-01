@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A closed Polygon or Lasso corner can be selected and dragged. The outline and the area follow that corner, and the Lasso guide stays put. The readout says to drag a corner, and a right-click still adds or deletes a vertex.
+- A closed Polygon readout tells the user they can right-click a side or corner. The hint stays hidden while the chain is still open.
+- Right-click within 12 CSS pixels of a closed side or corner opens Add vertex and Delete vertex. The dots and the menu stay outside the snapshot.
+- A two-row vertex menu adds or deletes the vertex under a right-click. It uses the toolbox pop enter, focuses Add vertex, closes on Escape, and shifts inward when it would leave the frame.
+- The Lasso readout chooses Dynamic, Static, or Outline, with a tooltip on each, and hides Radius and Contrast for Outline. After the first point, or once the stroke is closed, those buttons stay visible and disabled. A closed ring shows the vertex hint.
+- The Toolbox session sets Lasso behaviour, skips sampling on an Outline click, and inserts or removes a vertex on a closed Lasso or Polygon without changing the Lasso guide.
+- A closed Polygon draft can gain or lose a corner. The area readout follows the new corners.
+- Closed rings can gain a point on a side and lose a corner while at least three remain.
+- Ring hit-testing picks the nearest side and corner in CSS pixels, within 12px.
+- Outline Lasso closes the drawn stroke into the colour-ring slot and does not require a sampled ring.
+- Static Lasso compares every sample with a stored red, green, and blue. A sample pixel outside that contrast adds nothing.
+- Lasso draft stores a behaviour: dynamic, static, or outline. The choice sticks after the first guide point.
 - Centre on fixed shows only when it can run. Several fixed Polygons open a name list first.
 - `centreSelectedOnFixed` copies a fixed Polygon’s anchor onto switched-on, non-fixed rows and returns the same array for a bad id.
 - Polygon and Ruler rubber-band: while status is `adding`, `overlayOf` sets `preview` to the confirmed corners plus `session.hover`. `MeasurementOverlay` draws that line under the confirmed stroke (white 2px, navy 4px casing) so it sits behind the tool cursor.
@@ -21,10 +33,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
+- Toolbox session tests cover polygon vertex insert and delete, closed polygon rings, and a Static lasso click still asking for a sample.
 - Centre-on-fixed App test asserts `flyTo` receives the fixed polygon geographic anchor as `center`.
 
 ### Changed
 
+- The Toolbox has six tools. Lasso is the outline stroke. Dynamic and Static move to Paint Brush. Drawing, sampling, and vertex edit are unchanged.
+- Outline Lasso strokes are not sampled. Static Lasso stores the colour of the first sample and reuses it for the rest of the stroke.
+- Outline Lasso uses the Polygon crosshair. Dynamic and Static keep the radius ring.
 - Polygons heading puts Export selected, Re-centre, and Centre on fixed on the row below the section disclosure. Sidebar hover tooltips wait 1s with the pointer on the control, then fade and rise over 500ms ease-out (keyboard focus and reduced motion still snap).
 - Polygons section: heading chevron matches Extent and Outline, tooltips stay 14rem instead of shrinking to the control, Delete’s tip aligns to the trailing edge, and the outline placeholder uses the same width as the thumbnail.
 - Centre on fixed’s name list uses the 160ms `.toolbox-pop` enter. Extent and Outline chevrons stay at 150ms with no panel motion.
@@ -36,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Closed-shape vertex dots use an 8px white disc with a 1px slate casing drawn outside the disc.
+- Ring hit-testing type-checks under tsc -b. The nearest side and corner are tracked in the same function, not inside a forEach callback.
+- Ring hit-testing records the part that owns the nearest corner, separate from the part that owns the nearest side.
 - Polygons heading action row wraps at the default sidebar width so Export selected, Re-centre, and Centre on fixed stay fully visible.
 - Centre on fixed’s name list closes when it can no longer run (last switched-on movable turned off, or fewer than two fixed Polygons), so it does not reopen on its own.
 - Polygons rename field uses the same accessible name as the name control (`Rename {name}`). Centre on fixed’s name list exposes `option` rows, and Extent/Outline only point `aria-controls` at a panel that is open.
@@ -48,6 +67,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- Product, purpose, and design records put Outline on Lasso and Dynamic and Static on Paint Brush.
+- Product, purpose, and design records say a closed Lasso or Polygon corner can be selected and dragged before Add to list.
+- PRODUCT.md, ScaleFinderPurpose.md, and DESIGN.md name Lasso Dynamic, Static, and Outline, and the closed-draft vertex edit.
+- `features/lasso-poly-update.md` — implementation plan for Lasso Dynamic, Static, and Outline, and vertex edit on a closed Polygon or Lasso. A ring hit stores the corner's own part separately from the side's part. UI tasks require UI UX Pro Max, Impeccable, and Emil Kowalski before the screen ships.
+- `docs/superpowers/specs/2026-09-30-lasso-behaviours-and-vertex-edit-design.md` — accepted Lasso behaviours Dynamic, Static, and Outline, and add or delete a vertex on a closed Polygon or Lasso before Add to list. Product copy updates happen in the implementation.
 - `DESIGN.md` records the closed Extent and Outline disclosures, the stroke break, and Centre on fixed.
 - `docs/superpowers/plans/2026-09-29-sidebar-update.md` — Implementation plan for the Polygons sidebar. Tasks 7–16 are the Emil pass, polish, audit, harden, and the manual check.
 - `docs/superpowers/specs/2026-09-29-sidebar-update-design.md` — Approved Polygons sidebar spec. Critique amendments: an open thumbnail keeps the map fill and stops the stroke 8px short of each end; Centre on fixed is hidden until it can run.

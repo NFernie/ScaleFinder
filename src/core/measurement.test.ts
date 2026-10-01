@@ -5,8 +5,11 @@ import {
   applyDoubleClick,
   beginMeasurement,
   finishRuler,
+  insertMeasuredCorner,
   measuredPolygonDraft,
+  moveMeasuredCorner,
   readout,
+  removeMeasuredCorner,
 } from './measurement'
 import { destinationPoint, haversineM, projectToGeographic } from './projection'
 
@@ -60,6 +63,32 @@ describe('measurement readout', () => {
     if (!draft) throw new Error('expected a draft')
     expect(figures.areaM2).toBeCloseTo(polygonAreaM2(draft.raw), 3)
     expect(figures.areaM2).toBeGreaterThan(900_000)
+  })
+
+  it('edits corners only after close and updates the area', () => {
+    const open = chain()
+    const extra = destinationPoint(origin, 500, 45)
+    expect(insertMeasuredCorner(open, 0, extra)).toBe(open)
+    const closed = applyDoubleClick(open, north)
+    if (!closed) throw new Error('expected a closed polygon')
+    const before = readout(closed).areaM2
+    const wider = insertMeasuredCorner(closed, 0, extra)
+    expect(wider.corners).toHaveLength(closed.corners.length + 1)
+    expect(wider.corners[1]).toEqual(extra)
+    expect(readout(wider).areaM2).not.toBe(before)
+    const refused = removeMeasuredCorner(
+      { ...closed, corners: closed.corners.slice(0, 3) },
+      0,
+    )
+    expect(refused.corners).toHaveLength(3)
+    expect(refused.message).toBe('A Polygon needs at least three corners.')
+    const shifted = { lng: north.lng + 0.01, lat: north.lat }
+    expect(moveMeasuredCorner(open, 0, shifted)).toBe(open)
+    const moved = moveMeasuredCorner(closed, 2, shifted)
+    expect(moved.corners[2]).toEqual(shifted)
+    expect(moved.corners[0]).toEqual(closed.corners[0])
+    expect(readout(moved).areaM2).not.toBe(before)
+    expect(moveMeasuredCorner(closed, 9, shifted)).toBe(closed)
   })
 })
 

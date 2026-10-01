@@ -229,7 +229,7 @@ describe('App polygon list', () => {
     const user = userEvent.setup()
     render(<App />)
     await user.click(screen.getByRole('button', { name: 'Toolbox' }))
-    await user.click(screen.getByRole('button', { name: 'Lasso' }))
+    await user.click(screen.getByRole('button', { name: 'Paint Brush' }))
     expect(screen.getByLabelText('Radius')).toHaveValue(48)
     expect(screen.getByLabelText('Contrast')).toHaveValue(32)
     await user.click(screen.getByTestId('map'))

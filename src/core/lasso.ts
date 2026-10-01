@@ -24,8 +24,19 @@ export interface BrushSample {
   maxChannelDelta: number
 }
 
+export type LassoBehaviour = 'dynamic' | 'static' | 'outline'
+
+export interface Rgb {
+  r: number
+  g: number
+  b: number
+}
+
 export interface LassoDraft {
   status: 'drawing' | 'closed'
+  behaviour: LassoBehaviour
+  /** Static only. The colour under the first sample. Alpha is ignored. */
+  reference: Rgb | null
   radiusPx: number
   maxChannelDelta: number
   /** Stroke the user drew. Each point is one brush sample. */
@@ -42,6 +53,8 @@ export const CANNOT_SAMPLE = 'This basemap does not allow colour sampling.'
 export function beginLasso(): LassoDraft {
   return {
     status: 'drawing',
+    behaviour: 'dynamic',
+    reference: null,
     radiusPx: 48,
     maxChannelDelta: 32,
     guide: [],
@@ -49,6 +62,23 @@ export function beginLasso(): LassoDraft {
     parts: [],
     message: null,
   }
+}
+
+export function lockReference(draft: LassoDraft, reference: Rgb): LassoDraft {
+  if (draft.behaviour !== 'static' || draft.reference) return draft
+  return { ...draft, reference: { r: reference.r, g: reference.g, b: reference.b } }
+}
+
+export function referenceFromRaster(raster: Raster, pixel: Pixel): Rgb | null {
+  if (pixel.x < 0 || pixel.y < 0 || pixel.x >= raster.width || pixel.y >= raster.height) return null
+  const index = (pixel.y * raster.width + pixel.x) * 4
+  return { r: raster.data[index], g: raster.data[index + 1], b: raster.data[index + 2] }
+}
+
+export function setLassoBehaviour(draft: LassoDraft, behaviour: LassoBehaviour): LassoDraft {
+  if (draft.status !== 'drawing' || draft.guide.length > 0) return draft
+  if (behaviour === draft.behaviour) return draft
+  return { ...draft, behaviour, reference: null, message: null }
 }
 
 export function setLassoAim(draft: LassoDraft, radiusPx: number, maxChannelDelta: number): LassoDraft {
@@ -108,6 +138,14 @@ export function closeGuide(draft: LassoDraft): LassoDraft {
   if (draft.guide.length < 3) {
     return { ...draft, message: 'Add at least three corners to close a polygon.' }
   }
+  if (draft.behaviour === 'outline') {
+    return {
+      ...draft,
+      status: 'closed',
+      parts: [draft.guide.map((point) => ({ lng: point.lng, lat: point.lat }))],
+      message: null,
+    }
+  }
   const parts = draft.parts.filter((part) => part.length >= 3)
   if (parts.length === 0) {
     const message =
@@ -148,7 +186,7 @@ export function traceContrast(
  * was drawn with. A sample that fills fewer than 8 pixels adds nothing.
  * Touching patches are one part. A gap is another part.
  */
-export function traceBrush(raster: Raster, samples: BrushSample[]): Pixel[][] | null {
+export function traceBrush(raster: Raster, samples: BrushSample[], reference?: Rgb | null): Pixel[][] | null {
   if (raster.width === 0 || raster.height === 0 || samples.length === 0) return null
   const mask = new Uint8Array(raster.width * raster.height)
   let total = 0
@@ -160,7 +198,7 @@ export function traceBrush(raster: Raster, samples: BrushSample[]): Pixel[][] | 
     if (sample.radiusPx < 1) continue
     const seed = sample.pixel
     if (seed.x < 0 || seed.y < 0 || seed.x >= raster.width || seed.y >= raster.height) continue
-    const patch = flood(raster, seed, sample.radiusPx, sample.maxChannelDelta)
+    const patch = flood(raster, seed, sample.radiusPx, sample.maxChannelDelta, reference)
     const reach = Math.ceil(sample.radiusPx)
     const x0 = Math.max(0, seed.x - reach)
     const y0 = Math.max(0, seed.y - reach)
@@ -231,9 +269,26 @@ function connectedOutlines(
   return parts
 }
 
-function flood(raster: Raster, seed: Pixel, radiusPx: number, maxChannelDelta: number): Uint8Array {
+function flood(
+  raster: Raster,
+  seed: Pixel,
+  radiusPx: number,
+  maxChannelDelta: number,
+  reference?: Rgb | null,
+): Uint8Array {
   const filled = new Uint8Array(raster.width * raster.height)
-  const colour = rgb(raster, seed.x, seed.y)
+  const seedColour = rgb(raster, seed.x, seed.y)
+  const colour: [number, number, number] = reference
+    ? [reference.r, reference.g, reference.b]
+    : seedColour
+  if (reference) {
+    const delta = Math.max(
+      Math.abs(seedColour[0] - colour[0]),
+      Math.abs(seedColour[1] - colour[1]),
+      Math.abs(seedColour[2] - colour[2]),
+    )
+    if (delta > maxChannelDelta) return filled
+  }
   const stack: Pixel[] = [seed]
   filled[seed.y * raster.width + seed.x] = 1
   const radius2 = radiusPx * radiusPx

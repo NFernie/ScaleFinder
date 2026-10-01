@@ -4,11 +4,13 @@ import {
   beginLasso,
   closeGuide,
   dropLastGuidePoint,
+  LassoBehaviour,
   LassoDraft,
   markLassoMessage,
   paintGuideSample,
   Pixel,
   setLassoAim,
+  setLassoBehaviour,
   setOutline,
 } from './lasso'
 import {
@@ -16,9 +18,13 @@ import {
   applyDoubleClick,
   beginMeasurement,
   finishRuler,
+  insertMeasuredCorner,
   measuredPolygonDraft,
   Measurement,
+  moveMeasuredCorner,
+  removeMeasuredCorner,
 } from './measurement'
+import { insertOnSide, moveCorner, removeCorner, VERTEX_FLOOR } from './ringEdit'
 import { ringsToDraft, ringToDraft, RingDraft } from './ringDraft'
 import { addRulerCorner, beginRuler, finishDistanceRuler, Ruler } from './ruler'
 import {
@@ -32,7 +38,11 @@ import {
 } from './square'
 import { LngLat } from './types'
 
-export type ToolId = 'polygon' | 'ruler' | 'lasso' | 'circle' | 'square'
+export type ToolId = 'polygon' | 'ruler' | 'lasso' | 'brush' | 'circle' | 'square'
+
+export function usesLassoDraft(tool: ToolId | null): boolean {
+  return tool === 'lasso' || tool === 'brush'
+}
 
 export interface ToolboxSession {
   menuOpen: boolean
@@ -74,7 +84,8 @@ export function chooseTool(session: ToolboxSession, tool: ToolId): ToolboxSessio
   if (tool === 'ruler') next.ruler = beginRuler()
   if (tool === 'circle') next.circle = beginCircle()
   if (tool === 'square') next.square = beginSquare()
-  if (tool === 'lasso') next.lasso = beginLasso()
+  if (tool === 'lasso') next.lasso = setLassoBehaviour(beginLasso(), 'outline')
+  if (tool === 'brush') next.lasso = beginLasso()
   return next
 }
 
@@ -97,8 +108,9 @@ export function acceptClick(session: ToolboxSession, corner: LngLat): { session:
       : setSquareOrigin(session.square, corner)
     return { session: { ...session, square, hover: square.status === 'ready' ? null : session.hover }, sample: false }
   }
-  if (session.tool === 'lasso' && session.lasso?.status === 'drawing') {
-    return { session: { ...session, lasso: appendGuidePoint(session.lasso, corner) }, sample: true }
+  if (usesLassoDraft(session.tool) && session.lasso?.status === 'drawing') {
+    const sample = session.lasso.behaviour !== 'outline'
+    return { session: { ...session, lasso: appendGuidePoint(session.lasso, corner) }, sample }
   }
   return { session, sample: false }
 }
@@ -112,7 +124,7 @@ export function acceptDoubleClick(session: ToolboxSession, corner: LngLat): Tool
   if (session.tool === 'ruler' && session.ruler) {
     return { ...session, ruler: finishDistanceRuler(session.ruler) }
   }
-  if (session.tool === 'lasso' && session.lasso) return closeLasso(session)
+  if (usesLassoDraft(session.tool) && session.lasso) return closeLasso(session)
   return session
 }
 
@@ -132,6 +144,76 @@ export function doneDraft(session: ToolboxSession): ToolboxSession {
   if (session.polygon) return { ...session, polygon: finishRuler(session.polygon) }
   if (session.ruler) return { ...session, ruler: finishDistanceRuler(session.ruler) }
   return session
+}
+
+export function setSessionLassoBehaviour(session: ToolboxSession, behaviour: LassoBehaviour): ToolboxSession {
+  if (!session.lasso) return session
+  if (session.tool === 'lasso' && behaviour !== 'outline') return session
+  if (session.tool === 'brush' && behaviour === 'outline') return session
+  return { ...session, lasso: setLassoBehaviour(session.lasso, behaviour) }
+}
+
+export function insertLassoVertex(session: ToolboxSession, part: number, side: number, point: LngLat): ToolboxSession {
+  const draft = session.lasso
+  if (!draft || draft.status !== 'closed') return session
+  const ring = draft.parts[part]
+  if (!ring) return session
+  const parts = draft.parts.slice()
+  parts[part] = insertOnSide(ring, side, point)
+  return { ...session, lasso: { ...draft, parts, message: null } }
+}
+
+export function removeLassoVertex(session: ToolboxSession, part: number, corner: number): ToolboxSession {
+  const draft = session.lasso
+  if (!draft || draft.status !== 'closed') return session
+  const ring = draft.parts[part]
+  if (!ring) return session
+  const next = removeCorner(ring, corner)
+  if (!next) return { ...session, lasso: { ...draft, message: VERTEX_FLOOR } }
+  const parts = draft.parts.slice()
+  parts[part] = next
+  return { ...session, lasso: { ...draft, parts, message: null } }
+}
+
+export function insertPolygonVertex(session: ToolboxSession, side: number, point: LngLat): ToolboxSession {
+  if (!session.polygon) return session
+  return { ...session, polygon: insertMeasuredCorner(session.polygon, side, point) }
+}
+
+export function movePolygonVertex(session: ToolboxSession, corner: number, point: LngLat): ToolboxSession {
+  if (!session.polygon) return session
+  const polygon = moveMeasuredCorner(session.polygon, corner, point)
+  if (polygon === session.polygon) return session
+  return { ...session, polygon }
+}
+
+export function moveLassoVertex(session: ToolboxSession, part: number, corner: number, point: LngLat): ToolboxSession {
+  const draft = session.lasso
+  if (!draft || draft.status !== 'closed') return session
+  const ring = draft.parts[part]
+  if (!ring) return session
+  const next = moveCorner(ring, corner, point)
+  if (next === ring) return session
+  const parts = draft.parts.slice()
+  parts[part] = next
+  return { ...session, lasso: { ...draft, parts, message: null } }
+}
+
+export function removePolygonVertex(session: ToolboxSession, corner: number): ToolboxSession {
+  if (!session.polygon) return session
+  return { ...session, polygon: removeMeasuredCorner(session.polygon, corner) }
+}
+
+export function vertexRings(session: ToolboxSession): LngLat[][] {
+  if (session.polygon?.status === 'polygon' && session.polygon.corners.length >= 3) {
+    return [session.polygon.corners.map((point) => ({ lng: point.lng, lat: point.lat }))]
+  }
+  if (session.lasso?.status === 'closed') {
+    return session.lasso.parts
+      .filter((part) => part.length >= 3)
+      .map((part) => part.map((point) => ({ lng: point.lng, lat: point.lat })))
+  }
+  return []
 }
 
 export function setLassoSettings(session: ToolboxSession, radiusPx: number, maxChannelDelta: number): ToolboxSession {
@@ -253,11 +335,16 @@ export function overlayOf(session: ToolboxSession): ToolboxOverlay {
     return { corners: squareCorners(session.square.origin, opposite, session.square.shape) ?? [], closed: true }
   }
   if (session.lasso) {
+    const outlineClosed = session.lasso.behaviour === 'outline' && session.lasso.status === 'closed'
     return {
       corners: [],
       closed: false,
-      guide: session.lasso.guide,
-      guideClosed: session.lasso.status === 'closed' && session.lasso.guide.length >= 3,
+      ...(outlineClosed
+        ? {}
+        : {
+            guide: session.lasso.guide,
+            guideClosed: session.lasso.status === 'closed' && session.lasso.guide.length >= 3,
+          }),
       parts: session.lasso.parts.filter((part) => part.length >= 2),
     }
   }

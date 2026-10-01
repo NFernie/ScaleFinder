@@ -8,12 +8,20 @@ import {
   closedSession,
   deleteDraft,
   doneDraft,
+  insertLassoVertex,
+  insertPolygonVertex,
+  moveLassoVertex,
+  movePolygonVertex,
   overlayOf,
+  removeLassoVertex,
+  removePolygonVertex,
   setLassoOutline,
   setLassoSettings,
+  setSessionLassoBehaviour,
   takeDraft,
   takeLassoPair,
   toggleMenu,
+  vertexRings,
 } from './toolboxSession'
 import { removePolygon, type PolygonItem } from './polygonList'
 
@@ -59,9 +67,10 @@ describe('toolbox session', () => {
   })
 
   it('appends lasso guide points and stores a movable and fixed pair', () => {
-    let session = chooseTool(closedSession(), 'lasso')
+    let session = chooseTool(closedSession(), 'brush')
     const drag = acceptClick(session, a)
     expect(drag.sample).toBe(true)
+    expect(acceptClick(chooseTool(closedSession(), 'lasso'), a).sample).toBe(false)
     session = acceptClick(drag.session, b).session
     expect(session.lasso?.status).toBe('drawing')
     expect(session.lasso?.guide).toEqual([a, b])
@@ -165,5 +174,80 @@ describe('toolbox session', () => {
     const cleared = deleteDraft(session)
     expect(cleared.tool).toBeNull()
     expect(cleared.ruler).toBeNull()
+  })
+
+  it('does not sample an outline click and stores the stroke as the pair', () => {
+    let session = setSessionLassoBehaviour(chooseTool(closedSession(), 'lasso'), 'outline')
+    const first = acceptClick(session, a)
+    expect(first.sample).toBe(false)
+    session = acceptClick(first.session, b).session
+    session = acceptClick(session, c).session
+    session = acceptDoubleClick(session, c)
+    expect(session.lasso?.status).toBe('closed')
+    expect(session.lasso?.parts).toEqual([[a, b, c]])
+    expect(overlayOf(session).guide).toBeUndefined()
+    expect(overlayOf(session).parts?.[0]).toEqual([a, b, c])
+    const taken = takeLassoPair(session, 'pair-outline')
+    expect(taken.movable?.sourceName).toBe('Lasso')
+    expect(taken.fixed?.sourceName).toBe('Lasso (fixed)')
+    expect(taken.movable?.pairId).toBe('pair-outline')
+    expect(taken.fixed?.pairId).toBe('pair-outline')
+    expect(taken.fixed?.fixed).toBe(true)
+  })
+
+  it('edits a closed lasso outline and leaves the guide in the draft', () => {
+    let session = chooseTool(closedSession(), 'lasso')
+    session = acceptClick(session, a).session
+    session = acceptClick(session, b).session
+    session = acceptClick(session, c).session
+    session = setLassoOutline(session, [[a, b, c]])
+    session = acceptDoubleClick(session, c)
+    const guide = session.lasso?.guide
+    const dragged = moveLassoVertex(session, 0, 1, { lng: 10.02, lat: 45.02 })
+    expect(dragged.lasso?.parts[0][1]).toEqual({ lng: 10.02, lat: 45.02 })
+    expect(dragged.lasso?.guide).toEqual(guide)
+    expect(moveLassoVertex({ ...session, lasso: { ...session.lasso!, status: 'drawing' } }, 0, 1, a).lasso?.parts).toEqual(
+      session.lasso?.parts,
+    )
+    const moved = insertLassoVertex(session, 0, 0, { lng: 10.005, lat: 45 })
+    expect(moved.lasso?.parts[0]).toHaveLength(4)
+    expect(moved.lasso?.guide).toEqual(guide)
+    expect(insertLassoVertex({ ...session, lasso: { ...session.lasso!, status: 'drawing' } }, 0, 0, a).lasso?.parts).toEqual(
+      session.lasso?.parts,
+    )
+    const triangle = removeLassoVertex(moved, 0, 0)
+    expect(triangle.lasso?.parts[0]).toHaveLength(3)
+    const stuck = removeLassoVertex(triangle, 0, 0)
+    expect(stuck.lasso?.parts[0]).toHaveLength(3)
+    expect(stuck.lasso?.message).toBe('A Polygon needs at least three corners.')
+    expect(vertexRings(session)[0]).toHaveLength(3)
+    expect(vertexRings(chooseTool(closedSession(), 'lasso'))).toEqual([])
+    const again = chooseTool(deleteDraft(session), 'lasso')
+    expect(again.lasso?.behaviour).toBe('outline')
+    expect(chooseTool(closedSession(), 'brush').lasso?.behaviour).toBe('dynamic')
+  })
+
+  it('edits a closed polygon ring and still samples a Static lasso click', () => {
+    let session = chooseTool(closedSession(), 'polygon')
+    session = acceptClick(session, a).session
+    session = acceptClick(session, b).session
+    session = acceptClick(session, c).session
+    session = acceptDoubleClick(session, c)
+    expect(vertexRings(session)[0]).toEqual(session.polygon?.corners)
+    const inserted = insertPolygonVertex(session, 0, { lng: a.lng, lat: a.lat + 0.01 })
+    expect(inserted.polygon?.corners).toHaveLength((session.polygon?.corners.length ?? 0) + 1)
+    expect(inserted.polygon?.corners[1]).toEqual({ lng: a.lng, lat: a.lat + 0.01 })
+    const dragged = movePolygonVertex(session, 1, { lng: b.lng, lat: b.lat + 0.02 })
+    expect(dragged.polygon?.corners[1]).toEqual({ lng: b.lng, lat: b.lat + 0.02 })
+    expect(dragged.polygon?.corners[0]).toEqual(session.polygon?.corners[0])
+    expect(movePolygonVertex({ ...session, polygon: { ...session.polygon!, status: 'adding' } }, 1, a)).toEqual({
+      ...session,
+      polygon: { ...session.polygon!, status: 'adding' },
+    })
+    const refused = removePolygonVertex(session, 0)
+    expect(refused.polygon?.corners).toHaveLength(3)
+    expect(refused.polygon?.message).toBe('A Polygon needs at least three corners.')
+    const lasso = setSessionLassoBehaviour(chooseTool(closedSession(), 'brush'), 'static')
+    expect(acceptClick(lasso, a).sample).toBe(true)
   })
 })

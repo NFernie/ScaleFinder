@@ -1,5 +1,6 @@
 import { formatArea, formatLength } from '../core/format'
 import { Measurement, readout } from '../core/measurement'
+import { VERTEX_EDIT_HINT } from './ToolboxTooltips'
 
 interface Props {
   measurement: Measurement
@@ -38,6 +39,11 @@ export default function MeasureMenu({ measurement, onDone, onDelete, onAdd }: Pr
         {measurement.message && (
           <p role="status" className="text-slate-300">
             {measurement.message}
+          </p>
+        )}
+        {closed && measurement.corners.length >= 3 && (
+          <p className="text-sm text-slate-300">
+            {VERTEX_EDIT_HINT}
           </p>
         )}
       </div>

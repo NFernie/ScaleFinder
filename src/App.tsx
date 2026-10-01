@@ -1260,6 +1260,7 @@ export default function App() {
               <div className="pointer-events-auto min-h-0 w-full">
                 <LassoMenu
                   lasso={session.lasso}
+                  behaviours={session.tool === 'brush' ? ['dynamic', 'static'] : ['outline']}
                   onSettings={(radiusPx, maxChannelDelta) =>
                     setSession((current) => setLassoSettings(current, radiusPx, maxChannelDelta))
                   }

@@ -3,7 +3,7 @@ import { ToolId, ToolboxSession } from '../core/toolboxSession'
 import { ToolIcon } from './ToolIcon'
 import { TOOL_TIPS } from './ToolboxTooltips'
 
-const TOOLS: ToolId[] = ['polygon', 'ruler', 'lasso', 'circle', 'square']
+const TOOLS: ToolId[] = ['polygon', 'ruler', 'lasso', 'brush', 'circle', 'square']
 
 interface Props {
   session: ToolboxSession

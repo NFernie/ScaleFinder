@@ -33,6 +33,13 @@ export function ToolIcon({ tool, className }: Props) {
           />
         </svg>
       )
+    case 'brush':
+      return (
+        <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+          <path d="M14 4 L20 10 L15.5 14.5 L9.5 8.5 Z" strokeLinejoin="round" />
+          <path d="M12.2 11.8 L5 19" strokeLinecap="round" />
+        </svg>
+      )
     case 'circle':
       return (
         <svg className={cn} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">

@@ -56,12 +56,12 @@ a river system such as the Ord or the Amazon.
   keeps the chain open, double-click closes it and adds the area, and Add to
   list copies that closed shape into the session. Ruler measures ground
   distance across many clicks and does not close. Circle and Square draw a
-  closed outline from two clicks. Lasso draws a free curve by dragging or
-  clicking. Before the first point the user chooses Dynamic, Static, or
-  Outline. Dynamic joins similar colours within the radius, using the colour
-  under the pointer at each sample. Static uses the same radius and contrast,
-  compared with the colour under the first point. Outline stores the stroke
-  itself and does not sample colour. Double-click closes the guide. After a
+  closed outline from two clicks. Lasso draws the outline by dragging or
+  clicking and does not sample colour. Paint Brush paints with the same radius
+  and contrast: Dynamic joins similar colours using the colour under the
+  pointer at each sample, and Static compares every sample with the colour
+  under the first point. The choice is locked after the first point.
+  Double-click closes the guide. After a
   Lasso or a Polygon draft is closed, and before Add to list, a corner can be
   selected and dragged, and a right-click within 12 CSS pixels of a side or
   corner can add or delete a vertex. Add to

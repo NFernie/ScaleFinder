@@ -38,7 +38,11 @@ import {
 } from './square'
 import { LngLat } from './types'
 
-export type ToolId = 'polygon' | 'ruler' | 'lasso' | 'circle' | 'square'
+export type ToolId = 'polygon' | 'ruler' | 'lasso' | 'brush' | 'circle' | 'square'
+
+export function usesLassoDraft(tool: ToolId | null): boolean {
+  return tool === 'lasso' || tool === 'brush'
+}
 
 export interface ToolboxSession {
   menuOpen: boolean
@@ -80,7 +84,8 @@ export function chooseTool(session: ToolboxSession, tool: ToolId): ToolboxSessio
   if (tool === 'ruler') next.ruler = beginRuler()
   if (tool === 'circle') next.circle = beginCircle()
   if (tool === 'square') next.square = beginSquare()
-  if (tool === 'lasso') next.lasso = beginLasso()
+  if (tool === 'lasso') next.lasso = setLassoBehaviour(beginLasso(), 'outline')
+  if (tool === 'brush') next.lasso = beginLasso()
   return next
 }
 
@@ -103,7 +108,7 @@ export function acceptClick(session: ToolboxSession, corner: LngLat): { session:
       : setSquareOrigin(session.square, corner)
     return { session: { ...session, square, hover: square.status === 'ready' ? null : session.hover }, sample: false }
   }
-  if (session.tool === 'lasso' && session.lasso?.status === 'drawing') {
+  if (usesLassoDraft(session.tool) && session.lasso?.status === 'drawing') {
     const sample = session.lasso.behaviour !== 'outline'
     return { session: { ...session, lasso: appendGuidePoint(session.lasso, corner) }, sample }
   }
@@ -119,7 +124,7 @@ export function acceptDoubleClick(session: ToolboxSession, corner: LngLat): Tool
   if (session.tool === 'ruler' && session.ruler) {
     return { ...session, ruler: finishDistanceRuler(session.ruler) }
   }
-  if (session.tool === 'lasso' && session.lasso) return closeLasso(session)
+  if (usesLassoDraft(session.tool) && session.lasso) return closeLasso(session)
   return session
 }
 
@@ -143,6 +148,8 @@ export function doneDraft(session: ToolboxSession): ToolboxSession {
 
 export function setSessionLassoBehaviour(session: ToolboxSession, behaviour: LassoBehaviour): ToolboxSession {
   if (!session.lasso) return session
+  if (session.tool === 'lasso' && behaviour !== 'outline') return session
+  if (session.tool === 'brush' && behaviour === 'outline') return session
   return { ...session, lasso: setLassoBehaviour(session.lasso, behaviour) }
 }
 

@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The Toolbox has six tools. Lasso is the outline stroke. Dynamic and Static move to Paint Brush. Drawing, sampling, and vertex edit are unchanged.
 - Outline Lasso strokes are not sampled. Static Lasso stores the colour of the first sample and reuses it for the rest of the stroke.
 - Outline Lasso uses the Polygon crosshair. Dynamic and Static keep the radius ring.
 - Polygons heading puts Export selected, Re-centre, and Centre on fixed on the row below the section disclosure. Sidebar hover tooltips wait 1s with the pointer on the control, then fade and rise over 500ms ease-out (keyboard focus and reduced motion still snap).
@@ -66,6 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- Product, purpose, and design records put Outline on Lasso and Dynamic and Static on Paint Brush.
 - Product, purpose, and design records say a closed Lasso or Polygon corner can be selected and dragged before Add to list.
 - PRODUCT.md, ScaleFinderPurpose.md, and DESIGN.md name Lasso Dynamic, Static, and Outline, and the closed-draft vertex edit.
 - `features/lasso-poly-update.md` — implementation plan for Lasso Dynamic, Static, and Outline, and vertex edit on a closed Polygon or Lasso. A ring hit stores the corner's own part separately from the side's part. UI tasks require UI UX Pro Max, Impeccable, and Emil Kowalski before the screen ships.

@@ -21,7 +21,7 @@ it('renders bento tool buttons with accessible names', () => {
   expect(screen.getByRole('button', { name: /square/i })).toBeInTheDocument()
 })
 
-it('replaces Measure with a popup of five tools', async () => {
+it('replaces Measure with a popup of six tools', async () => {
   const user = userEvent.setup()
   render(<Harness />)
   expect(screen.queryByRole('button', { name: 'Measure' })).not.toBeInTheDocument()
@@ -29,6 +29,7 @@ it('replaces Measure with a popup of five tools', async () => {
   expect(screen.getByRole('button', { name: 'Polygon' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Ruler' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Lasso' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Paint Brush' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Circle' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /square/i })).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Polygon' }))

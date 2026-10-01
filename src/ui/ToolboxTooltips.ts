@@ -30,8 +30,11 @@ export const TOOL_TIPS: Record<ToolId, { title: string; body: string }> = {
   },
   lasso: {
     title: 'Lasso',
-    body:
-      'Choose Dynamic, Static, or Outline in the readout, then paint on the map. Double-click to close.',
+    body: 'Click and drag the outline. The stroke is the Polygon. Map colour is ignored. Double-click to close.',
+  },
+  brush: {
+    title: 'Paint Brush',
+    body: 'Choose Dynamic or Static, then paint on the map. Double-click to close.',
   },
   circle: {
     title: 'Circle',

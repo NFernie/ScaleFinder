@@ -82,6 +82,7 @@ function Mark({
     case 'square':
       return <SquareMark />
     case 'lasso':
+    case 'brush':
       if (lassoBehaviour === 'outline') return <Crosshair />
       return <Ring diameter={lassoCursorDiameterPx(lassoRadiusPx)} />
   }
@@ -89,9 +90,9 @@ function Mark({
 
 export default function MapToolCursor({ tool, lassoBehaviour, lassoRadiusPx, x, y }: Props) {
   const pad =
-    tool === 'lasso' && lassoBehaviour === 'outline'
+    (tool === 'lasso' || tool === 'brush') && lassoBehaviour === 'outline'
       ? 14
-      : tool === 'lasso'
+      : tool === 'lasso' || tool === 'brush'
         ? lassoCursorDiameterPx(lassoRadiusPx) / 2 + 4
         : tool === 'polygon' || tool === 'ruler'
           ? 14

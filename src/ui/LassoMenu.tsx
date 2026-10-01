@@ -1,21 +1,22 @@
 import type { LassoBehaviour, LassoDraft } from '../core/lasso'
 import { LASSO_BEHAVIOUR_TIPS, LASSO_CONTRAST_TITLE, LASSO_RADIUS_TITLE, VERTEX_EDIT_HINT } from './ToolboxTooltips'
 
-const BEHAVIOURS: { behaviour: LassoBehaviour; label: string }[] = [
-  { behaviour: 'dynamic', label: 'Dynamic' },
-  { behaviour: 'static', label: 'Static' },
-  { behaviour: 'outline', label: 'Outline' },
-]
+const BEHAVIOUR_LABEL: Record<LassoBehaviour, string> = {
+  dynamic: 'Dynamic',
+  static: 'Static',
+  outline: 'Outline',
+}
 
 interface Props {
   lasso: LassoDraft
+  behaviours: LassoBehaviour[]
   onSettings: (radiusPx: number, maxChannelDelta: number) => void
   onBehaviour: (behaviour: LassoBehaviour) => void
   onAdd: () => void
   onDelete: () => void
 }
 
-export default function LassoMenu({ lasso, onSettings, onBehaviour, onAdd, onDelete }: Props) {
+export default function LassoMenu({ lasso, behaviours, onSettings, onBehaviour, onAdd, onDelete }: Props) {
   const drawing = lasso.status === 'drawing'
   const sampling = lasso.behaviour !== 'outline'
   const locked = lasso.guide.length > 0 || lasso.status !== 'drawing'
@@ -25,7 +26,8 @@ export default function LassoMenu({ lasso, onSettings, onBehaviour, onAdd, onDel
   return (
     <div className="flex min-h-0 flex-col gap-3 rounded-xl border border-white/15 bg-surface/95 p-3 text-sm text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)]">
       <div className="flex flex-wrap gap-2">
-        {BEHAVIOURS.map(({ behaviour, label }) => {
+        {behaviours.map((behaviour) => {
+          const label = BEHAVIOUR_LABEL[behaviour]
           const pressed = lasso.behaviour === behaviour
           return (
             <span key={behaviour} title={LASSO_BEHAVIOUR_TIPS[behaviour]} className="relative min-w-0 flex-1">

@@ -67,9 +67,10 @@ describe('toolbox session', () => {
   })
 
   it('appends lasso guide points and stores a movable and fixed pair', () => {
-    let session = chooseTool(closedSession(), 'lasso')
+    let session = chooseTool(closedSession(), 'brush')
     const drag = acceptClick(session, a)
     expect(drag.sample).toBe(true)
+    expect(acceptClick(chooseTool(closedSession(), 'lasso'), a).sample).toBe(false)
     session = acceptClick(drag.session, b).session
     expect(session.lasso?.status).toBe('drawing')
     expect(session.lasso?.guide).toEqual([a, b])
@@ -222,7 +223,8 @@ describe('toolbox session', () => {
     expect(vertexRings(session)[0]).toHaveLength(3)
     expect(vertexRings(chooseTool(closedSession(), 'lasso'))).toEqual([])
     const again = chooseTool(deleteDraft(session), 'lasso')
-    expect(again.lasso?.behaviour).toBe('dynamic')
+    expect(again.lasso?.behaviour).toBe('outline')
+    expect(chooseTool(closedSession(), 'brush').lasso?.behaviour).toBe('dynamic')
   })
 
   it('edits a closed polygon ring and still samples a Static lasso click', () => {
@@ -245,7 +247,7 @@ describe('toolbox session', () => {
     const refused = removePolygonVertex(session, 0)
     expect(refused.polygon?.corners).toHaveLength(3)
     expect(refused.polygon?.message).toBe('A Polygon needs at least three corners.')
-    const lasso = setSessionLassoBehaviour(chooseTool(closedSession(), 'lasso'), 'static')
+    const lasso = setSessionLassoBehaviour(chooseTool(closedSession(), 'brush'), 'static')
     expect(acceptClick(lasso, a).sample).toBe(true)
   })
 })

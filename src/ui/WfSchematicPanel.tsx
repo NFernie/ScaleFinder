@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { sceneAt } from '../core/wfSchematic'
+import WfSchematicView from './WfSchematicView'
 
 export function webglAvailable(): boolean {
   try {
@@ -19,8 +20,11 @@ const CAPTION =
   'Type schematic for a wave-dominated, fluvial-influenced shoreline. Size and direction are not a measured map of this coast.'
 
 export default function WfSchematicPanel({ open, onClose }: Props) {
+  const [explode, setExplode] = useState(0)
+
   useEffect(() => {
     if (!open) return
+    setExplode(0)
     function onKey(event: KeyboardEvent) {
       if (event.key !== 'Escape') return
       document.getElementById('wf-schematic-pin')?.focus()
@@ -58,7 +62,7 @@ export default function WfSchematicPanel({ open, onClose }: Props) {
         </button>
       </div>
       <p className="mb-3 text-xs leading-relaxed text-slate-300">{CAPTION}</p>
-      {showText && (
+      {showText ? (
         <ul className="max-h-56 space-y-1 overflow-auto text-xs">
           {bodies.map((body) => (
             <li key={body.id}>
@@ -67,6 +71,8 @@ export default function WfSchematicPanel({ open, onClose }: Props) {
             </li>
           ))}
         </ul>
+      ) : (
+        <WfSchematicView explode={explode} />
       )}
       <label className="mt-3 block text-xs">
         Explode
@@ -75,8 +81,9 @@ export default function WfSchematicPanel({ open, onClose }: Props) {
           min={0}
           max={1}
           step={0.01}
-          defaultValue={0}
+          value={explode}
           aria-label="Explode"
+          onChange={(event) => setExplode(Number(event.target.value))}
           className="mt-1 w-full"
         />
       </label>

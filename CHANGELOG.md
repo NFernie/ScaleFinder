@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A pure Wf schematic lists element, element set, element complex, and element complex set bodies, with mouth bars in a fan and beach ridges stepping away from a central channel.
 - Vendored [img2threejs](https://github.com/img2threejs/img2threejs) agent skill under `.cursor/skills/img2threejs/` (Apache-2.0; upstream `main` @ `809b72d`) for procedural image-to–Three.js reconstruction workflows.
 - A closed Polygon or Lasso corner can be selected and dragged. The outline and the area follow that corner, and the Lasso guide stays put. The readout says to drag a corner, and a right-click still adds or deletes a vertex.
 - A closed Polygon readout tells the user they can right-click a side or corner. The hint stays hidden while the chain is still open.

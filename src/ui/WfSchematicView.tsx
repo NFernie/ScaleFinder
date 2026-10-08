@@ -24,20 +24,31 @@ function geometryFor(kind: SolidKind): THREE.BufferGeometry {
   return new THREE.BoxGeometry(0.01, 0.01, 0.01)
 }
 
-function makeLabel(text: string): THREE.Sprite {
+function makeLabel(
+  text: string,
+  spriteMaterials: THREE.SpriteMaterial[],
+  labelTextures: THREE.Texture[],
+): THREE.Sprite {
   const canvas = document.createElement('canvas')
   canvas.width = 512
   canvas.height = 96
   const context = canvas.getContext('2d')
-  if (!context) return new THREE.Sprite()
+  if (!context) {
+    const material = new THREE.SpriteMaterial()
+    spriteMaterials.push(material)
+    return new THREE.Sprite(material)
+  }
   context.fillStyle = '#e2e8f0'
   context.font = '36px sans-serif'
   context.fillText(text, 8, 58)
+  const texture = new THREE.CanvasTexture(canvas)
+  labelTextures.push(texture)
   const material = new THREE.SpriteMaterial({
-    map: new THREE.CanvasTexture(canvas),
+    map: texture,
     transparent: true,
     depthTest: false,
   })
+  spriteMaterials.push(material)
   const sprite = new THREE.Sprite(material)
   sprite.scale.set(1.6, 0.3, 1)
   sprite.position.y = 0.45
@@ -72,19 +83,19 @@ export default function WfSchematicView({ explode }: { explode: number }) {
 
     const objects = new Map<string, THREE.Object3D>()
     const geometries: THREE.BufferGeometry[] = []
+    const meshMaterials: THREE.Material[] = []
+    const spriteMaterials: THREE.SpriteMaterial[] = []
+    const labelTextures: THREE.Texture[] = []
     for (const body of sceneAt(0)) {
       const group = new THREE.Group()
       if (body.kind !== 'group') {
         const geometry = geometryFor(body.kind)
         geometries.push(geometry)
-        group.add(
-          new THREE.Mesh(
-            geometry,
-            new THREE.MeshStandardMaterial({ color: COLOUR[body.kind], roughness: 0.72 }),
-          ),
-        )
+        const material = new THREE.MeshStandardMaterial({ color: COLOUR[body.kind], roughness: 0.72 })
+        meshMaterials.push(material)
+        group.add(new THREE.Mesh(geometry, material))
       }
-      group.add(makeLabel(body.name))
+      group.add(makeLabel(body.name, spriteMaterials, labelTextures))
       place(group, body)
       scene.add(group)
       objects.set(body.id, group)
@@ -117,7 +128,11 @@ export default function WfSchematicView({ explode }: { explode: number }) {
       cancelAnimationFrame(frame)
       observer.disconnect()
       geometries.forEach((geometry) => geometry.dispose())
+      meshMaterials.forEach((material) => material.dispose())
+      spriteMaterials.forEach((material) => material.dispose())
+      labelTextures.forEach((texture) => texture.dispose())
       renderer.dispose()
+      renderer.forceContextLoss()
       renderer.domElement.remove()
     }
   }, [])

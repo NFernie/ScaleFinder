@@ -8,9 +8,11 @@ export function webglAvailable(): boolean {
   if (webglProbe !== undefined) return webglProbe
   try {
     const canvas = document.createElement('canvas')
-    webglProbe = Boolean(canvas.getContext('webgl2') || canvas.getContext('webgl'))
+    const context = canvas.getContext('webgl2') || canvas.getContext('webgl')
+    webglProbe = Boolean(context)
+    if (context) context.getExtension('WEBGL_lose_context')?.loseContext()
   } catch {
-    webglProbe = false
+    webglProbe ??= false
   }
   return webglProbe
 }

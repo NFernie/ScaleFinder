@@ -1,6 +1,6 @@
 # Wf schematic pin — Design Spec
 
-- **Status:** Draft (awaiting user review)
+- **Status:** Approved
 - **Date:** 2026-10-08
 - **Branch:** `cursor/wf-schematic-design-2a5d`
 - **Purpose doc:** [`ScaleFinderPurpose.md`](../../../ScaleFinderPurpose.md)

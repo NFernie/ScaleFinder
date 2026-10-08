@@ -103,6 +103,7 @@ function makeLabel(
 
 function place(object: THREE.Object3D, body: PlacedBody) {
   object.position.set(body.position.x, body.position.y, body.position.z)
+  object.rotation.y = body.yaw ?? 0
 }
 
 export default function WfSchematicView({ explode }: { explode: number }) {

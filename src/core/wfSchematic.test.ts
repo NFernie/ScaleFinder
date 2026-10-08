@@ -8,6 +8,7 @@ import {
   GROUND_THICKNESS,
   MOUTH_BAR_SCALE,
   MOUTH_BAR_STEP,
+  MOUTH_BAR_YAW_STEP,
   RIDGE_BASE_SEAWARD,
   RIDGE_DOWNSTEP,
   sceneAt,
@@ -77,9 +78,20 @@ describe('wfSchematic', () => {
       if (mouths[i].position.z > mouths[i - 1].position.z) {
         expect(mouths[i - 1].position.y - mouths[i].position.y).toBeCloseTo(MOUTH_BAR_SCALE.y * MOUTH_BAR_STEP)
         expect(mouths[i].position.z - mouths[i - 1].position.z).toBeLessThan(MOUTH_BAR_SCALE.z)
+        expect(Math.abs(mouths[i].yaw ?? 0) - Math.abs(mouths[i - 1].yaw ?? 0)).toBeCloseTo((MOUTH_BAR_YAW_STEP * Math.PI) / 180)
       } else {
         expect(mouths[i].position.y).toBeCloseTo(mouths[i - 1].position.y)
+        expect(Math.abs(mouths[i].yaw ?? 0)).toBeCloseTo(Math.abs(mouths[i - 1].yaw ?? 0))
       }
+      if (mouths[i].position.x !== 0) {
+        expect(Math.sign(mouths[i].yaw ?? 0)).toBe(Math.sign(mouths[i].position.x))
+      }
+    }
+    expect(centre?.yaw ?? 0).toBe(0)
+    const seawardZ = Math.max(...mouths.map((body) => body.position.z))
+    const ranks = new Set(mouths.map((body) => body.position.z)).size - 1
+    for (const body of mouths.filter((bar) => bar.position.z === seawardZ)) {
+      expect(Math.abs(body.yaw ?? 0)).toBeCloseTo((ranks * MOUTH_BAR_YAW_STEP * Math.PI) / 180)
     }
     expect(mouths[mouths.length - 1].position.y).toBeLessThan(mouths[0].position.y)
     expect(new Set(mouths.map((body) => body.parentId))).toEqual(new Set(['es-mouth']))

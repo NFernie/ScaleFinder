@@ -11,6 +11,8 @@ export interface SceneBody {
   parentId: string | null
   kind: SolidKind
   nested: { x: number; y: number; z: number }
+  /** Yaw around Y, in radians. Positive swings the seaward end toward +X. */
+  yaw?: number
 }
 
 export interface PlacedBody extends SceneBody {
@@ -44,6 +46,9 @@ export const MOUTH_BAR_DIP = 0.18
 
 /** Each mouth bar sits this fraction of its thickness below the adjacent landward bar. */
 export const MOUTH_BAR_STEP = 0.05
+
+/** Degrees added to the yaw for each step seaward of the channel bar. */
+export const MOUTH_BAR_YAW_STEP = 1
 
 /** How far the ridge base (lowest Y) sits seaward of the crest. */
 export const RIDGE_BASE_SEAWARD = 0.12
@@ -227,7 +232,7 @@ export function waterlineY(): number {
   return span.flatY - CHANNEL_RADIUS
 }
 
-function mouthBars(): Array<{ x: number; y: number; z: number }> {
+function mouthBars(): Array<{ x: number; y: number; z: number; yaw: number }> {
   const span = channelSpan()
   const halfZ = MOUTH_BAR_SCALE.z / 2
   const yLand = seawardRidgeBaseY()
@@ -235,11 +240,16 @@ function mouthBars(): Array<{ x: number; y: number; z: number }> {
   const z0 = span.zSea - 0.12 + halfZ
   const levels = [...new Set(MOUTH_FAN.map((point) => point.z))].sort((a, b) => a - b)
   const rank = new Map(levels.map((level, index) => [level, index]))
-  return MOUTH_FAN.map((point) => ({
-    x: point.x,
-    y: yLand - (rank.get(point.z) ?? 0) * step,
-    z: z0 + point.z,
-  }))
+  return MOUTH_FAN.map((point) => {
+    const seaward = rank.get(point.z) ?? 0
+    const degrees = point.x === 0 ? 0 : Math.sign(point.x) * seaward * MOUTH_BAR_YAW_STEP
+    return {
+      x: point.x,
+      y: yLand - seaward * step,
+      z: z0 + point.z,
+      yaw: (degrees * Math.PI) / 180,
+    }
+  })
 }
 
 function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
@@ -319,6 +329,7 @@ const BODIES: SceneBody[] = [
     parentId: 'es-mouth',
     kind: 'mouth-bar' as const,
     nested: { x: point.x, y: point.y, z: point.z },
+    yaw: point.yaw,
   })),
   {
     id: 'e-channel',

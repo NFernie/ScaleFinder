@@ -13,7 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A pin at 44.878674, 29.515563 opens the Wf type schematic above Sfântu Gheorghe. The pin is in the snapshot. The panel is not.
+- Opening the Wf schematic draws the solids in a Three.js view and an Explode slider pulls the four ranks apart. The body list remains when WebGL cannot start.
+- The Wf schematic panel names Sfântu Gheorghe, states that the diagram is a type example, and lists each body when the 3D view cannot start.
+- A pure Wf schematic lists element, element set, element complex, and element complex set bodies, with mouth bars in a fan and beach ridges stepping away from a central channel.
 - Vendored [img2threejs](https://github.com/img2threejs/img2threejs) agent skill under `.cursor/skills/img2threejs/` (Apache-2.0; upstream `main` @ `809b72d`) for procedural image-to–Three.js reconstruction workflows.
+- Vendored [threejs-skills](https://github.com/CloudAI-X/threejs-skills) under `.cursor/skills/threejs-skills/` (upstream `main` @ `b1c6230`). The README claims MIT and the tree has no LICENSE file. Use it for the next Wf schematic geometry pass.
 - A closed Polygon or Lasso corner can be selected and dragged. The outline and the area follow that corner, and the Lasso guide stays put. The readout says to drag a corner, and a right-click still adds or deletes a vertex.
 - A closed Polygon readout tells the user they can right-click a side or corner. The hint stays hidden while the chain is still open.
 - Right-click within 12 CSS pixels of a closed side or corner opens Add vertex and Delete vertex. The dots and the menu stay outside the snapshot.
@@ -34,11 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
+- App tests stub the map marker so the Wf pin renders inside the map stub, and the first test finds the Sfântu Gheorghe pin.
 - Toolbox session tests cover polygon vertex insert and delete, closed polygon rings, and a Static lasso click still asking for a sample.
 - Centre-on-fixed App test asserts `flyTo` receives the fixed polygon geographic anchor as `center`.
 
 ### Changed
 
+- The Wf schematic beach ridges are wedges: thick where they meet the channel, thin at the alongshore tips. The centreline is sigmoidal alongshore, swinging landward and then turning the tips slightly seaward. The whole crest stays above the water line, the ridge bases keep their elevations, and the most seaward crest meets the top of the channel. Each landward ridge sits 2% of the reference crest height above the next seaward ridge. The fore-aft width is half the previous ridge thickness. The seaward face is a sigmoid, and the base sits further seaward of the crest. Mouth bars are half spheroids in a filled V in front of the channel, dome upward, 50% thicker and 50% longer seaward. Each bar’s base follows an exaggerated sigmoid, so the seaward rim is lowest. The landward base of the channel bar sits at the base of the most seaward beach ridge. Each bar farther seaward steps down by 5% of the bar thickness and yaws outward by another 1°, toward +X on the right and −X on the left. The channel bar stays straight. A second fan of the same shape sits under the channel: its landward rim is where the channel meets the most landward beach ridge, its crown meets the channel base, and it progrades seaward onto the fan in front of the channel. The channel is a half cylinder, flat face up, half the previous thickness, ending at the seaward beach ridges. The ground slab is a blue water line at 30% opacity, aligned with the base of the channel, and the mouth bars sit below it. Swales, the green mouth-bar slab, and the blue lobe solid are not drawn.
 - The Toolbox has six tools. Lasso is the outline stroke. Dynamic and Static move to Paint Brush. Drawing, sampling, and vertex edit are unchanged.
 - Outline Lasso strokes are not sampled. Static Lasso stores the colour of the first sample and reuses it for the rest of the stroke.
 - Outline Lasso uses the Polygon crosshair. Dynamic and Static keep the radius ring.
@@ -53,6 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Closing the Wf schematic releases its WebGL context so the map keeps its own.
+- The Wf schematic checks WebGL once, resets Explode only when the panel opens, and keeps the 3D view inside its frame.
 - Closed-shape vertex dots use an 8px white disc with a 1px slate casing drawn outside the disc.
 - Ring hit-testing type-checks under tsc -b. The nearest side and corner are tracked in the same function, not inside a forEach callback.
 - Ring hit-testing records the part that owns the nearest corner, separate from the part that owns the nearest side.
@@ -68,6 +77,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `features/schematic_module.md` — workflow for the Wf schematic geometry pass, including the cast that replaced the boxes and spheres.
+- The Wf schematic spec and design record drop swales, the mouth-bar slab, and the lobe solid, and describe the seaward-convex ridges, the sigmoid mouth-bar fan, and the half-cylinder channel.
+- `docs/superpowers/plans/2026-10-08-wf-schematic-pin.md` — implementation plan for the approved Wf schematic pin. UI tasks follow `WORKFLOW.md`: UI UX Pro Max `ui-styling`, Impeccable shape, critique, polish, audit, harden, and document, then Emil Kowalski (`emil-design-eng`, `find-animation-opportunities`, `animate`, `review-animations`, `mobile-native`), one skill per message, before the screen ships.
+- `docs/superpowers/specs/2026-10-08-wf-schematic-pin-design.md` — approved spec for a Wf type schematic pinned at Sfântu Gheorghe. Opening the pin explodes element, element set, element complex, and element complex set. Product copy updates happen in the implementation.
 - Product, purpose, and design records put Outline on Lasso and Dynamic and Static on Paint Brush.
 - Product, purpose, and design records say a closed Lasso or Polygon corner can be selected and dragged before Add to list.
 - PRODUCT.md, ScaleFinderPurpose.md, and DESIGN.md name Lasso Dynamic, Static, and Outline, and the closed-draft vertex edit.

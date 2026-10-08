@@ -38,6 +38,7 @@ Confirmed for v1:
 - A Toolbox on the map, in place of the Measure button. Polygon keeps the previous ruler behaviour: clicks show each ground segment and the total, Done keeps the chain open, double-click closes it and adds the area, and Add to list copies that closed shape into the session. Ruler measures ground distance across many clicks and does not close. Circle and Square draw a closed outline from two clicks. Lasso draws the outline by dragging or clicking and does not sample colour. Paint Brush paints with the same radius and contrast: Dynamic joins similar colours using the colour under the pointer at each sample, and Static compares every sample with the colour under the first point. The choice is locked after the first point. Double-click closes the guide. After a Lasso or a Polygon draft is closed, and before Add to list, a corner can be selected and dragged, and a right-click within 12 CSS pixels of a side or corner can add or delete a vertex. Add to list stores a movable Lasso and leaves a fixed copy of that outline on the map. Nothing drawn here is kept after the page closes.
 - Rename a Polygon. Export it as UTM easting and northing where it sits. Several switched-on Polygons in the same zone can be one file. Importing that file adds a local Polygon and a fixed Polygon that stays at the original place.
 - Framed PNG snapshot export.
+- A Wf schematic pin at 44.878674, 29.515563 opens a type diagram of element, element set, element complex, and element complex set. The diagram is not a measured map of that coast.
 
 Out of scope for v1:
 

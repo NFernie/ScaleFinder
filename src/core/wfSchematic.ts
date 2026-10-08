@@ -203,6 +203,19 @@ export function mouthBarBaseOffset(z: number, halfZ: number): number {
   return -MOUTH_BAR_DIP * sigmoid01(Math.min(1, Math.max(0, t)))
 }
 
+/** Highest point of a mouth bar above its landward base. */
+export function mouthBarCrownY(): number {
+  const halfZ = MOUTH_BAR_SCALE.z / 2
+  let crown = 0
+  const steps = 48
+  for (let i = 0; i <= steps; i += 1) {
+    const z = -halfZ + (i / steps) * MOUTH_BAR_SCALE.z
+    const dome = MOUTH_BAR_SCALE.y * Math.sqrt(Math.max(0, 1 - (z / halfZ) ** 2))
+    crown = Math.max(crown, mouthBarBaseOffset(z, halfZ) + dome)
+  }
+  return crown
+}
+
 /** Base of the most seaward beach ridge. The landward mouth bar shares this Y. */
 export function seawardRidgeBaseY(): number {
   return RIDGE_NEST_Y - (RIDGE_COUNT - 1) * RIDGE_BASE_REF * RIDGE_DOWNSTEP
@@ -232,12 +245,8 @@ export function waterlineY(): number {
   return span.flatY - CHANNEL_RADIUS
 }
 
-function mouthBars(): Array<{ x: number; y: number; z: number; yaw: number }> {
-  const span = channelSpan()
-  const halfZ = MOUTH_BAR_SCALE.z / 2
-  const yLand = seawardRidgeBaseY()
+function layMouthFan(originZ: number, yLand: number): Array<{ x: number; y: number; z: number; yaw: number }> {
   const step = MOUTH_BAR_SCALE.y * MOUTH_BAR_STEP
-  const z0 = span.zSea - 0.12 + halfZ
   const levels = [...new Set(MOUTH_FAN.map((point) => point.z))].sort((a, b) => a - b)
   const rank = new Map(levels.map((level, index) => [level, index]))
   return MOUTH_FAN.map((point) => {
@@ -246,10 +255,21 @@ function mouthBars(): Array<{ x: number; y: number; z: number; yaw: number }> {
     return {
       x: point.x,
       y: yLand - seaward * step,
-      z: z0 + point.z,
+      z: originZ + point.z,
       yaw: (degrees * Math.PI) / 180,
     }
   })
+}
+
+function mouthFans(): { seaward: ReturnType<typeof layMouthFan>; proximal: ReturnType<typeof layMouthFan> } {
+  const span = channelSpan()
+  const halfZ = MOUTH_BAR_SCALE.z / 2
+  return {
+    seaward: layMouthFan(span.zSea - 0.12 + halfZ, seawardRidgeBaseY()),
+    // Landward rim on the channel where the most landward ridge meets it.
+    // The crown touches the channel base from below, then the fan progrades seaward.
+    proximal: layMouthFan(ridgeWorldZ(0) + halfZ, waterlineY() - mouthBarCrownY()),
+  }
 }
 
 function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
@@ -282,8 +302,9 @@ function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
   return bodies
 }
 
-const MOUTH_BARS = mouthBars()
-const MOUTH_FAN_Z = (MOUTH_BARS[0].z + MOUTH_BARS[MOUTH_BARS.length - 1].z) / 2
+const FANS = mouthFans()
+const MOUTH_BARS = [...FANS.seaward, ...FANS.proximal]
+const MOUTH_FAN_Z = MOUTH_BARS.reduce((sum, bar) => sum + bar.z, 0) / MOUTH_BARS.length
 const MOUTH_FAN_Y = MOUTH_BARS.reduce((sum, bar) => sum + bar.y, 0) / MOUTH_BARS.length
 const CHANNEL = channelSpan()
 
@@ -322,8 +343,17 @@ const BODIES: SceneBody[] = [
     kind: 'group',
     nested: { x: 0, y: MOUTH_FAN_Y + 0.2, z: MOUTH_FAN_Z },
   },
-  ...MOUTH_BARS.map((point, index) => ({
+  ...FANS.seaward.map((point, index) => ({
     id: `e-mouth-${index}`,
+    name: 'Mouth bar',
+    rank: 'element' as const,
+    parentId: 'es-mouth',
+    kind: 'mouth-bar' as const,
+    nested: { x: point.x, y: point.y, z: point.z },
+    yaw: point.yaw,
+  })),
+  ...FANS.proximal.map((point, index) => ({
+    id: `e-mouth-prox-${index}`,
     name: 'Mouth bar',
     rank: 'element' as const,
     parentId: 'es-mouth',

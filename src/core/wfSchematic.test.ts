@@ -9,6 +9,7 @@ import {
   MOUTH_BAR_SCALE,
   MOUTH_BAR_STEP,
   MOUTH_BAR_YAW_STEP,
+  mouthBarCrownY,
   RIDGE_BASE_SEAWARD,
   RIDGE_DOWNSTEP,
   sceneAt,
@@ -44,7 +45,7 @@ describe('wfSchematic', () => {
   it('fills a seaward mouth-bar V under the water line', () => {
     const placed = sceneAt(0)
     const mouths = placed
-      .filter((body) => body.kind === 'mouth-bar')
+      .filter((body) => body.kind === 'mouth-bar' && !body.id.startsWith('e-mouth-prox-'))
       .sort((a, b) => a.position.z - b.position.z || a.position.x - b.position.x)
     const span = channelSpan()
     const water = waterlineY()
@@ -95,6 +96,44 @@ describe('wfSchematic', () => {
     }
     expect(mouths[mouths.length - 1].position.y).toBeLessThan(mouths[0].position.y)
     expect(new Set(mouths.map((body) => body.parentId))).toEqual(new Set(['es-mouth']))
+  })
+
+  it('progrades a second mouth-bar fan from the landward ridge under the channel', () => {
+    const placed = sceneAt(0)
+    const proximal = placed
+      .filter((body) => body.id.startsWith('e-mouth-prox-'))
+      .sort((a, b) => a.position.z - b.position.z || a.position.x - b.position.x)
+    const seaward = placed
+      .filter((body) => body.kind === 'mouth-bar' && !body.id.startsWith('e-mouth-prox-'))
+      .sort((a, b) => a.position.z - b.position.z)
+    const landwardRidge = placed
+      .filter((body) => body.id.startsWith('e-ridge-r-'))
+      .sort((a, b) => a.position.z - b.position.z)[0]
+    const halfZ = MOUTH_BAR_SCALE.z / 2
+    const apex = proximal.find((body) => body.position.x === 0)
+    const intersectZ = (landwardRidge?.position.z ?? 0) + beachRidgeStations('r')[0].z
+    expect(proximal).toHaveLength(9)
+    expect(apex?.position.z).toBe(Math.min(...proximal.map((body) => body.position.z)))
+    expect(apex && apex.position.z - halfZ).toBeCloseTo(intersectZ)
+    expect((apex?.position.y ?? 0) + mouthBarCrownY()).toBeCloseTo(waterlineY())
+    expect(apex?.yaw ?? 0).toBe(0)
+    for (const body of proximal) {
+      expect(body.position.y + mouthBarCrownY()).toBeLessThanOrEqual(waterlineY() + 1e-9)
+      expect(body.parentId).toBe('es-mouth')
+    }
+    for (let i = 1; i < proximal.length; i += 1) {
+      if (proximal[i].position.z > proximal[i - 1].position.z) {
+        expect(proximal[i - 1].position.y - proximal[i].position.y).toBeCloseTo(MOUTH_BAR_SCALE.y * MOUTH_BAR_STEP)
+        expect(Math.abs(proximal[i].yaw ?? 0) - Math.abs(proximal[i - 1].yaw ?? 0)).toBeCloseTo((MOUTH_BAR_YAW_STEP * Math.PI) / 180)
+      }
+      if (proximal[i].position.x !== 0) {
+        expect(Math.sign(proximal[i].yaw ?? 0)).toBe(Math.sign(proximal[i].position.x))
+      }
+    }
+    const existingRim = Math.min(...seaward.map((body) => body.position.z)) - halfZ
+    const nose = Math.max(...proximal.map((body) => body.position.z)) + halfZ
+    expect(nose).toBeGreaterThan(existingRim)
+    expect(apex && apex.position.z).toBeLessThan(Math.min(...seaward.map((body) => body.position.z)))
   })
 
   it('overlaps beach ridges seaward of the channel and tapers them off both flanks', () => {

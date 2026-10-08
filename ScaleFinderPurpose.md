@@ -72,6 +72,7 @@ a river system such as the Ord or the Amazon.
   same zone can be exported as one file. Importing that file adds the usual
   local Polygon and a fixed Polygon that stays at the original place.
 - Framed PNG snapshot export.
+- A Wf schematic pin at 44.878674, 29.515563 opens a type diagram of element, element set, element complex, and element complex set. The diagram is not a measured map of that coast.
 
 ## Explicitly out of scope for v1 (candidate v2+)
 

@@ -88,6 +88,7 @@ import { bufferPixel, bufferToCss, radiusInBuffer, readBasemap, sampleBasemap } 
 import MapToolCursor from './map/MapToolCursor'
 import { framePointerFromClient } from './map/toolCursor'
 import MapView from './map/MapView'
+import WfSchematicPin from './map/WfSchematicPin'
 import MeasurementOverlay from './map/MeasurementOverlay'
 import PlacedPolygon from './map/PlacedPolygon'
 import { Region } from './map/regions'
@@ -101,6 +102,7 @@ import RulerMenu from './ui/RulerMenu'
 import ShapeMenu from './ui/ShapeMenu'
 import PolygonList from './ui/PolygonList'
 import Toolbox from './ui/Toolbox'
+import WfSchematicPanel from './ui/WfSchematicPanel'
 import VertexMenu from './ui/VertexMenu'
 import RegionSearch from './ui/RegionSearch'
 import { SAMPLES } from './data/samples'
@@ -164,6 +166,7 @@ export default function App() {
   const [vertexDragging, setVertexDragging] = useState(false)
   const [mapReady, setMapReady] = useState(false)
   const [mapTick, setMapTick] = useState(0)
+  const [wfOpen, setWfOpen] = useState(false)
 
   const basemaps = useMemo(() => getBasemaps(MAPTILER_KEY), [])
   const [basemapId, setBasemapId] = useState(basemaps[0].id)
@@ -1127,6 +1130,7 @@ export default function App() {
               dragPan={session.lasso?.status !== 'drawing'}
               hideNativeCursor={session.tool !== null}
             >
+              <WfSchematicPin onOpen={() => setWfOpen(true)} />
               {items.map((item) =>
                 item.selected ? (
                   <PlacedPolygon
@@ -1227,6 +1231,12 @@ export default function App() {
               </div>
             )}
           </div>
+
+          {wfOpen && (
+            <div className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-10">
+              <WfSchematicPanel open={wfOpen} onClose={() => setWfOpen(false)} />
+            </div>
+          )}
 
           <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-h-[calc(100%-1.5rem)] w-[min(18rem,calc(100%-5.5rem))] flex-col items-start gap-2">
             <Toolbox

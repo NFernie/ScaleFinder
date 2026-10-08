@@ -86,9 +86,6 @@ describe('wfSchematic', () => {
       const stations = beachRidgeStations(side)
       const channelEnd = stations[0]
       const tip = stations[stations.length - 1]
-      const mid = stations[Math.floor(stations.length / 2)]
-      const midT = Math.floor(stations.length / 2) / (stations.length - 1)
-      const chordZ = channelEnd.z + (tip.z - channelEnd.z) * midT
       const ring = beachRidgeRing(channelEnd)
       const base = ring.filter((corner) => corner.y === 0)
       const crest = ring.filter((corner) => corner.y === channelEnd.height)
@@ -102,21 +99,33 @@ describe('wfSchematic', () => {
       }
       const baseZ = base.reduce((sum, corner) => sum + corner.z, 0) / base.length
       const crestZ = crest.reduce((sum, corner) => sum + corner.z, 0) / crest.length
+      const lowest = stations.reduce((best, station) => (station.z < best.z ? station : best))
+      const water = waterlineY()
+      expect(channelEnd.halfWidth).toBeCloseTo(0.145)
       expect(channelEnd.halfWidth).toBeGreaterThan(tip.halfWidth * 4)
-      expect(channelEnd.height).toBeGreaterThan(tip.height * 3)
+      expect(channelEnd.height).toBeGreaterThan(tip.height)
       expect(tip.z).toBeLessThan(channelEnd.z)
-      expect(mid.z).toBeGreaterThan(chordZ)
+      expect(tip.z).toBeGreaterThan(lowest.z)
+      expect(tip.z).toBeGreaterThan(stations[stations.length - 2].z)
+      expect(stations[stations.length - 2].z).toBeGreaterThan(stations[stations.length - 3].z)
+      expect(stations[1].z).toBeLessThan(stations[0].z)
       expect(baseZ - crestZ).toBeCloseTo(RIDGE_BASE_SEAWARD)
       expect(upper && upper.z).toBeLessThan(chordAt(channelEnd.height * 0.75))
       expect(lower && lower.z).toBeGreaterThan(chordAt(channelEnd.height * 0.25))
       expect(Math.abs(tip.x)).toBeGreaterThan(Math.abs(channelEnd.x))
       expect(Math.sign(channelEnd.x)).toBe(side === 'r' ? 1 : -1)
+      const seaward = ridges[ridges.length - 1]
+      expect((seaward?.position.y ?? 0) + channelEnd.height).toBeCloseTo(channelSpan().flatY)
+      for (const ridge of ridges) {
+        for (const station of stations) {
+          expect(ridge.position.y + station.height).toBeGreaterThan(water)
+        }
+      }
       for (let i = 1; i < ridges.length; i += 1) {
         const step = ridges[i].position.z - ridges[i - 1].position.z
         expect(step).toBeGreaterThan(0)
-        expect(step).toBeLessThan(channelEnd.halfWidth * 2)
         expect(ridges[i].position.x).toBe(0)
-        expect((ridges[i - 1].position.y - ridges[i].position.y) / channelEnd.height).toBeCloseTo(RIDGE_DOWNSTEP)
+        expect((ridges[i - 1].position.y - ridges[i].position.y) / 0.36).toBeCloseTo(RIDGE_DOWNSTEP)
       }
     }
   })

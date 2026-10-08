@@ -62,31 +62,65 @@ const RIDGE_OUTER = 3.45
 const RIDGE_Z_BASE = -0.55
 const RIDGE_Z_STEP = 0.34
 const RIDGE_BOW = 0.85
-const RIDGE_HALF_WIDTH = 0.26
-const RIDGE_HEIGHT = 0.32
+/** Seaward swing added along the outer half of the centreline. */
+const RIDGE_TIP_TURN = 0.7
+/** Fore-aft half-width. Half of the previous ridge thickness. */
+const RIDGE_HALF_WIDTH = 0.13
+const RIDGE_TIP_WIDTH = 0.015
 const RIDGE_STATIONS = 10
 const CHANNEL_LANDWARD_REACH = 1.55
 const CHANNEL_FLAT_Y = 0.32
 const MOUTH_DROP = 0.04
 const RIDGE_NEST_Y = 0.04
+/** Crest height the 2% base offset was set against. Bases stay on this spacing. */
+const RIDGE_BASE_REF = 0.36
+/** How far the tip crest sits above the water line on the lowest ridge. */
+const RIDGE_TIP_CLEARANCE = 0.03
+
+/**
+ * Plan-view centreline. A landward sweep from the channel, then a sigmoid
+ * so the tip turns slightly back toward the sea.
+ */
+function ridgeCentreZ(t: number): number {
+  const landward = RIDGE_BOW * (1 - t * t)
+  const start = 0.35
+  const u = t <= start ? 0 : (t - start) / (1 - start)
+  return landward + RIDGE_TIP_TURN * u * u
+}
+
+/**
+ * Vertical profile shared by every ridge. The base positions stay put.
+ * The thick end of the most seaward ridge meets the channel top. The tip
+ * crest stays above the water line.
+ */
+function ridgeHeights(): { thick: number; tip: number } {
+  const lowestBase = RIDGE_NEST_Y - (RIDGE_COUNT - 1) * RIDGE_BASE_REF * RIDGE_DOWNSTEP
+  const water = CHANNEL_FLAT_Y - CHANNEL_RADIUS
+  return {
+    thick: CHANNEL_FLAT_Y - lowestBase,
+    tip: water - lowestBase + RIDGE_TIP_CLEARANCE,
+  }
+}
 
 /**
  * One beach-ridge centreline in ridge-local coordinates.
- * X is alongshore, away from the channel. The thick end, against the
- * channel, is seaward of the thin tip. The arc stays seaward of the
- * straight chord, so the two flanks read as one lobe convex toward the sea.
+ * X is alongshore, away from the channel. The centreline is sigmoidal:
+ * it swings landward, then the tip turns slightly seaward. The thick end
+ * is still seaward of the tip. Height tapers toward the tip, and the whole
+ * crest stays above the water line.
  */
 export function beachRidgeStations(side: 'l' | 'r'): RidgeStation[] {
   const sign = side === 'r' ? 1 : -1
+  const { thick, tip } = ridgeHeights()
   const stations: RidgeStation[] = []
   for (let i = 0; i < RIDGE_STATIONS; i += 1) {
     const t = i / (RIDGE_STATIONS - 1)
     const taper = 1 - t
     stations.push({
       x: sign * (RIDGE_INNER + t * (RIDGE_OUTER - RIDGE_INNER)),
-      z: RIDGE_BOW * (1 - t * t),
-      halfWidth: RIDGE_HALF_WIDTH * taper + 0.03,
-      height: RIDGE_HEIGHT * taper + 0.04,
+      z: ridgeCentreZ(t),
+      halfWidth: RIDGE_HALF_WIDTH * taper + RIDGE_TIP_WIDTH,
+      height: tip + (thick - tip) * taper,
     })
   }
   return stations
@@ -214,7 +248,7 @@ function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
       kind: 'beach-ridge',
       nested: {
         x: 0,
-        y: RIDGE_NEST_Y - index * beachRidgeStations('r')[0].height * RIDGE_DOWNSTEP,
+        y: RIDGE_NEST_Y - index * RIDGE_BASE_REF * RIDGE_DOWNSTEP,
         z: RIDGE_Z_BASE + index * RIDGE_Z_STEP,
       },
     })

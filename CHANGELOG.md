@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Wf schematic panel names Sfântu Gheorghe, states that the diagram is a type example, and lists each body when the 3D view cannot start.
 - A pure Wf schematic lists element, element set, element complex, and element complex set bodies, with mouth bars in a fan and beach ridges stepping away from a central channel.
 - Vendored [img2threejs](https://github.com/img2threejs/img2threejs) agent skill under `.cursor/skills/img2threejs/` (Apache-2.0; upstream `main` @ `809b72d`) for procedural image-to–Three.js reconstruction workflows.
+- Vendored [threejs-skills](https://github.com/CloudAI-X/threejs-skills) under `.cursor/skills/threejs-skills/` (upstream `main` @ `b1c6230`). The README claims MIT and the tree has no LICENSE file. Use it for the next Wf schematic geometry pass.
 - A closed Polygon or Lasso corner can be selected and dragged. The outline and the area follow that corner, and the Lasso guide stays put. The readout says to drag a corner, and a right-click still adds or deletes a vertex.
 - A closed Polygon readout tells the user they can right-click a side or corner. The hint stays hidden while the chain is still open.
 - Right-click within 12 CSS pixels of a closed side or corner opens Add vertex and Delete vertex. The dots and the menu stay outside the snapshot.
@@ -75,6 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `features/schematic_module.md` — workflow for the next Wf schematic geometry pass. It records which vendored Three.js skills apply, which to skip, and the reference images already in the repo. It does not change the solids.
 - `docs/superpowers/plans/2026-10-08-wf-schematic-pin.md` — implementation plan for the approved Wf schematic pin. UI tasks follow `WORKFLOW.md`: UI UX Pro Max `ui-styling`, Impeccable shape, critique, polish, audit, harden, and document, then Emil Kowalski (`emil-design-eng`, `find-animation-opportunities`, `animate`, `review-animations`, `mobile-native`), one skill per message, before the screen ships.
 - `docs/superpowers/specs/2026-10-08-wf-schematic-pin-design.md` — approved spec for a Wf type schematic pinned at Sfântu Gheorghe. Opening the pin explodes element, element set, element complex, and element complex set. Product copy updates happen in the implementation.
 - Product, purpose, and design records put Outline on Lasso and Dynamic and Static on Paint Brush.

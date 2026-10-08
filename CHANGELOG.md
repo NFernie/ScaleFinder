@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A pin at 44.878674, 29.515563 opens the Wf type schematic above Sfântu Gheorghe. The pin is in the snapshot. The panel is not.
 - Opening the Wf schematic draws the solids in a Three.js view and an Explode slider pulls the four ranks apart. The body list remains when WebGL cannot start.
 - The Wf schematic panel names Sfântu Gheorghe, states that the diagram is a type example, and lists each body when the 3D view cannot start.
 - A pure Wf schematic lists element, element set, element complex, and element complex set bodies, with mouth bars in a fan and beach ridges stepping away from a central channel.
@@ -37,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
+- App tests stub the map marker so the Wf pin renders inside the map stub, and the first test finds the Sfântu Gheorghe pin.
 - Toolbox session tests cover polygon vertex insert and delete, closed polygon rings, and a Static lasso click still asking for a sample.
 - Centre-on-fixed App test asserts `flyTo` receives the fixed polygon geographic anchor as `center`.
 

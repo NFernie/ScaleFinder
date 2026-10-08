@@ -1,3 +1,4 @@
+import { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -6,6 +7,10 @@ import { fixedAnchor, parseUtmTable } from './core/polygonExport'
 import { mapFlyTo, mapGetZoom } from './test/MapViewStub'
 
 vi.mock('./map/MapView', () => import('./test/MapViewStub'))
+
+vi.mock('react-map-gl/maplibre', () => ({
+  Marker: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}))
 
 vi.mock('./map/PolygonOverlay', () => ({
   default: () => null,
@@ -37,6 +42,7 @@ describe('App polygon list', () => {
   it('starts with export disabled until a Polygon is imported', () => {
     render(<App />)
     expect(screen.getByRole('button', { name: /export snapshot/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Wf schematic, Sfântu Gheorghe' })).toBeInTheDocument()
     expect(screen.getByText('Import a Polygon to export')).toBeInTheDocument()
     expect(screen.getByText('Import a Polygon to place it here at true ground scale.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Re-centre' })).not.toBeInTheDocument()

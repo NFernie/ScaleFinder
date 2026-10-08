@@ -232,6 +232,10 @@ The Toolbox replaces Measure. It sits on the map in the top-left slot, outside t
 
 **Vertex menu:** After a Polygon or Lasso draft is closed, 8px white dots mark the editable corners in HTML over the map, with the same #0f172a casing as the line. Each dot sits in a 44px grab target. Pressing a corner selects it, shown with a Focus teal ring, and dragging moves that corner. The outline follows the pointer with no animation. A right-click within 12 CSS pixels, or on the corner itself, opens a floating menu, Add vertex and Delete vertex, using the Toolbox panel, 12px corners, and the Float shadow. The dots and the menu sit outside the snapshot frame.
 
+### Wf schematic pin
+
+A teal pin sits on the map at 44.878674, 29.515563. The hit target is 44px and uses the pressable scale. It is inside the snapshot. Choosing it opens a panel at the bottom-right of the map, outside the snapshot frame, clear of the home indicator. The panel uses Panel at 95%, 12px corners, a white 15% border, the Float shadow, and the 160ms toolbox pop. Close is 44px. Focus is Focus teal, 2px, offset 2px. The title is Sfântu Gheorghe. The subtitle is Wf schematic, in Focus teal. The caption says the diagram is a type schematic and not a measured map of this coast. Explode is a native slider from nested to pulled apart. The solids track the thumb with no extra ease. Solid colours inside the canvas are gold for beach ridges, grey for swales, green for mouth bars, orange for the channel, and blue for the lobe. Those fills stay inside the canvas.
+
 ## Do's and Don'ts
 
 ### Do:

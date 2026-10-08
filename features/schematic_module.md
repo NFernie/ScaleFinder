@@ -1,33 +1,26 @@
 # Wf schematic geometry
 
-> **For the next session:** This file is the workflow for fixing the Three.js solids. It is not a new spec and it is not an implementation plan.
->
-> Do not change product code from this file. The hierarchy, pin, panel, and caption stay as approved in [`docs/superpowers/specs/2026-10-08-wf-schematic-pin-design.md`](../docs/superpowers/specs/2026-10-08-wf-schematic-pin-design.md). The next session replaces the stand-in meshes, one kind at a time, using the skill order below.
+> **For the next session:** The stand-in boxes and spheres have been replaced. This file records which skill was used and the cast the user locked on 2026-10-08. Do not put the swales, the green slab, or the blue lobe solid back.
 
-**Goal:** Make the Wf schematic solids read like the plan in `WF_element complex set.png` and like the cartoon shapes already named in the approved spec: a lobate slab, a tapering channel, wedges, lenses, and mounds.
+## What shipped
 
-**Architecture:** Positions, ranks, the mouth-bar fan, and the two flanks stay in `src/core/wfSchematic.ts`. Meshes stay in `src/ui/WfSchematicView.tsx`. `three` is not imported from `src/core/`. If a silhouette is stored as numbers, those numbers are plain data in core and have a Vitest check. Explode still adds a Y gap by rank only. The slider still tracks the thumb.
+`threejs-geometry` only. Positions stay in `src/core/wfSchematic.ts`. Meshes stay in `src/ui/WfSchematicView.tsx`. `three` is not imported from core.
+
+| Body | Mesh | Frame |
+| --- | --- | --- |
+| Ground | Thin box | Unchanged slate slab |
+| Channel | `CylinderGeometry` with equal radii, `rotateX(π/2)` so the axis is **+Z** | Centred at X = 0 |
+| Beach ridge | Custom `BufferGeometry`. Four stations across the section, `computeVertexNormals()`, flat shading | Thick at the channel, thin at the alongshore tip. Centreline `z = bow · t²` stays landward of the chord, so the bow faces away from the sea. The next ridge’s Z step is shorter than the width at the channel, so they overlap seaward. Left flank is the right flank mirrored in X |
+| Mouth bar | `SphereGeometry` scaled with `MOUTH_BAR_SCALE` | Long axis is **+Z**. The fan in X and Z stays. Each younger bar sits higher by less than its height |
+| Swale, mouth-bar slab, lobe solid | Not drawn | Wf-Lobe and Wf-Mouth Bar remain labels |
+
++X is alongshore to the right. +Y is up. +Z is seaward. Figure 10’s Wf-Lobe crescents are the ridge shape. Figures 7 and 8 are the stacking reference. The PNG is the plan arrangement, without its grey swales or blue body.
+
+**Architecture:** Positions, ranks, the mouth-bar fan, and the two flanks stay in `src/core/wfSchematic.ts`. Meshes stay in `src/ui/WfSchematicView.tsx`. `three` is not imported from `src/core/`. Explode still adds a Y gap by rank only. The slider still tracks the thumb.
 
 **Tech stack:** Vite, React 18, TypeScript, Tailwind, Vitest, `three` `^0.186.1` (only the schematic view). MapLibre is unchanged.
 
-## What is wrong
-
-`geometryFor` in `src/ui/WfSchematicView.tsx` builds every solid from `BoxGeometry` or a scaled `SphereGeometry`. The approved arrangement is already in `sceneAt`. The picture is wrong because the meshes ignore the shapes the spec named.
-
-| Kind | Shipped mesh | Shape the spec and the plan view ask for |
-| --- | --- | --- |
-| Ground | Box `8 × 0.05 × 6` | Thin ground slab. A box is enough. |
-| Lobe | Sphere scaled `1.6, 0.18, 1` | One lobate slab, seaward of the fan, matching the blue body. An oval pancake does not. |
-| Mouth-bar parent | Box `3.4 × 0.06 × 2.2` | Shallow slab landward of the lobe, under the fan. The green fan in the screenshot is the mounds, not this rectangle. |
-| Channel | Box `0.28 × 0.12 × 2.4` | One straight channel-fill that tapers seaward. The braided texture in the screenshot is not modelled. |
-| Mouth bar | Sphere scaled `1.2, 0.45, 1` | One smooth mound. Five of them, already fanned in core. |
-| Beach ridge | Box `0.55 × 0.16 × 0.9` | A wedge, thicker on the landward side and thinner toward the sea. Four on each flank, stepping alongshore away from the channel. |
-| Swale | Box `0.4 × 0.06 × 0.7` | A thin lens in the trough between wedges. Three on each flank. |
-| Element set | Tiny box, used as a label anchor | No extra solid. The label stays. |
-
-Colours already match the diagram palette (gold ridges, grey swales, green mouth bars, orange channel, blue lobe). Do not recolour the panel. Do not paint `WF_element complex set.png` onto a mesh.
-
-Coordinate frame, already used by `sceneAt`: **+X** alongshore to the right, **+Y** up, **+Z** seaward. Land is −Z. The screenshot has land at the top of the image and the sea at the bottom.
+The earlier stand-in list (blue lobe sphere, green slab, grey swale boxes, square channel) is gone. Do not restore it. Diagram colours stay inside the canvas: gold ridges, green mouth bars, orange channel, slate ground. Do not paint the PNG onto a mesh.
 
 ## Skill set
 
@@ -57,10 +50,10 @@ UI skills (UI UX Pro Max, Impeccable, Emil) do not run for this pass. The pin, p
 One skill per message. Do not open a skipped skill “for context”.
 
 1. **Read geometry, then fundamentals.** Confirm the frame: +X alongshore right, +Y up, +Z seaward. Write down which constructor each kind will use before editing the view.
-2. **Keep the scene graph.** `sceneAt` positions and ranks stay. Mouth bars stay at `{0, 0.35}, {0.45, 0.7}, {-0.75, 1.05}, {1.1, 1.4}, {-1.5, 1.8}` as `(x, z)`. Ridges stay at `|x|` `1.1, 1.8, 2.5, 3.2` and `z = -0.4`. Swales stay at `1.45, 2.15, 2.85`. Explode clamps to 0–1 and adds Y by rank only (`0`, `1.2`, `2.4`, `3.6`).
-3. **Optional silhouette table, in core, before the meshes.** If a plan outline needs numbers, measure them from `WF_element complex set.png` (773×424) into plain `{ x, z }` points. Land (top of the image) is −Z. Sea (bottom) is +Z. The channel is the axis. Store that table in `src/core/` with no `three` import, and unit-test the point count, the axis, and that seaward points have larger `z` than landward points. Do not draw the PNG into the canvas.
-4. **Replace `geometryFor` one kind at a time,** in this order: lobe, channel, beach-ridge wedge, swale lens, mouth-bar mound. Ground stays a thin box. Element-set groups stay labels. After each kind, look at an orthographic top view (camera on −Y, looking at the origin) next to the PNG. `EdgesGeometry` can show the plan edges during that check. Remove the helper and the edge overlay before the kind is done.
-5. **Orientation check.** Extrude depth starts on the shape’s own Z. `rotateX` (see geometry “Clone and Transform”) lays that plan onto schematic XZ. A wedge’s thick end is landward (−Z). A channel’s narrow end is seaward (+Z).
+2. **Keep the scene graph.** `sceneAt` positions and ranks stay. Mouth bars keep the fan in X and Z and their overlapping Y steps. Beach ridges stay rooted on X = 0 and step in +Z. There are no swales. Explode clamps to 0–1 and adds Y by rank only (`0`, `1.2`, `2.4`, `3.6`).
+3. **Silhouette numbers live in core.** `beachRidgeStations` is the plan and the taper. Land is −Z. Sea is +Z. The channel is the axis. Do not draw the PNG into the canvas.
+4. **Further mesh edits stay in `geometryFor`.** Ground stays a thin box. Wf-Lobe, Wf-Mouth Bar, and element sets stay labels. Do not add a lobe solid, a mouth-bar slab, or a swale.
+5. **Orientation check.** A cylinder’s axis starts on Y. `rotateX(π/2)` lays it on +Z. Ridge vertices are already in schematic X, Y, Z. The thick end touches the channel. The thin end is the alongshore tip.
 6. **Read materials, then lighting, only if the plan already matches and the solids are hard to read.** Flat shading on wedges. Double-sided thin lenses if a face disappears. Polygon offset if two slabs flicker. Hemisphere light plus the lights already in the view. No shadows.
 7. **Explode still tracks the thumb.** Move `position.y` from `sceneAt`. Do not ease it.
 8. **Cleanup stays.** Dispose geometries, mesh materials, sprite materials, and label textures, then `renderer.dispose()`, `renderer.forceContextLoss()`, and remove the canvas. The WebGL probe still calls `loseContext()` so it does not hold a slot.
@@ -74,8 +67,8 @@ Already in the repo. Do not add another paper. Do not ask for a new drawing.
 
 | Reference | Use |
 | --- | --- |
-| [`WF_element complex set.png`](../WF_element%20complex%20set.png) | Plan to match. Land at the top, sea at the bottom. Orange channel on the axis. Green mouth bars fanning sideways and seaward. Gold beach-ridge wedges and grey swales stepping away from the channel on both flanks. Blue lobate body seaward of the fan. Measure a normalized outline from this file if step 3 needs numbers. Do not copy the pixels into the canvas. |
-| `2012 Vakarelov And Ainsworth WAVE Architectural Classification Report.pdf`, Figures 7, 8, and 10 | Nesting, and the cartoon sections: beach-ridge wedge thicker landward and thinning seaward, swale lens, shingled beach-ridge set, mouth-bar mound. Figure 8’s channel-fill is generic. The screenshot is why the channel is in this schematic. No measured lengths. |
+| [`WF_element complex set.png`](../WF_element%20complex%20set.png) | Plan arrangement only: land at the top, sea at the bottom, orange channel on the axis, green mouth bars fanning, gold ridges on both flanks. The grey swales and the blue body are not in the model. Do not copy the pixels into the canvas. |
+| `2012 Vakarelov And Ainsworth WAVE Architectural Classification Report.pdf`, Figures 7, 8, and 10 | Stacking, and Figure 10’s Wf-Lobe crescents. The ridges taper off the channel and overlap seaward. They are not copies of the drawings. |
 | `Ainsworth et al 2011…pdf` | Process code only. Wf means wave-dominated, fluvial-influenced. It does not define element set or element complex. |
 | [ExtrudeGeometry](https://threejs.org/docs/#api/en/geometries/ExtrudeGeometry), [Shape](https://threejs.org/docs/#api/en/extras/core/Shape), [LatheGeometry](https://threejs.org/docs/#api/en/geometries/LatheGeometry), [CylinderGeometry](https://threejs.org/docs/#api/en/geometries/CylinderGeometry) at the installed three version | The skill is audited at r160+. Confirm bevel, depth, and radius argument order against r186 before writing the mesh. |
 | Approved spec, “Nested arrangement” | Which body is parent of which, and the sentence that these solids are not copies of the report drawings. Similarity is the arrangement and the cartoon shape, not a traced figure. |
@@ -95,7 +88,7 @@ The shapes above are already in the approved spec. These three are the only open
 
 | Topic | Default in this file | Why a person might change it |
 | --- | --- | --- |
-| Mouth-bar parent slab | Stays a thin shore-perpendicular slab under the five mounds | The green fan in the PNG could be read as that parent’s outline instead |
+| Mouth-bar parent slab | Not drawn. The five ovals are the green bodies | A later pass could add a slab under them |
 | Orbit controls | Authoring check only. Shipped camera stays fixed | A person may want to orbit the shipped diagram |
 | PNG vertex table | Measure one only if a `Shape` needs an outline that boxes cannot imply | The cartoons in Figures 8 and 10 may be enough without tracing the PNG |
 

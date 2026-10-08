@@ -33,7 +33,7 @@ it('lists the Wf bodies when the panel is open', async () => {
   expect(screen.getByText('Wf-Lobe')).toBeInTheDocument()
   expect(screen.getByText('Wf-Mouth Bar')).toBeInTheDocument()
   expect(screen.getAllByText('Beach ridge').length).toBeGreaterThan(0)
-  expect(screen.getAllByText('Swale').length).toBeGreaterThan(0)
+  expect(screen.queryByText('Swale')).not.toBeInTheDocument()
   expect(screen.getAllByText('Mouth bar').length).toBeGreaterThan(0)
   expect(screen.getByText('Channel fill')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Close' }))

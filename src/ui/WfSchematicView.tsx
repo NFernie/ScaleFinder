@@ -1,26 +1,80 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { sceneAt, type PlacedBody, type SolidKind } from '../core/wfSchematic'
+import {
+  beachRidgeStations,
+  CHANNEL_LENGTH,
+  CHANNEL_RADIUS,
+  MOUTH_BAR_SCALE,
+  sceneAt,
+  type PlacedBody,
+  type SolidKind,
+} from '../core/wfSchematic'
 
 const COLOUR: Record<SolidKind, number> = {
   ground: 0xcbd5e1,
-  lobe: 0x7dd3fc,
-  'mouth-slab': 0x14532d,
   channel: 0xf97316,
   'mouth-bar': 0x4ade80,
   'beach-ridge': 0xeab308,
-  swale: 0x9ca3af,
   group: 0xe2e8f0,
 }
 
-function geometryFor(kind: SolidKind): THREE.BufferGeometry {
-  if (kind === 'ground') return new THREE.BoxGeometry(8, 0.05, 6)
-  if (kind === 'lobe') return new THREE.SphereGeometry(1.15, 16, 10).scale(1.6, 0.18, 1)
-  if (kind === 'mouth-slab') return new THREE.BoxGeometry(3.4, 0.06, 2.2)
-  if (kind === 'channel') return new THREE.BoxGeometry(0.28, 0.12, 2.4)
-  if (kind === 'mouth-bar') return new THREE.SphereGeometry(0.28, 12, 8).scale(1.2, 0.45, 1)
-  if (kind === 'beach-ridge') return new THREE.BoxGeometry(0.55, 0.16, 0.9)
-  if (kind === 'swale') return new THREE.BoxGeometry(0.4, 0.06, 0.7)
+function beachRidgeGeometry(side: 'l' | 'r'): THREE.BufferGeometry {
+  const stations = beachRidgeStations('r')
+  const positions: number[] = []
+  const indices: number[] = []
+  for (const station of stations) {
+    const crown = station.halfWidth * 0.28
+    positions.push(
+      station.x, 0, station.z - station.halfWidth,
+      station.x, 0, station.z + station.halfWidth,
+      station.x, station.height, station.z + crown,
+      station.x, station.height, station.z - crown,
+    )
+  }
+  const quad = (a: number, b: number, c: number, d: number) => {
+    indices.push(a, b, c, a, c, d)
+  }
+  for (let s = 0; s < stations.length - 1; s += 1) {
+    const a = s * 4
+    const b = (s + 1) * 4
+    quad(a, b, b + 1, a + 1)
+    quad(a + 1, b + 1, b + 2, a + 2)
+    quad(a + 2, b + 2, b + 3, a + 3)
+    quad(a + 3, b + 3, b, a)
+  }
+  quad(0, 1, 2, 3)
+  const tip = (stations.length - 1) * 4
+  quad(tip, tip + 3, tip + 2, tip + 1)
+  if (side === 'l') {
+    for (let i = 0; i < positions.length; i += 3) positions[i] = -positions[i]
+    for (let i = 0; i < indices.length; i += 3) {
+      const swap = indices[i + 1]
+      indices[i + 1] = indices[i + 2]
+      indices[i + 2] = swap
+    }
+  }
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geometry.setIndex(indices)
+  geometry.computeVertexNormals()
+  return geometry
+}
+
+function geometryFor(body: PlacedBody): THREE.BufferGeometry {
+  if (body.kind === 'ground') return new THREE.BoxGeometry(8, 0.05, 6)
+  if (body.kind === 'channel') {
+    const geometry = new THREE.CylinderGeometry(CHANNEL_RADIUS, CHANNEL_RADIUS, CHANNEL_LENGTH, 24)
+    geometry.rotateX(Math.PI / 2)
+    return geometry
+  }
+  if (body.kind === 'mouth-bar') {
+    const geometry = new THREE.SphereGeometry(0.5, 28, 18)
+    geometry.scale(MOUTH_BAR_SCALE.x, MOUTH_BAR_SCALE.y, MOUTH_BAR_SCALE.z)
+    return geometry
+  }
+  if (body.kind === 'beach-ridge') {
+    return beachRidgeGeometry(body.id.includes('-r-') ? 'r' : 'l')
+  }
   return new THREE.BoxGeometry(0.01, 0.01, 0.01)
 }
 
@@ -76,9 +130,10 @@ export default function WfSchematicView({ explode }: { explode: number }) {
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100)
     camera.position.set(6.5, 5.5, 7.5)
     camera.lookAt(0, 0.4, 0.6)
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6))
+    scene.add(new THREE.AmbientLight(0xffffff, 0.35))
+    scene.add(new THREE.HemisphereLight(0xe2e8f0, 0x64748b, 0.65))
     const sun = new THREE.DirectionalLight(0xffffff, 1.15)
-    sun.position.set(4, 8, 3)
+    sun.position.set(5, 7, -2)
     scene.add(sun)
 
     const objects = new Map<string, THREE.Object3D>()
@@ -89,9 +144,13 @@ export default function WfSchematicView({ explode }: { explode: number }) {
     for (const body of sceneAt(0)) {
       const group = new THREE.Group()
       if (body.kind !== 'group') {
-        const geometry = geometryFor(body.kind)
+        const geometry = geometryFor(body)
         geometries.push(geometry)
-        const material = new THREE.MeshStandardMaterial({ color: COLOUR[body.kind], roughness: 0.72 })
+        const material = new THREE.MeshStandardMaterial({
+          color: COLOUR[body.kind],
+          roughness: 0.72,
+          flatShading: body.kind === 'beach-ridge',
+        })
         meshMaterials.push(material)
         group.add(new THREE.Mesh(geometry, material))
       }

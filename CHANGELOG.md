@@ -68,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
-- `docs/superpowers/plans/2026-10-08-wf-schematic-pin.md` — implementation plan for the approved Wf schematic pin.
+- `docs/superpowers/plans/2026-10-08-wf-schematic-pin.md` — implementation plan for the approved Wf schematic pin. UI tasks follow `WORKFLOW.md`: UI UX Pro Max `ui-styling`, Impeccable shape, critique, polish, audit, harden, and document, then Emil Kowalski (`emil-design-eng`, `find-animation-opportunities`, `animate`, `review-animations`, `mobile-native`), one skill per message, before the screen ships.
 - `docs/superpowers/specs/2026-10-08-wf-schematic-pin-design.md` — approved spec for a Wf type schematic pinned at Sfântu Gheorghe. Opening the pin explodes element, element set, element complex, and element complex set. Product copy updates happen in the implementation.
 - Product, purpose, and design records put Outline on Lasso and Dynamic and Static on Paint Brush.
 - Product, purpose, and design records say a closed Lasso or Polygon corner can be selected and dragged before Add to list.

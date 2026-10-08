@@ -1,6 +1,6 @@
 # Wf schematic pin — Design Spec
 
-- **Status:** Approved. Revised the same day: swales, the mouth-bar slab, and the lobe solid are not drawn. Beach ridges taper off the channel, bow convex seaward, and overlap seaward. Mouth bars are seaward ovals in a descending sigmoid. The channel is a half cylinder, flat side up, trimmed to the beach ridges.
+- **Status:** Approved. Revised the same day: swales, the mouth-bar slab, and the lobe solid are not drawn. Beach ridges taper off the channel, bow convex seaward, downstep seaward, and have a sigmoid seaward face. Mouth bars are flat ovals in a filled V, each dipping seaward. The channel is a half cylinder, flat side up, trimmed to the beach ridges. The ground slab is a translucent blue water line on the channel base.
 - **Date:** 2026-10-08
 - **Branch:** `cursor/wf-schematic-design-2a5d`
 - **Purpose doc:** [`ScaleFinderPurpose.md`](../../../ScaleFinderPurpose.md)
@@ -24,8 +24,8 @@ This is a new capability beyond the confirmed v1 list in `PRODUCT.md`. The user 
 | Role of the pin | A place marker. The schematic does not scale to the coastline and does not rotate to the shoreline |
 | Ranks | Hierarchy Levels I and II only: element (E), element set (ES), element complex (EC), element complex set (ECS) |
 | Cast | The bodies in section 3. No barrier, lagoon, tidal flat, crevasse, or onshore bodies |
-| Mouth bars | Nine mouth-bar elements directly in front of the channel. Each younger bar steps seaward and sideways, alternating outward from the channel axis, so the set is a fan. Spacing is tight enough that neighbours overlap, and the sideways offset still grows seaward. Each bar is an oval with its long axis seaward. Height falls in a sigmoid: the most seaward bar is the lowest. The landward part of the stack sits below the channel’s seaward end |
-| Beach ridges | Two flanks, one on each side of the channel. Four beach-ridge elements per flank. Each is thick against the channel and thin at the alongshore tip. The thin tips lie landward of the thick channel edge, so the element complex set is convex seaward, with the channel and mouth bars in the centre. The base of each ridge sits slightly seaward of its crest. The four overlap as they step seaward. No swales |
+| Mouth bars | Nine flat mouth-bar elements in a filled V directly in front of the channel. The apex is one centre bar. The next row is one left and one right. Each of those adds an outer bar, a bar toward the far side of the axis, and one more bar on its own arm. The two bars nearest the axis overlap. Each bar is an oval in plan, flattened in height, and dips so its seaward end is its lowest point. The stack also steps down seaward, below the water line |
+| Beach ridges | Two flanks, one on each side of the channel. Four beach-ridge elements per flank. Each is thick against the channel and thin at the alongshore tip. The thin tips lie landward of the thick channel edge, so the element complex set is convex seaward, with the channel and mouth bars in the centre. Each landward ridge sits 2% of the ridge height above the next seaward ridge. The seaward face is a sigmoid, and the base sits seaward of the crest. The four overlap as they step seaward. No swales |
 | Channel | One half cylinder on the axis, flat face up, curved face down, half the thickness of the earlier full cylinder. It runs seaward and its seaward tip meets the thick end of the most seaward beach ridge. The braided texture in the screenshot is not modelled |
 | Lobe solid | Not drawn. Wf-Lobe stays the element-complex label over the two beach-ridge sets |
 | Mouth-bar complex | Not drawn as a slab. Wf-Mouth Bar stays the element-complex label over the channel and the mouth-bar set |
@@ -39,7 +39,7 @@ This is a new capability beyond the confirmed v1 list in `PRODUCT.md`. The user 
 
 The pin is on the map whenever the map is open. Choosing it opens a floating panel on the map. The panel uses the Toolbox panel colour, 12px corners, and the Float shadow. The title is **Sfântu Gheorghe**. The subtitle is **Wf schematic**. The caption reads: "Type schematic for a wave-dominated, fluvial-influenced shoreline. Size and direction are not a measured map of this coast."
 
-The canvas shows the solids. Panel chrome stays on the existing night-navy and teal tokens. Inside the canvas only, the solids use a fixed diagram palette so the bodies can be told apart: gold beach ridges, green mouth bars, orange channel, and a slate ground. Those fills are diagram colours, not a second UI accent.
+The canvas shows the solids. Panel chrome stays on the existing night-navy and teal tokens. Inside the canvas only, the solids use a fixed diagram palette so the bodies can be told apart: gold beach ridges, green mouth bars, orange channel, and a blue water line at 30% opacity. Those fills are diagram colours, not a second UI accent.
 
 An **Explode** slider sits at the bottom of the panel. At 0 the children sit in the nested pose in this section. At 1 each rank has moved away from its parent by a fixed gap, and every name can be read. Keyboard users can focus the pin, open the panel with Enter, and operate the slider.
 
@@ -47,11 +47,11 @@ An **Explode** slider sits at the bottom of the panel. At 0 the children sit in 
 
 Land is one direction in the schematic. Seaward is the opposite direction. The channel axis is the centre line. This follows `WF_element complex set.png`.
 
-- **Wf element complex set** is a thin ground slab under the whole model. It is the root.
+- **Wf element complex set** is a thin blue water line under the model, at 30% opacity. Its top meets the base of the channel. It is the root.
 - **Wf-Lobe element complex** is a label over the beach-ridge sets. It has no solid. It contains two beach-ridge element sets, one on each flank.
-- **Beach-ridge element set** (left and right) contains four beach-ridge wedges and no swales. Each wedge is thick where it meets the channel and thin at the alongshore tip. The centreline bends so the tip lies landward of the channel end and the arc stays seaward of the straight chord. The base sits slightly seaward of the crest. The next wedge overlaps the previous and sits further seaward.
+- **Beach-ridge element set** (left and right) contains four beach-ridge wedges and no swales. Each wedge is thick where it meets the channel and thin at the alongshore tip. The centreline bends so the tip lies landward of the channel end and the arc stays seaward of the straight chord. The seaward face is a sigmoid, concave toward the sea through its upper half, and the base sits seaward of the crest. Each landward wedge sits 2% of the ridge height above the next seaward wedge. The next wedge overlaps the previous and sits further seaward.
 - **Wf-Mouth Bar element complex** is a label. It has no slab. It contains the channel-fill element and the mouth-bar element set.
-- **Mouth-bar element set** contains nine ovals directly in front of the channel. The long axis of each oval points seaward. From the landward bar they step seaward, and they alternate left and right with a larger sideways offset each time, so the plan is a fan. The seaward step is shorter than the oval, so neighbours overlap. Height falls along a sigmoid, so the highest seaward position is the lowest bar. The landward edge of the first bar is tucked just under the channel tip, and the top of that bar is below the channel.
+- **Mouth-bar element set** contains nine flat ovals directly in front of the channel, below the water line. The long axis of each oval points seaward. The plan is a filled V: one centre bar at the channel, then one left and one right, then from each of those an outer bar, a bar across the axis, and one more bar on that arm. The two bars nearest the axis overlap. Each bar’s own seaward end is its lowest point. Bars further seaward in the V also sit lower.
 - **Channel-fill element** is one half cylinder on the axis. The flat face is up and the curve hangs down. The seaward tip lines up with the thick end of the most seaward beach ridge.
 
 None of these are copies of the report drawings. Figure 10’s Wf-Lobe crescents are the shape reference for the ridges. Figures 7 and 8 are the stacking reference.
@@ -87,9 +87,9 @@ Unit tests in `src/core/wfSchematic.test.ts`:
 
 - The root is the only body with no parent. Every other `parentId` matches a body.
 - Ranks are only `element`, `element-set`, `element-complex`, and `element-complex-set`.
-- There are nine mouth-bar elements. Sorted from the landward bar, the seaward coordinate increases, the height falls, and the absolute sideways coordinate increases. The sideways signs alternate. The points are not colinear. The seaward step is shorter than the oval. The landward bar’s top is below the channel, and its landward edge is landward of the channel’s seaward tip.
-- Each flank has four beach-ridge elements and no swales. Their seaward positions increase, and the step is shorter than the width at the channel so they overlap. Each ridge’s own outline is thickest at the channel, thinnest at the tip, and seaward of the straight chord. The base sits seaward of the crest.
-- There is one channel-fill element on the axis. Its seaward tip meets the thick end of the most seaward beach ridge. Its radius is half the previous cylinder. Two element complexes have no solid of their own, and there is one element complex set.
+- There are nine mouth-bar elements in a filled V. The centre bar is the most landward. Left and right arms widen seaward. Two bars near the axis overlap. As seaward position increases, height does not rise. The landward bar’s top is below the water line, and its landward edge is landward of the channel’s seaward tip. The bar height is 20% of the previous spheroid.
+- Each flank has four beach-ridge elements and no swales. Their seaward positions increase, and the step is shorter than the width at the channel so they overlap. Each ridge’s own outline is thickest at the channel, thinnest at the tip, and seaward of the straight chord. The base sits seaward of the crest. The seaward face is landward of its chord in the upper half and seaward of it in the lower half. Each landward ridge is 2% of the crest height above the next seaward ridge.
+- There is one channel-fill element on the axis. Its seaward tip meets the thick end of the most seaward beach ridge. Its radius is half the previous cylinder. The water line’s top is the channel base. Two element complexes have no solid of their own, and there is one element complex set.
 - `sceneAt(0)` and `sceneAt(1)` return the same ids and parent links. At 1, elements are further from the root along the separation axis than element sets, and element sets are further than element complexes. At 0, those rank gaps are 0.
 - `sceneAt(-1)` equals `sceneAt(0)`, and `sceneAt(2)` equals `sceneAt(1)`.
 
@@ -108,7 +108,7 @@ The WebGL picture, the fan in the canvas, and the pin sitting on Sfântu Gheorgh
 ## 8. Acceptance
 
 1. With the map open, a pin is visible at 44.878674, 29.515563.
-2. Opening it shows the caption in section 3 and the nested solids: an orange half-cylinder channel on the axis, flat side up, nine green mouth-bar ovals in a descending fan in front of it, and gold beach ridges on both flanks, thick at the channel, tips landward, overlapping seaward. No swales, no green slab, and no blue lobe solid.
+2. Opening it shows the caption in section 3 and the nested solids: an orange half-cylinder channel on the axis, flat side up, a blue water line at the channel base, nine green flat mouth-bar ovals in a filled V below that line, and gold beach ridges on both flanks, thick at the channel, tips landward, overlapping seaward. No swales, no green slab, and no blue lobe solid.
 3. Moving Explode from 0 to 1 separates the four ranks and keeps every body labelled.
 4. Closing the panel leaves the pin on the map.
 5. Reloading the page shows the pin again with Explode at 0.

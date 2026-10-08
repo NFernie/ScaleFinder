@@ -5,9 +5,13 @@ import {
   CHANNEL_LENGTH,
   CHANNEL_RADIUS,
   channelSpan,
+  GROUND_THICKNESS,
   MOUTH_BAR_SCALE,
   RIDGE_BASE_SEAWARD,
+  RIDGE_DOWNSTEP,
   sceneAt,
+  WATER_OPACITY,
+  waterlineY,
   WF_ANCHOR,
 } from './wfSchematic'
 
@@ -35,32 +39,38 @@ describe('wfSchematic', () => {
     ])
   })
 
-  it('stacks mouth bars in a seaward sigmoid in front of the channel', () => {
+  it('fills a seaward mouth-bar V under the water line', () => {
     const mouths = sceneAt(0)
       .filter((body) => body.kind === 'mouth-bar')
-      .sort((a, b) => a.position.z - b.position.z)
+      .sort((a, b) => a.position.z - b.position.z || a.position.x - b.position.x)
     const span = channelSpan()
-    expect(mouths.length).toBeGreaterThan(5)
-    expect(mouths.map((body) => Math.sign(body.position.x))).toEqual([0, 1, -1, 1, -1, 1, -1, 1, -1])
+    const water = waterlineY()
+    expect(mouths).toHaveLength(9)
+    expect(MOUTH_BAR_SCALE.y).toBeCloseTo(0.28 * 0.2)
     expect(MOUTH_BAR_SCALE.z).toBeGreaterThan(MOUTH_BAR_SCALE.x)
-    const landward = mouths[0]
-    expect(landward.position.y + MOUTH_BAR_SCALE.y / 2).toBeLessThan(span.flatY - CHANNEL_RADIUS)
-    expect(landward.position.z - MOUTH_BAR_SCALE.z / 2).toBeLessThan(span.zSea)
-    expect(landward.position.z + MOUTH_BAR_SCALE.z / 2).toBeGreaterThan(span.zSea)
+    const centre = mouths.find((body) => body.position.x === 0)
+    expect(centre?.position.z).toBe(Math.min(...mouths.map((body) => body.position.z)))
+    expect(mouths.filter((body) => body.position.x < 0).length).toBeGreaterThan(2)
+    expect(mouths.filter((body) => body.position.x > 0).length).toBeGreaterThan(2)
+    const inner = mouths.filter((body) => Math.abs(body.position.x) > 0.05 && Math.abs(body.position.x) < 0.25)
+    expect(inner.some((body) => body.position.x < 0)).toBe(true)
+    expect(inner.some((body) => body.position.x > 0)).toBe(true)
+    const innerLeft = inner.find((body) => body.position.x < 0)!
+    const innerRight = inner.find((body) => body.position.x > 0)!
+    expect(Math.abs(innerLeft.position.x - innerRight.position.x)).toBeLessThan(MOUTH_BAR_SCALE.x)
+    const widest = Math.max(...mouths.map((body) => Math.abs(body.position.x)))
+    expect(mouths.filter((body) => Math.abs(body.position.x) === widest).every((body) => body.position.z > (centre?.position.z ?? 0))).toBe(true)
+    expect((centre?.position.y ?? 0) + MOUTH_BAR_SCALE.y / 2).toBeLessThan(water)
+    expect(centre && centre.position.z - MOUTH_BAR_SCALE.z / 2).toBeLessThan(span.zSea)
+    expect(centre && centre.position.z + MOUTH_BAR_SCALE.z / 2).toBeGreaterThan(span.zSea)
     for (let i = 1; i < mouths.length; i += 1) {
-      const stepZ = mouths[i].position.z - mouths[i - 1].position.z
-      const drop = mouths[i - 1].position.y - mouths[i].position.y
-      expect(stepZ).toBeGreaterThan(0)
-      expect(stepZ).toBeLessThan(MOUTH_BAR_SCALE.z)
-      expect(Math.abs(mouths[i].position.x)).toBeGreaterThan(Math.abs(mouths[i - 1].position.x))
-      expect(drop).toBeGreaterThan(0)
-      expect(drop).toBeLessThan(MOUTH_BAR_SCALE.y)
+      expect(mouths[i].position.z).toBeGreaterThanOrEqual(mouths[i - 1].position.z)
+      expect(mouths[i].position.y).toBeLessThanOrEqual(mouths[i - 1].position.y + 1e-9)
+      if (mouths[i].position.z > mouths[i - 1].position.z) {
+        expect(mouths[i].position.z - mouths[i - 1].position.z).toBeLessThan(MOUTH_BAR_SCALE.z)
+      }
     }
-    const area = mouths.reduce((sum, body, index) => {
-      const next = mouths[(index + 1) % mouths.length]
-      return sum + body.position.x * next.position.z - next.position.x * body.position.z
-    }, 0)
-    expect(Math.abs(area)).toBeGreaterThan(0.1)
+    expect(mouths[mouths.length - 1].position.y).toBeLessThan(mouths[0].position.y)
     expect(new Set(mouths.map((body) => body.parentId))).toEqual(new Set(['es-mouth']))
   })
 
@@ -80,13 +90,25 @@ describe('wfSchematic', () => {
       const midT = Math.floor(stations.length / 2) / (stations.length - 1)
       const chordZ = channelEnd.z + (tip.z - channelEnd.z) * midT
       const ring = beachRidgeRing(channelEnd)
-      const baseZ = ring.filter((corner) => corner.y === 0).reduce((sum, corner) => sum + corner.z, 0) / 2
-      const crestZ = ring.filter((corner) => corner.y > 0).reduce((sum, corner) => sum + corner.z, 0) / 2
+      const base = ring.filter((corner) => corner.y === 0)
+      const crest = ring.filter((corner) => corner.y === channelEnd.height)
+      const baseSea = base.reduce((best, corner) => (corner.z > best.z ? corner : best))
+      const crestSea = crest.reduce((best, corner) => (corner.z > best.z ? corner : best))
+      const upper = ring.find((corner) => Math.abs(corner.y - channelEnd.height * 0.75) < 1e-6)
+      const lower = ring.find((corner) => Math.abs(corner.y - channelEnd.height * 0.25) < 1e-6)
+      const chordAt = (y: number) => {
+        const t = 1 - y / channelEnd.height
+        return crestSea.z + (baseSea.z - crestSea.z) * t
+      }
+      const baseZ = base.reduce((sum, corner) => sum + corner.z, 0) / base.length
+      const crestZ = crest.reduce((sum, corner) => sum + corner.z, 0) / crest.length
       expect(channelEnd.halfWidth).toBeGreaterThan(tip.halfWidth * 4)
       expect(channelEnd.height).toBeGreaterThan(tip.height * 3)
       expect(tip.z).toBeLessThan(channelEnd.z)
       expect(mid.z).toBeGreaterThan(chordZ)
       expect(baseZ - crestZ).toBeCloseTo(RIDGE_BASE_SEAWARD)
+      expect(upper && upper.z).toBeLessThan(chordAt(channelEnd.height * 0.75))
+      expect(lower && lower.z).toBeGreaterThan(chordAt(channelEnd.height * 0.25))
       expect(Math.abs(tip.x)).toBeGreaterThan(Math.abs(channelEnd.x))
       expect(Math.sign(channelEnd.x)).toBe(side === 'r' ? 1 : -1)
       for (let i = 1; i < ridges.length; i += 1) {
@@ -94,6 +116,7 @@ describe('wfSchematic', () => {
         expect(step).toBeGreaterThan(0)
         expect(step).toBeLessThan(channelEnd.halfWidth * 2)
         expect(ridges[i].position.x).toBe(0)
+        expect((ridges[i - 1].position.y - ridges[i].position.y) / channelEnd.height).toBeCloseTo(RIDGE_DOWNSTEP)
       }
     }
   })
@@ -119,6 +142,10 @@ describe('wfSchematic', () => {
     expect(nested.find((body) => body.id === 'ec-lobe')?.kind).toBe('group')
     expect(nested.find((body) => body.id === 'ec-mouth')?.kind).toBe('group')
     expect(nested.filter((body) => body.rank === 'element-complex-set')).toHaveLength(1)
+    const ground = nested.find((body) => body.kind === 'ground')
+    expect(WATER_OPACITY).toBe(0.3)
+    expect((ground?.position.y ?? 0) + GROUND_THICKNESS / 2).toBeCloseTo(waterlineY())
+    expect(waterlineY()).toBeCloseTo(span.flatY - CHANNEL_RADIUS)
   })
 
   it('separates ranks along Y and clamps explode', () => {

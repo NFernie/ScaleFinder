@@ -33,11 +33,21 @@ export interface RidgeCorner {
 /** Half-channel radius. Half of the previous full cylinder. */
 export const CHANNEL_RADIUS = 0.1
 
-/** Mouth-bar ellipsoid diameters. Y is the full height. Z is the long axis. */
-export const MOUTH_BAR_SCALE = { x: 0.5, y: 0.28, z: 0.72 } as const
+/** Mouth-bar plan diameters. Y is 20% of the previous spheroid height. */
+export const MOUTH_BAR_SCALE = { x: 0.5, y: 0.056, z: 0.72 } as const
 
 /** How far the ridge base (lowest Y) sits seaward of the crest. */
-export const RIDGE_BASE_SEAWARD = 0.1
+export const RIDGE_BASE_SEAWARD = 0.12
+
+/** Each landward beach ridge sits this fraction of the crest height above the next seaward ridge. */
+export const RIDGE_DOWNSTEP = 0.02
+
+/** Thickness of the water-line slab. Its top is the channel base. */
+export const GROUND_THICKNESS = 0.05
+
+/** Diagram water line. Opacity is 30%. */
+export const WATER_COLOUR = 0x38bdf8
+export const WATER_OPACITY = 0.3
 
 const RANK_LIFT: Record<Rank, number> = {
   'element-complex-set': 0,
@@ -57,9 +67,8 @@ const RIDGE_HEIGHT = 0.32
 const RIDGE_STATIONS = 10
 const CHANNEL_LANDWARD_REACH = 1.55
 const CHANNEL_FLAT_Y = 0.32
-const MOUTH_COUNT = 9
-const MOUTH_Z_STEP = 0.13
-const MOUTH_DROP = 0.12
+const MOUTH_DROP = 0.04
+const RIDGE_NEST_Y = 0.04
 
 /**
  * One beach-ridge centreline in ridge-local coordinates.
@@ -83,15 +92,35 @@ export function beachRidgeStations(side: 'l' | 'r'): RidgeStation[] {
   return stations
 }
 
-/** Four corners at one station. The two base corners are shifted seaward. */
+/**
+ * Cross-section at one station. The base sits seaward of the crest.
+ * The seaward face is a sigmoid: it stays landward of the straight chord
+ * through the upper half, then kicks out to the toe.
+ */
 export function beachRidgeRing(station: RidgeStation): RidgeCorner[] {
   const crown = station.halfWidth * 0.28
-  return [
-    { x: station.x, y: 0, z: station.z - station.halfWidth + RIDGE_BASE_SEAWARD },
-    { x: station.x, y: 0, z: station.z + station.halfWidth + RIDGE_BASE_SEAWARD },
-    { x: station.x, y: station.height, z: station.z + crown },
-    { x: station.x, y: station.height, z: station.z - crown },
+  const baseLandZ = station.z - station.halfWidth + RIDGE_BASE_SEAWARD
+  const baseSeaZ = station.z + station.halfWidth + RIDGE_BASE_SEAWARD
+  const crestSeaZ = station.z + crown
+  const crestLandZ = station.z - crown
+  const ring: RidgeCorner[] = [
+    { x: station.x, y: 0, z: baseLandZ },
+    { x: station.x, y: 0, z: baseSeaZ },
   ]
+  const steps = 4
+  for (let i = 1; i < steps; i += 1) {
+    const t = 1 - i / steps
+    ring.push({
+      x: station.x,
+      y: station.height * (1 - t),
+      z: crestSeaZ + (baseSeaZ - crestSeaZ) * sigmoid01(t),
+    })
+  }
+  ring.push(
+    { x: station.x, y: station.height, z: crestSeaZ },
+    { x: station.x, y: station.height, z: crestLandZ },
+  )
+  return ring
 }
 
 function ridgeWorldZ(index: number): number {
@@ -121,25 +150,46 @@ function sigmoid01(t: number): number {
   return (raw(t) - start) / (end - start)
 }
 
+/**
+ * Filled V in front of the channel. The apex is the centre bar.
+ * The next row is one left and one right. Each of those then adds an
+ * outer bar, a bar back toward the opposite side of the axis, and one
+ * more bar along its own arm. The two axis bars overlap.
+ */
+const MOUTH_FAN: Array<{ x: number; z: number }> = [
+  { x: 0, z: 0 },
+  { x: -0.32, z: 0.18 },
+  { x: 0.32, z: 0.18 },
+  { x: -0.64, z: 0.36 },
+  { x: 0.16, z: 0.34 },
+  { x: -0.48, z: 0.5 },
+  { x: 0.64, z: 0.36 },
+  { x: -0.16, z: 0.34 },
+  { x: 0.48, z: 0.5 },
+]
+
+/** Top of the water-line slab. It meets the base of the channel. */
+export function waterlineY(): number {
+  const span = channelSpan()
+  return span.flatY - CHANNEL_RADIUS
+}
+
 function mouthBars(): Array<{ x: number; y: number; z: number }> {
   const span = channelSpan()
   const halfZ = MOUTH_BAR_SCALE.z / 2
   const halfY = MOUTH_BAR_SCALE.y / 2
-  const channelBottom = span.flatY - CHANNEL_RADIUS
-  const yLand = channelBottom - halfY - 0.04
+  const yLand = waterlineY() - halfY - 0.02
   const ySea = yLand - MOUTH_DROP
-  const z0 = span.zSea - 0.18 + halfZ
-  const bars = []
-  for (let i = 0; i < MOUTH_COUNT; i += 1) {
-    const t = i / (MOUTH_COUNT - 1)
-    const sign = i === 0 ? 0 : i % 2 === 1 ? 1 : -1
-    bars.push({
-      x: sign * 0.15 * i,
+  const z0 = span.zSea - 0.12 + halfZ
+  const zMax = Math.max(...MOUTH_FAN.map((point) => point.z))
+  return MOUTH_FAN.map((point) => {
+    const t = point.z / zMax
+    return {
+      x: point.x,
       y: yLand + (ySea - yLand) * sigmoid01(t),
-      z: z0 + i * MOUTH_Z_STEP,
-    })
-  }
-  return bars
+      z: z0 + point.z,
+    }
+  })
 }
 
 function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
@@ -162,7 +212,11 @@ function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
       rank: 'element',
       parentId,
       kind: 'beach-ridge',
-      nested: { x: 0, y: 0.04, z: RIDGE_Z_BASE + index * RIDGE_Z_STEP },
+      nested: {
+        x: 0,
+        y: RIDGE_NEST_Y - index * beachRidgeStations('r')[0].height * RIDGE_DOWNSTEP,
+        z: RIDGE_Z_BASE + index * RIDGE_Z_STEP,
+      },
     })
   }
   return bodies
@@ -180,7 +234,7 @@ const BODIES: SceneBody[] = [
     rank: 'element-complex-set',
     parentId: null,
     kind: 'ground',
-    nested: { x: 0, y: 0, z: 0.4 },
+    nested: { x: 0, y: waterlineY() - GROUND_THICKNESS / 2, z: 0.4 },
   },
   {
     id: 'ec-lobe',

@@ -8,10 +8,10 @@
 
 | Body | Mesh | Frame |
 | --- | --- | --- |
-| Ground | Thin box | Unchanged slate slab |
+| Ground | Thin box, blue, opacity 0.3, `depthWrite` off | Water line. The top of the slab is the base of the channel. Mouth bars sit below it |
 | Channel | Custom half-cylinder `BufferGeometry` along **+Z**. Flat face at local y = 0, arc down to `−radius`. `computeVertexNormals()` | Radius is half the earlier full cylinder. The mesh origin is the middle of the flat face. The **+Z** tip meets the thick end of the most seaward beach ridge. Centred at X = 0 |
-| Beach ridge | Custom `BufferGeometry` from `beachRidgeRing`. Four corners per station, `computeVertexNormals()`, flat shading | Thick at the channel, thin at the alongshore tip. Centreline `z = bow · (1 − t²)` puts the tip landward of the channel end, and the arc stays seaward of the chord. The two base corners are shifted seaward of the crest. The next ridge’s Z step is shorter than the width at the channel, so they overlap seaward. Left flank is the right flank mirrored in X |
-| Mouth bar | `SphereGeometry` scaled with `MOUTH_BAR_SCALE` | Long axis is **+Z**. Nine bars sit in front of the channel. Z and \|X\| increase seaward. Y falls on a sigmoid, so the furthest bar is the lowest. The landward bar’s top is below the channel, and neighbours overlap |
+| Beach ridge | Custom `BufferGeometry` from `beachRidgeRing`. Sigmoid seaward face, `computeVertexNormals()`, flat shading | Thick at the channel, thin at the alongshore tip. Centreline `z = bow · (1 − t²)` puts the tip landward of the channel end, and the arc stays seaward of the chord. Each landward ridge is 2% of the crest height above the next seaward ridge. The base is seaward of the crest. The next ridge’s Z step is shorter than the width at the channel, so they overlap seaward. Left flank is the right flank mirrored in X |
+| Mouth bar | Custom flat oval in `mouthBarGeometry`. Plan is an ellipse. Y follows a sigmoid along **+Z** | Nine bars fill a V in front of the channel. Each bar’s seaward rim is its lowest point. The stack also steps down seaward, under the water line |
 | Swale, mouth-bar slab, lobe solid | Not drawn | Wf-Lobe and Wf-Mouth Bar remain labels |
 
 +X is alongshore to the right. +Y is up. +Z is seaward. Figure 10’s Wf-Lobe crescents are the ridge shape. Figures 7 and 8 are the stacking reference. The PNG is the plan arrangement, without its grey swales or blue body.
@@ -20,7 +20,7 @@
 
 **Tech stack:** Vite, React 18, TypeScript, Tailwind, Vitest, `three` `^0.186.1` (only the schematic view). MapLibre is unchanged.
 
-The earlier stand-in list (blue lobe sphere, green slab, grey swale boxes, square channel) is gone. Do not restore it. Diagram colours stay inside the canvas: gold ridges, green mouth bars, orange channel, slate ground. Do not paint the PNG onto a mesh.
+The earlier stand-in list (blue lobe sphere, green slab, grey swale boxes, square channel) is gone. Do not restore it. Diagram colours stay inside the canvas: gold ridges, green mouth bars, orange channel, blue water line. Do not paint the PNG onto a mesh.
 
 ## Skill set
 

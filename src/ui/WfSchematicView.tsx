@@ -3,15 +3,18 @@ import * as THREE from 'three'
 import {
   beachRidgeRing,
   beachRidgeStations,
-  MOUTH_BAR_SCALE,
+  GROUND_THICKNESS,
   sceneAt,
+  WATER_COLOUR,
+  WATER_OPACITY,
   type PlacedBody,
   type SolidKind,
 } from '../core/wfSchematic'
 import { halfChannelGeometry } from './halfChannelGeometry'
+import { mouthBarGeometry } from './mouthBarGeometry'
 
 const COLOUR: Record<SolidKind, number> = {
-  ground: 0xcbd5e1,
+  ground: WATER_COLOUR,
   channel: 0xf97316,
   'mouth-bar': 0x4ade80,
   'beach-ridge': 0xeab308,
@@ -30,17 +33,18 @@ function beachRidgeGeometry(side: 'l' | 'r'): THREE.BufferGeometry {
   const quad = (a: number, b: number, c: number, d: number) => {
     indices.push(a, b, c, a, c, d)
   }
+  const corners = beachRidgeRing(stations[0]).length
   for (let s = 0; s < stations.length - 1; s += 1) {
-    const a = s * 4
-    const b = (s + 1) * 4
-    quad(a, b, b + 1, a + 1)
-    quad(a + 1, b + 1, b + 2, a + 2)
-    quad(a + 2, b + 2, b + 3, a + 3)
-    quad(a + 3, b + 3, b, a)
+    const a = s * corners
+    const b = (s + 1) * corners
+    for (let i = 0; i < corners; i += 1) {
+      const next = (i + 1) % corners
+      quad(a + i, b + i, b + next, a + next)
+    }
   }
-  quad(0, 1, 2, 3)
-  const tip = (stations.length - 1) * 4
-  quad(tip, tip + 3, tip + 2, tip + 1)
+  for (let i = 1; i < corners - 1; i += 1) indices.push(0, i, i + 1)
+  const tip = (stations.length - 1) * corners
+  for (let i = corners - 1; i >= 2; i -= 1) indices.push(tip, tip + i, tip + i - 1)
   if (side === 'l') {
     for (let i = 0; i < positions.length; i += 3) positions[i] = -positions[i]
     for (let i = 0; i < indices.length; i += 3) {
@@ -57,13 +61,9 @@ function beachRidgeGeometry(side: 'l' | 'r'): THREE.BufferGeometry {
 }
 
 function geometryFor(body: PlacedBody): THREE.BufferGeometry {
-  if (body.kind === 'ground') return new THREE.BoxGeometry(8, 0.05, 6)
+  if (body.kind === 'ground') return new THREE.BoxGeometry(8, GROUND_THICKNESS, 6)
   if (body.kind === 'channel') return halfChannelGeometry()
-  if (body.kind === 'mouth-bar') {
-    const geometry = new THREE.SphereGeometry(0.5, 28, 18)
-    geometry.scale(MOUTH_BAR_SCALE.x, MOUTH_BAR_SCALE.y, MOUTH_BAR_SCALE.z)
-    return geometry
-  }
+  if (body.kind === 'mouth-bar') return mouthBarGeometry()
   if (body.kind === 'beach-ridge') {
     return beachRidgeGeometry(body.id.includes('-r-') ? 'r' : 'l')
   }
@@ -142,6 +142,9 @@ export default function WfSchematicView({ explode }: { explode: number }) {
           color: COLOUR[body.kind],
           roughness: 0.72,
           flatShading: body.kind === 'beach-ridge',
+          transparent: body.kind === 'ground',
+          opacity: body.kind === 'ground' ? WATER_OPACITY : 1,
+          depthWrite: body.kind !== 'ground',
         })
         meshMaterials.push(material)
         group.add(new THREE.Mesh(geometry, material))

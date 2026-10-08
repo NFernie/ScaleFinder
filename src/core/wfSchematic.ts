@@ -33,8 +33,17 @@ export interface RidgeCorner {
 /** Half-channel radius. Half of the previous full cylinder. */
 export const CHANNEL_RADIUS = 0.1
 
-/** Mouth-bar plan diameters. Y is 20% of the previous spheroid height. */
-export const MOUTH_BAR_SCALE = { x: 0.5, y: 0.056, z: 0.72 } as const
+/**
+ * Mouth-bar diameters. Y is the half-spheroid thickness, 50% more than the
+ * previous sheet. Z is the long axis, 50% longer, with the extra length seaward.
+ */
+export const MOUTH_BAR_SCALE = { x: 0.5, y: 0.084, z: 1.08 } as const
+
+/** How far the seaward rim of a mouth bar sits below its landward base. */
+export const MOUTH_BAR_DIP = 0.18
+
+/** Each mouth bar sits this fraction of its thickness below the adjacent landward bar. */
+export const MOUTH_BAR_STEP = 0.05
 
 /** How far the ridge base (lowest Y) sits seaward of the crest. */
 export const RIDGE_BASE_SEAWARD = 0.12
@@ -70,7 +79,6 @@ const RIDGE_TIP_WIDTH = 0.015
 const RIDGE_STATIONS = 10
 const CHANNEL_LANDWARD_REACH = 1.55
 const CHANNEL_FLAT_Y = 0.32
-const MOUTH_DROP = 0.04
 const RIDGE_NEST_Y = 0.04
 /** Crest height the 2% base offset was set against. Bases stay on this spacing. */
 const RIDGE_BASE_REF = 0.36
@@ -184,6 +192,17 @@ function sigmoid01(t: number): number {
   return (raw(t) - start) / (end - start)
 }
 
+/** Base of one mouth bar. The landward rim is 0. The seaward rim is the full dip. */
+export function mouthBarBaseOffset(z: number, halfZ: number): number {
+  const t = halfZ === 0 ? 0 : (z / halfZ + 1) / 2
+  return -MOUTH_BAR_DIP * sigmoid01(Math.min(1, Math.max(0, t)))
+}
+
+/** Base of the most seaward beach ridge. The landward mouth bar shares this Y. */
+export function seawardRidgeBaseY(): number {
+  return RIDGE_NEST_Y - (RIDGE_COUNT - 1) * RIDGE_BASE_REF * RIDGE_DOWNSTEP
+}
+
 /**
  * Filled V in front of the channel. The apex is the centre bar.
  * The next row is one left and one right. Each of those then adds an
@@ -211,19 +230,16 @@ export function waterlineY(): number {
 function mouthBars(): Array<{ x: number; y: number; z: number }> {
   const span = channelSpan()
   const halfZ = MOUTH_BAR_SCALE.z / 2
-  const halfY = MOUTH_BAR_SCALE.y / 2
-  const yLand = waterlineY() - halfY - 0.02
-  const ySea = yLand - MOUTH_DROP
+  const yLand = seawardRidgeBaseY()
+  const step = MOUTH_BAR_SCALE.y * MOUTH_BAR_STEP
   const z0 = span.zSea - 0.12 + halfZ
-  const zMax = Math.max(...MOUTH_FAN.map((point) => point.z))
-  return MOUTH_FAN.map((point) => {
-    const t = point.z / zMax
-    return {
-      x: point.x,
-      y: yLand + (ySea - yLand) * sigmoid01(t),
-      z: z0 + point.z,
-    }
-  })
+  const levels = [...new Set(MOUTH_FAN.map((point) => point.z))].sort((a, b) => a - b)
+  const rank = new Map(levels.map((level, index) => [level, index]))
+  return MOUTH_FAN.map((point) => ({
+    x: point.x,
+    y: yLand - (rank.get(point.z) ?? 0) * step,
+    z: z0 + point.z,
+  }))
 }
 
 function ridgeFlank(side: 'l' | 'r'): SceneBody[] {

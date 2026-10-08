@@ -7,6 +7,7 @@ import {
   channelSpan,
   GROUND_THICKNESS,
   MOUTH_BAR_SCALE,
+  MOUTH_BAR_STEP,
   RIDGE_BASE_SEAWARD,
   RIDGE_DOWNSTEP,
   sceneAt,
@@ -40,13 +41,15 @@ describe('wfSchematic', () => {
   })
 
   it('fills a seaward mouth-bar V under the water line', () => {
-    const mouths = sceneAt(0)
+    const placed = sceneAt(0)
+    const mouths = placed
       .filter((body) => body.kind === 'mouth-bar')
       .sort((a, b) => a.position.z - b.position.z || a.position.x - b.position.x)
     const span = channelSpan()
     const water = waterlineY()
     expect(mouths).toHaveLength(9)
-    expect(MOUTH_BAR_SCALE.y).toBeCloseTo(0.28 * 0.2)
+    expect(MOUTH_BAR_SCALE.y).toBeCloseTo(0.056 * 1.5)
+    expect(MOUTH_BAR_SCALE.z).toBeCloseTo(0.72 * 1.5)
     expect(MOUTH_BAR_SCALE.z).toBeGreaterThan(MOUTH_BAR_SCALE.x)
     const centre = mouths.find((body) => body.position.x === 0)
     expect(centre?.position.z).toBe(Math.min(...mouths.map((body) => body.position.z)))
@@ -60,14 +63,22 @@ describe('wfSchematic', () => {
     expect(Math.abs(innerLeft.position.x - innerRight.position.x)).toBeLessThan(MOUTH_BAR_SCALE.x)
     const widest = Math.max(...mouths.map((body) => Math.abs(body.position.x)))
     expect(mouths.filter((body) => Math.abs(body.position.x) === widest).every((body) => body.position.z > (centre?.position.z ?? 0))).toBe(true)
-    expect((centre?.position.y ?? 0) + MOUTH_BAR_SCALE.y / 2).toBeLessThan(water)
-    expect(centre && centre.position.z - MOUTH_BAR_SCALE.z / 2).toBeLessThan(span.zSea)
+    const seawardRidge = placed
+      .filter((body) => body.id.startsWith('e-ridge-r-'))
+      .sort((a, b) => a.position.z - b.position.z)
+    const outerRidge = seawardRidge[seawardRidge.length - 1]
+    expect(centre?.position.y).toBeCloseTo(outerRidge?.position.y ?? NaN)
+    expect((centre?.position.y ?? 0) + MOUTH_BAR_SCALE.y).toBeLessThan(water)
+    expect(centre && centre.position.z - MOUTH_BAR_SCALE.z / 2).toBeCloseTo(span.zSea - 0.12)
     expect(centre && centre.position.z + MOUTH_BAR_SCALE.z / 2).toBeGreaterThan(span.zSea)
     for (let i = 1; i < mouths.length; i += 1) {
       expect(mouths[i].position.z).toBeGreaterThanOrEqual(mouths[i - 1].position.z)
       expect(mouths[i].position.y).toBeLessThanOrEqual(mouths[i - 1].position.y + 1e-9)
       if (mouths[i].position.z > mouths[i - 1].position.z) {
+        expect(mouths[i - 1].position.y - mouths[i].position.y).toBeCloseTo(MOUTH_BAR_SCALE.y * MOUTH_BAR_STEP)
         expect(mouths[i].position.z - mouths[i - 1].position.z).toBeLessThan(MOUTH_BAR_SCALE.z)
+      } else {
+        expect(mouths[i].position.y).toBeCloseTo(mouths[i - 1].position.y)
       }
     }
     expect(mouths[mouths.length - 1].position.y).toBeLessThan(mouths[0].position.y)

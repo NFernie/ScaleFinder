@@ -68,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `docs/superpowers/specs/2026-10-08-wf-schematic-pin-design.md` — draft spec for a Wf type schematic pinned at Sfântu Gheorghe. Opening the pin explodes element, element set, element complex, and element complex set. Product copy updates wait until the spec is accepted.
 - Product, purpose, and design records put Outline on Lasso and Dynamic and Static on Paint Brush.
 - Product, purpose, and design records say a closed Lasso or Polygon corner can be selected and dragged before Add to list.
 - PRODUCT.md, ScaleFinderPurpose.md, and DESIGN.md name Lasso Dynamic, Static, and Outline, and the closed-draft vertex edit.

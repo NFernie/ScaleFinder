@@ -58,7 +58,8 @@ const RIDGE_STATIONS = 10
 const CHANNEL_LANDWARD_REACH = 1.55
 const CHANNEL_FLAT_Y = 0.32
 const MOUTH_COUNT = 9
-const MOUTH_Z_STEP = 0.2
+const MOUTH_Z_STEP = 0.13
+const MOUTH_DROP = 0.12
 
 /**
  * One beach-ridge centreline in ridge-local coordinates.
@@ -126,14 +127,14 @@ function mouthBars(): Array<{ x: number; y: number; z: number }> {
   const halfY = MOUTH_BAR_SCALE.y / 2
   const channelBottom = span.flatY - CHANNEL_RADIUS
   const yLand = channelBottom - halfY - 0.04
-  const ySea = yLand - 0.34
+  const ySea = yLand - MOUTH_DROP
   const z0 = span.zSea - 0.18 + halfZ
   const bars = []
   for (let i = 0; i < MOUTH_COUNT; i += 1) {
     const t = i / (MOUTH_COUNT - 1)
     const sign = i === 0 ? 0 : i % 2 === 1 ? 1 : -1
     bars.push({
-      x: sign * 0.11 * i,
+      x: sign * 0.15 * i,
       y: yLand + (ySea - yLand) * sigmoid01(t),
       z: z0 + i * MOUTH_Z_STEP,
     })

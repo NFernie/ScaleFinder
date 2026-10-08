@@ -4,14 +4,14 @@
 
 ## What shipped
 
-`threejs-geometry` only. Positions stay in `src/core/wfSchematic.ts`. Meshes stay in `src/ui/WfSchematicView.tsx`. `three` is not imported from core.
+`threejs-geometry` only. Positions stay in `src/core/wfSchematic.ts`. Meshes stay in `src/ui/WfSchematicView.tsx`, and the half-cylinder builder is `src/ui/halfChannelGeometry.ts`. `three` is not imported from core.
 
 | Body | Mesh | Frame |
 | --- | --- | --- |
 | Ground | Thin box | Unchanged slate slab |
-| Channel | `CylinderGeometry` with equal radii, `rotateX(π/2)` so the axis is **+Z** | Centred at X = 0 |
-| Beach ridge | Custom `BufferGeometry`. Four stations across the section, `computeVertexNormals()`, flat shading | Thick at the channel, thin at the alongshore tip. Centreline `z = bow · t²` stays landward of the chord, so the bow faces away from the sea. The next ridge’s Z step is shorter than the width at the channel, so they overlap seaward. Left flank is the right flank mirrored in X |
-| Mouth bar | `SphereGeometry` scaled with `MOUTH_BAR_SCALE` | Long axis is **+Z**. The fan in X and Z stays. Each younger bar sits higher by less than its height |
+| Channel | Custom half-cylinder `BufferGeometry` along **+Z**. Flat face at local y = 0, arc down to `−radius`. `computeVertexNormals()` | Radius is half the earlier full cylinder. The mesh origin is the middle of the flat face. The **+Z** tip meets the thick end of the most seaward beach ridge. Centred at X = 0 |
+| Beach ridge | Custom `BufferGeometry` from `beachRidgeRing`. Four corners per station, `computeVertexNormals()`, flat shading | Thick at the channel, thin at the alongshore tip. Centreline `z = bow · (1 − t²)` puts the tip landward of the channel end, and the arc stays seaward of the chord. The two base corners are shifted seaward of the crest. The next ridge’s Z step is shorter than the width at the channel, so they overlap seaward. Left flank is the right flank mirrored in X |
+| Mouth bar | `SphereGeometry` scaled with `MOUTH_BAR_SCALE` | Long axis is **+Z**. Nine bars sit in front of the channel. Z and \|X\| increase seaward. Y falls on a sigmoid, so the furthest bar is the lowest. The landward bar’s top is below the channel, and neighbours overlap |
 | Swale, mouth-bar slab, lobe solid | Not drawn | Wf-Lobe and Wf-Mouth Bar remain labels |
 
 +X is alongshore to the right. +Y is up. +Z is seaward. Figure 10’s Wf-Lobe crescents are the ridge shape. Figures 7 and 8 are the stacking reference. The PNG is the plan arrangement, without its grey swales or blue body.
@@ -50,10 +50,10 @@ UI skills (UI UX Pro Max, Impeccable, Emil) do not run for this pass. The pin, p
 One skill per message. Do not open a skipped skill “for context”.
 
 1. **Read geometry, then fundamentals.** Confirm the frame: +X alongshore right, +Y up, +Z seaward. Write down which constructor each kind will use before editing the view.
-2. **Keep the scene graph.** `sceneAt` positions and ranks stay. Mouth bars keep the fan in X and Z and their overlapping Y steps. Beach ridges stay rooted on X = 0 and step in +Z. There are no swales. Explode clamps to 0–1 and adds Y by rank only (`0`, `1.2`, `2.4`, `3.6`).
-3. **Silhouette numbers live in core.** `beachRidgeStations` is the plan and the taper. Land is −Z. Sea is +Z. The channel is the axis. Do not draw the PNG into the canvas.
+2. **Keep the scene graph.** `sceneAt` positions and ranks stay. Mouth bars keep the seaward fan and the descending sigmoid. Beach ridges stay rooted on X = 0 and step in +Z. There are no swales. Explode clamps to 0–1 and adds Y by rank only (`0`, `1.2`, `2.4`, `3.6`).
+3. **Silhouette numbers live in core.** `beachRidgeStations` and `beachRidgeRing` are the plan, the taper, and the base shift. `channelSpan` trims the channel. Land is −Z. Sea is +Z. The channel is the axis. Do not draw the PNG into the canvas.
 4. **Further mesh edits stay in `geometryFor`.** Ground stays a thin box. Wf-Lobe, Wf-Mouth Bar, and element sets stay labels. Do not add a lobe solid, a mouth-bar slab, or a swale.
-5. **Orientation check.** A cylinder’s axis starts on Y. `rotateX(π/2)` lays it on +Z. Ridge vertices are already in schematic X, Y, Z. The thick end touches the channel. The thin end is the alongshore tip.
+5. **Orientation check.** The channel mesh is already in schematic axes: length on Z, flat face on +Y, arc on −Y. Do not rotate a full `CylinderGeometry` back in. Ridge vertices are already in schematic X, Y, Z. The thick end touches the channel and is the seaward side of the bow. The thin end is the alongshore tip and lies landward.
 6. **Read materials, then lighting, only if the plan already matches and the solids are hard to read.** Flat shading on wedges. Double-sided thin lenses if a face disappears. Polygon offset if two slabs flicker. Hemisphere light plus the lights already in the view. No shadows.
 7. **Explode still tracks the thumb.** Move `position.y` from `sceneAt`. Do not ease it.
 8. **Cleanup stays.** Dispose geometries, mesh materials, sprite materials, and label textures, then `renderer.dispose()`, `renderer.forceContextLoss()`, and remove the canvas. The WebGL probe still calls `loseContext()` so it does not hold a slot.

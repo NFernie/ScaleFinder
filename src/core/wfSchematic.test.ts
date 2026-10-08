@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { beachRidgeStations, MOUTH_BAR_SCALE, sceneAt, WF_ANCHOR } from './wfSchematic'
+import {
+  beachRidgeRing,
+  beachRidgeStations,
+  CHANNEL_LENGTH,
+  CHANNEL_RADIUS,
+  channelSpan,
+  MOUTH_BAR_SCALE,
+  RIDGE_BASE_SEAWARD,
+  sceneAt,
+  WF_ANCHOR,
+} from './wfSchematic'
 
 describe('wfSchematic', () => {
   it('pins Sfântu Gheorghe', () => {
@@ -25,19 +35,26 @@ describe('wfSchematic', () => {
     ])
   })
 
-  it('fans five mouth bars seaward and sideways, overlapping in height', () => {
+  it('stacks mouth bars in a seaward sigmoid in front of the channel', () => {
     const mouths = sceneAt(0)
       .filter((body) => body.kind === 'mouth-bar')
       .sort((a, b) => a.position.z - b.position.z)
-    expect(mouths).toHaveLength(5)
-    expect(mouths.map((body) => Math.sign(body.position.x))).toEqual([0, 1, -1, 1, -1])
+    const span = channelSpan()
+    expect(mouths.length).toBeGreaterThan(5)
+    expect(mouths.map((body) => Math.sign(body.position.x))).toEqual([0, 1, -1, 1, -1, 1, -1, 1, -1])
     expect(MOUTH_BAR_SCALE.z).toBeGreaterThan(MOUTH_BAR_SCALE.x)
+    const landward = mouths[0]
+    expect(landward.position.y + MOUTH_BAR_SCALE.y / 2).toBeLessThan(span.flatY - CHANNEL_RADIUS)
+    expect(landward.position.z - MOUTH_BAR_SCALE.z / 2).toBeLessThan(span.zSea)
+    expect(landward.position.z + MOUTH_BAR_SCALE.z / 2).toBeGreaterThan(span.zSea)
     for (let i = 1; i < mouths.length; i += 1) {
-      expect(mouths[i].position.z).toBeGreaterThan(mouths[i - 1].position.z)
+      const stepZ = mouths[i].position.z - mouths[i - 1].position.z
+      const drop = mouths[i - 1].position.y - mouths[i].position.y
+      expect(stepZ).toBeGreaterThan(0)
+      expect(stepZ).toBeLessThan(MOUTH_BAR_SCALE.z)
       expect(Math.abs(mouths[i].position.x)).toBeGreaterThan(Math.abs(mouths[i - 1].position.x))
-      const rise = mouths[i].position.y - mouths[i - 1].position.y
-      expect(rise).toBeGreaterThan(0)
-      expect(rise).toBeLessThan(MOUTH_BAR_SCALE.y)
+      expect(drop).toBeGreaterThan(0)
+      expect(drop).toBeLessThan(MOUTH_BAR_SCALE.y)
     }
     const area = mouths.reduce((sum, body, index) => {
       const next = mouths[(index + 1) % mouths.length]
@@ -62,10 +79,14 @@ describe('wfSchematic', () => {
       const mid = stations[Math.floor(stations.length / 2)]
       const midT = Math.floor(stations.length / 2) / (stations.length - 1)
       const chordZ = channelEnd.z + (tip.z - channelEnd.z) * midT
+      const ring = beachRidgeRing(channelEnd)
+      const baseZ = ring.filter((corner) => corner.y === 0).reduce((sum, corner) => sum + corner.z, 0) / 2
+      const crestZ = ring.filter((corner) => corner.y > 0).reduce((sum, corner) => sum + corner.z, 0) / 2
       expect(channelEnd.halfWidth).toBeGreaterThan(tip.halfWidth * 4)
       expect(channelEnd.height).toBeGreaterThan(tip.height * 3)
-      expect(tip.z).toBeGreaterThan(channelEnd.z)
-      expect(mid.z).toBeLessThan(chordZ)
+      expect(tip.z).toBeLessThan(channelEnd.z)
+      expect(mid.z).toBeGreaterThan(chordZ)
+      expect(baseZ - crestZ).toBeCloseTo(RIDGE_BASE_SEAWARD)
       expect(Math.abs(tip.x)).toBeGreaterThan(Math.abs(channelEnd.x))
       expect(Math.sign(channelEnd.x)).toBe(side === 'r' ? 1 : -1)
       for (let i = 1; i < ridges.length; i += 1) {
@@ -77,11 +98,22 @@ describe('wfSchematic', () => {
     }
   })
 
-  it('keeps one straight channel on the axis and no slab or lobe solid', () => {
+  it('trims one half-channel to the seaward beach ridges', () => {
     const nested = sceneAt(0)
     const channel = nested.find((body) => body.kind === 'channel')
+    const span = channelSpan()
+    const rightRidges = nested
+      .filter((body) => body.id.startsWith('e-ridge-r-'))
+      .sort((a, b) => a.position.z - b.position.z)
+    const seaward = rightRidges[rightRidges.length - 1]
+    const thickZ = (seaward?.position.z ?? 0) + beachRidgeStations('r')[0].z
     expect(channel?.position.x).toBe(0)
+    expect(channel?.position.y).toBe(span.flatY)
+    expect(channel?.position.z).toBeCloseTo(span.centerZ)
     expect(channel?.parentId).toBe('ec-mouth')
+    expect(CHANNEL_RADIUS).toBe(0.1)
+    expect(span.zSea).toBeCloseTo(thickZ)
+    expect(span.centerZ + CHANNEL_LENGTH / 2).toBeCloseTo(span.zSea)
     expect(nested.filter((body) => body.kind === 'channel')).toHaveLength(1)
     expect(nested.filter((body) => body.kind === 'group' && body.rank === 'element-complex')).toHaveLength(2)
     expect(nested.find((body) => body.id === 'ec-lobe')?.kind).toBe('group')

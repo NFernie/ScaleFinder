@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The Wf schematic beach ridges are wedges: thick where they meet the channel, thin at the alongshore tips, curved so the bow faces the land, and overlapping toward the sea. Mouth bars are ovals along the seaward axis and overlap in height. The channel is a straight cylinder on that axis. Swales, the green mouth-bar slab, and the blue lobe solid are not drawn.
+- The Wf schematic beach ridges are wedges: thick where they meet the channel, thin at the alongshore tips, bowed so those tips lie landward of the channel edge and the set is convex seaward. The base of each ridge sits slightly seaward of its crest. Mouth bars are ovals along the seaward axis, stacked in a descending sigmoid in front of the channel, and they overlap as they fan. The channel is a half cylinder, flat face up, half the previous thickness, ending at the seaward beach ridges. Swales, the green mouth-bar slab, and the blue lobe solid are not drawn.
 - The Toolbox has six tools. Lasso is the outline stroke. Dynamic and Static move to Paint Brush. Drawing, sampling, and vertex edit are unchanged.
 - Outline Lasso strokes are not sampled. Static Lasso stores the colour of the first sample and reuses it for the rest of the stroke.
 - Outline Lasso uses the Polygon crosshair. Dynamic and Static keep the radius ring.
@@ -78,7 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Docs
 
 - `features/schematic_module.md` — workflow for the Wf schematic geometry pass, including the cast that replaced the boxes and spheres.
-- The Wf schematic spec and design record drop swales, the mouth-bar slab, and the lobe solid, and describe the tapered ridges, seaward mouth-bar ovals, and the straight channel.
+- The Wf schematic spec and design record drop swales, the mouth-bar slab, and the lobe solid, and describe the seaward-convex ridges, the sigmoid mouth-bar fan, and the half-cylinder channel.
 - `docs/superpowers/plans/2026-10-08-wf-schematic-pin.md` — implementation plan for the approved Wf schematic pin. UI tasks follow `WORKFLOW.md`: UI UX Pro Max `ui-styling`, Impeccable shape, critique, polish, audit, harden, and document, then Emil Kowalski (`emil-design-eng`, `find-animation-opportunities`, `animate`, `review-animations`, `mobile-native`), one skill per message, before the screen ships.
 - `docs/superpowers/specs/2026-10-08-wf-schematic-pin-design.md` — approved spec for a Wf type schematic pinned at Sfântu Gheorghe. Opening the pin explodes element, element set, element complex, and element complex set. Product copy updates happen in the implementation.
 - Product, purpose, and design records put Outline on Lasso and Dynamic and Static on Paint Brush.

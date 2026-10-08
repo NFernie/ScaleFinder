@@ -1,14 +1,14 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import {
+  beachRidgeRing,
   beachRidgeStations,
-  CHANNEL_LENGTH,
-  CHANNEL_RADIUS,
   MOUTH_BAR_SCALE,
   sceneAt,
   type PlacedBody,
   type SolidKind,
 } from '../core/wfSchematic'
+import { halfChannelGeometry } from './halfChannelGeometry'
 
 const COLOUR: Record<SolidKind, number> = {
   ground: 0xcbd5e1,
@@ -23,13 +23,9 @@ function beachRidgeGeometry(side: 'l' | 'r'): THREE.BufferGeometry {
   const positions: number[] = []
   const indices: number[] = []
   for (const station of stations) {
-    const crown = station.halfWidth * 0.28
-    positions.push(
-      station.x, 0, station.z - station.halfWidth,
-      station.x, 0, station.z + station.halfWidth,
-      station.x, station.height, station.z + crown,
-      station.x, station.height, station.z - crown,
-    )
+    for (const corner of beachRidgeRing(station)) {
+      positions.push(corner.x, corner.y, corner.z)
+    }
   }
   const quad = (a: number, b: number, c: number, d: number) => {
     indices.push(a, b, c, a, c, d)
@@ -62,11 +58,7 @@ function beachRidgeGeometry(side: 'l' | 'r'): THREE.BufferGeometry {
 
 function geometryFor(body: PlacedBody): THREE.BufferGeometry {
   if (body.kind === 'ground') return new THREE.BoxGeometry(8, 0.05, 6)
-  if (body.kind === 'channel') {
-    const geometry = new THREE.CylinderGeometry(CHANNEL_RADIUS, CHANNEL_RADIUS, CHANNEL_LENGTH, 24)
-    geometry.rotateX(Math.PI / 2)
-    return geometry
-  }
+  if (body.kind === 'channel') return halfChannelGeometry()
   if (body.kind === 'mouth-bar') {
     const geometry = new THREE.SphereGeometry(0.5, 28, 18)
     geometry.scale(MOUTH_BAR_SCALE.x, MOUTH_BAR_SCALE.y, MOUTH_BAR_SCALE.z)

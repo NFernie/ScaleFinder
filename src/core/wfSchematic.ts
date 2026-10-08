@@ -24,12 +24,20 @@ export interface RidgeStation {
   height: number
 }
 
-/** Straight channel. Radius is alongshore and vertical. Length runs seaward (+Z) after the view turns the cylinder. */
-export const CHANNEL_RADIUS = 0.2
-export const CHANNEL_LENGTH = 3.8
+export interface RidgeCorner {
+  x: number
+  y: number
+  z: number
+}
+
+/** Half-channel radius. Half of the previous full cylinder. */
+export const CHANNEL_RADIUS = 0.1
 
 /** Mouth-bar ellipsoid diameters. Y is the full height. Z is the long axis. */
-export const MOUTH_BAR_SCALE = { x: 0.62, y: 0.36, z: 1.25 } as const
+export const MOUTH_BAR_SCALE = { x: 0.5, y: 0.28, z: 0.72 } as const
+
+/** How far the ridge base (lowest Y) sits seaward of the crest. */
+export const RIDGE_BASE_SEAWARD = 0.1
 
 const RANK_LIFT: Record<Rank, number> = {
   'element-complex-set': 0,
@@ -43,17 +51,20 @@ const RIDGE_INNER = CHANNEL_RADIUS
 const RIDGE_OUTER = 3.45
 const RIDGE_Z_BASE = -0.55
 const RIDGE_Z_STEP = 0.34
-const RIDGE_BOW = 0.72
+const RIDGE_BOW = 0.85
 const RIDGE_HALF_WIDTH = 0.26
 const RIDGE_HEIGHT = 0.32
 const RIDGE_STATIONS = 10
+const CHANNEL_LANDWARD_REACH = 1.55
+const CHANNEL_FLAT_Y = 0.32
+const MOUTH_COUNT = 9
+const MOUTH_Z_STEP = 0.2
 
 /**
  * One beach-ridge centreline in ridge-local coordinates.
- * X is alongshore, away from the channel. Z is seaward relative to the
- * channel-end centre: the tip swings seaward, and the arc stays landward
- * of the straight chord, so the ridge is convex away from the sea.
- * Width and height are largest at the channel and smallest at the tip.
+ * X is alongshore, away from the channel. The thick end, against the
+ * channel, is seaward of the thin tip. The arc stays seaward of the
+ * straight chord, so the two flanks read as one lobe convex toward the sea.
  */
 export function beachRidgeStations(side: 'l' | 'r'): RidgeStation[] {
   const sign = side === 'r' ? 1 : -1
@@ -63,12 +74,71 @@ export function beachRidgeStations(side: 'l' | 'r'): RidgeStation[] {
     const taper = 1 - t
     stations.push({
       x: sign * (RIDGE_INNER + t * (RIDGE_OUTER - RIDGE_INNER)),
-      z: RIDGE_BOW * t * t,
+      z: RIDGE_BOW * (1 - t * t),
       halfWidth: RIDGE_HALF_WIDTH * taper + 0.03,
       height: RIDGE_HEIGHT * taper + 0.04,
     })
   }
   return stations
+}
+
+/** Four corners at one station. The two base corners are shifted seaward. */
+export function beachRidgeRing(station: RidgeStation): RidgeCorner[] {
+  const crown = station.halfWidth * 0.28
+  return [
+    { x: station.x, y: 0, z: station.z - station.halfWidth + RIDGE_BASE_SEAWARD },
+    { x: station.x, y: 0, z: station.z + station.halfWidth + RIDGE_BASE_SEAWARD },
+    { x: station.x, y: station.height, z: station.z + crown },
+    { x: station.x, y: station.height, z: station.z - crown },
+  ]
+}
+
+function ridgeWorldZ(index: number): number {
+  return RIDGE_Z_BASE + index * RIDGE_Z_STEP + beachRidgeStations('r')[0].z
+}
+
+/** Seaward tip of the channel meets the thick end of the most seaward ridge. */
+export function channelSpan(): { zLand: number; zSea: number; length: number; centerZ: number; flatY: number } {
+  const zSea = ridgeWorldZ(RIDGE_COUNT - 1)
+  const zLand = ridgeWorldZ(0) - CHANNEL_LANDWARD_REACH
+  return {
+    zLand,
+    zSea,
+    length: zSea - zLand,
+    centerZ: (zLand + zSea) / 2,
+    flatY: CHANNEL_FLAT_Y,
+  }
+}
+
+export const CHANNEL_LENGTH = channelSpan().length
+
+function sigmoid01(t: number): number {
+  const k = 8
+  const raw = (u: number) => 1 / (1 + Math.exp(-k * (u - 0.5)))
+  const start = raw(0)
+  const end = raw(1)
+  return (raw(t) - start) / (end - start)
+}
+
+function mouthBars(): Array<{ x: number; y: number; z: number }> {
+  const span = channelSpan()
+  const halfZ = MOUTH_BAR_SCALE.z / 2
+  const halfY = MOUTH_BAR_SCALE.y / 2
+  const channelBottom = span.flatY - CHANNEL_RADIUS
+  const yLand = channelBottom - halfY - 0.04
+  const ySea = yLand - 0.34
+  const z0 = span.zSea - 0.18 + halfZ
+  const bars = []
+  for (let i = 0; i < MOUTH_COUNT; i += 1) {
+    const t = i / (MOUTH_COUNT - 1)
+    const sign = i === 0 ? 0 : i % 2 === 1 ? 1 : -1
+    bars.push({
+      x: sign * 0.11 * i,
+      y: yLand + (ySea - yLand) * sigmoid01(t),
+      z: z0 + i * MOUTH_Z_STEP,
+    })
+  }
+  return bars
 }
 
 function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
@@ -81,7 +151,7 @@ function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
       rank: 'element-set',
       parentId: 'ec-lobe',
       kind: 'group',
-      nested: { x: sign * 1.7, y: 0.5, z: RIDGE_Z_BASE + 1.5 * RIDGE_Z_STEP },
+      nested: { x: sign * 1.7, y: 0.5, z: RIDGE_Z_BASE + 1.5 * RIDGE_Z_STEP + RIDGE_BOW * 0.45 },
     },
   ]
   for (let index = 0; index < RIDGE_COUNT; index += 1) {
@@ -97,13 +167,10 @@ function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
   return bodies
 }
 
-const MOUTH_BARS: Array<{ x: number; y: number; z: number }> = [
-  { x: 0, y: 0.2, z: 0.35 },
-  { x: 0.45, y: 0.34, z: 0.7 },
-  { x: -0.75, y: 0.48, z: 1.05 },
-  { x: 1.1, y: 0.62, z: 1.4 },
-  { x: -1.5, y: 0.76, z: 1.8 },
-]
+const MOUTH_BARS = mouthBars()
+const MOUTH_FAN_Z = (MOUTH_BARS[0].z + MOUTH_BARS[MOUTH_BARS.length - 1].z) / 2
+const MOUTH_FAN_Y = MOUTH_BARS.reduce((sum, bar) => sum + bar.y, 0) / MOUTH_BARS.length
+const CHANNEL = channelSpan()
 
 const BODIES: SceneBody[] = [
   {
@@ -120,7 +187,7 @@ const BODIES: SceneBody[] = [
     rank: 'element-complex',
     parentId: 'ecs',
     kind: 'group',
-    nested: { x: 0, y: 0.62, z: RIDGE_Z_BASE + 2 * RIDGE_Z_STEP },
+    nested: { x: 0, y: 0.62, z: RIDGE_Z_BASE + 2 * RIDGE_Z_STEP + RIDGE_BOW * 0.45 },
   },
   {
     id: 'ec-mouth',
@@ -128,7 +195,7 @@ const BODIES: SceneBody[] = [
     rank: 'element-complex',
     parentId: 'ecs',
     kind: 'group',
-    nested: { x: 0, y: 0.9, z: 1.05 },
+    nested: { x: 0, y: CHANNEL.flatY + 0.2, z: (CHANNEL.zSea + MOUTH_FAN_Z) / 2 },
   },
   ...ridgeFlank('l'),
   ...ridgeFlank('r'),
@@ -138,7 +205,7 @@ const BODIES: SceneBody[] = [
     rank: 'element-set',
     parentId: 'ec-mouth',
     kind: 'group',
-    nested: { x: 0, y: 1.05, z: 1.05 },
+    nested: { x: 0, y: MOUTH_FAN_Y + 0.2, z: MOUTH_FAN_Z },
   },
   ...MOUTH_BARS.map((point, index) => ({
     id: `e-mouth-${index}`,
@@ -154,7 +221,7 @@ const BODIES: SceneBody[] = [
     rank: 'element',
     parentId: 'ec-mouth',
     kind: 'channel',
-    nested: { x: 0, y: CHANNEL_RADIUS, z: 0.35 },
+    nested: { x: 0, y: CHANNEL.flatY, z: CHANNEL.centerZ },
   },
 ]
 

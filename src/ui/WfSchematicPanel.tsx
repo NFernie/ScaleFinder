@@ -2,13 +2,17 @@ import { useEffect, useState } from 'react'
 import { sceneAt } from '../core/wfSchematic'
 import WfSchematicView from './WfSchematicView'
 
+let webglProbe: boolean | undefined
+
 export function webglAvailable(): boolean {
+  if (webglProbe !== undefined) return webglProbe
   try {
     const canvas = document.createElement('canvas')
-    return Boolean(canvas.getContext('webgl2') || canvas.getContext('webgl'))
+    webglProbe = Boolean(canvas.getContext('webgl2') || canvas.getContext('webgl'))
   } catch {
-    return false
+    webglProbe = false
   }
+  return webglProbe
 }
 
 interface Props {
@@ -23,8 +27,11 @@ export default function WfSchematicPanel({ open, onClose }: Props) {
   const [explode, setExplode] = useState(0)
 
   useEffect(() => {
+    if (open) setExplode(0)
+  }, [open])
+
+  useEffect(() => {
     if (!open) return
-    setExplode(0)
     function onKey(event: KeyboardEvent) {
       if (event.key !== 'Escape') return
       document.getElementById('wf-schematic-pin')?.focus()

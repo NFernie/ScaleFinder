@@ -56,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The Wf schematic checks WebGL once, resets Explode only when the panel opens, and keeps the 3D view inside its frame.
 - Closed-shape vertex dots use an 8px white disc with a 1px slate casing drawn outside the disc.
 - Ring hit-testing type-checks under tsc -b. The nearest side and corner are tracked in the same function, not inside a forEach callback.
 - Ring hit-testing records the part that owns the nearest corner, separate from the part that owns the nearest side.

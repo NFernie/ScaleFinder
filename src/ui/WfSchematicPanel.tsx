@@ -125,7 +125,7 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
       const limits = maxFrameDimensions(sectionRef.current)
       const fitted = initialSchematicFrame(limits)
       const current = frameRef.current
-      setMinWidth(current ? Math.min(fitted.minWidth, current.width) : fitted.minWidth)
+      setMinWidth(fitted.minWidth)
       if (!current) {
         onFrame(fitted.frame)
         return

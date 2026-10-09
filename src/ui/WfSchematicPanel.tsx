@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { sceneAt, type Rank } from '../core/wfSchematic'
 import {
   fitSchematicFrame,
@@ -10,6 +10,7 @@ import {
   PANEL_HORIZONTAL_PAD_PX,
   PANEL_VERTICAL_CHROME_FALLBACK_PX,
   schematicFrameLimits,
+  wrapperEdgeGaps,
 } from './schematicFrame'
 import WfSchematicView, { type SchematicCameraHandle } from './WfSchematicView'
 
@@ -81,7 +82,10 @@ function maxFrameDimensions(section: HTMLElement | null): { maxWidth: number; ma
   const verticalChrome = section
     ? panelVerticalChromePx(section)
     : PANEL_VERTICAL_CHROME_FALLBACK_PX
-  const limits = schematicFrameLimits(map.getBoundingClientRect(), verticalChrome)
+  const mapRect = map.getBoundingClientRect()
+  const wrapper = section?.offsetParent instanceof HTMLElement ? section.offsetParent : null
+  const gaps = wrapperEdgeGaps(mapRect, wrapper && wrapper !== map ? wrapper.getBoundingClientRect() : null)
+  const limits = schematicFrameLimits(mapRect, verticalChrome, gaps)
   const maxWidth = Number.isFinite(limits.maxWidth)
     ? Math.max(0, limits.maxWidth - PANEL_BORDER_X_PX)
     : limits.maxWidth
@@ -95,6 +99,8 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
   const sectionRef = useRef<HTMLElement>(null)
   const cameraRef = useRef<SchematicCameraHandle>(null)
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null)
+  const frameRef = useRef(frame)
+  frameRef.current = frame
   const onViewUnavailable = useCallback(() => setViewFailed(true), [])
 
   useEffect(() => {
@@ -113,13 +119,34 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  useEffect(() => {
-    if (!open || frame !== null) return
-    const limits = maxFrameDimensions(sectionRef.current)
-    const { frame: initial, minWidth: fittedMin } = initialSchematicFrame(limits)
-    setMinWidth(fittedMin)
-    onFrame(initial)
-  }, [open, frame, onFrame])
+  useLayoutEffect(() => {
+    if (!open) return
+    const applyLimits = () => {
+      const limits = maxFrameDimensions(sectionRef.current)
+      const fitted = initialSchematicFrame(limits)
+      const current = frameRef.current
+      setMinWidth(current ? Math.min(fitted.minWidth, current.width) : fitted.minWidth)
+      if (!current) {
+        onFrame(fitted.frame)
+        return
+      }
+      if (current.width <= limits.maxWidth && current.height <= limits.maxHeight) return
+      const next = fitSchematicFrame({
+        width: current.width,
+        ratio: FRAME_RATIO,
+        minWidth: 0,
+        maxWidth: limits.maxWidth,
+        maxHeight: limits.maxHeight,
+      })
+      if (next.width < current.width - 0.01 || next.height < current.height - 0.01) onFrame(next)
+    }
+    applyLimits()
+    const map = mapFrameElementFromPanel(sectionRef.current)
+    if (!map || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => applyLimits())
+    observer.observe(map)
+    return () => observer.disconnect()
+  }, [open, onFrame])
 
   const applyWidth = useCallback(
     (nextWidth: number) => {

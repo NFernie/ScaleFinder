@@ -6,6 +6,8 @@ import {
   initialSchematicFrame,
   PANEL_HORIZONTAL_PAD_PX,
   schematicFrameLimits,
+  wheelZoomStep,
+  wrapperEdgeGaps,
   zoomDistance,
 } from './schematicFrame'
 
@@ -33,6 +35,28 @@ describe('schematicFrame', () => {
     const limits = schematicFrameLimits({ width: 800, height: 600 }, 200)
     expect(limits.maxWidth).toBe(800 - PANEL_HORIZONTAL_PAD_PX - FRAME_INSET_PX * 2)
     expect(limits.maxHeight).toBe(600 - 200 - FRAME_INSET_PX * 2)
+  })
+
+  it('leaves less height when a 34px bottom inset and a 12px top inset replace a flat 12px budget', () => {
+    const map = { width: 390, height: 700 }
+    const flat = schematicFrameLimits(map, 200)
+    const phone = schematicFrameLimits(map, 200, { top: 12, right: 12, bottom: 34, left: 12 })
+    expect(phone.maxHeight).toBeLessThan(flat.maxHeight)
+    expect(flat.maxHeight - phone.maxHeight).toBe(22)
+    expect(phone.maxHeight).toBe(700 - 200 - 12 - 34)
+    expect(phone.maxWidth).toBe(flat.maxWidth)
+  })
+
+  it('reads the wrapper gap on the bottom and right and ignores an empty wrapper', () => {
+    expect(
+      wrapperEdgeGaps(
+        { width: 400, height: 800, right: 400, bottom: 800 },
+        { width: 320, height: 240, right: 388, bottom: 766 },
+      ),
+    ).toEqual({ right: 12, bottom: 34 })
+    expect(
+      wrapperEdgeGaps({ width: 400, height: 800, right: 400, bottom: 800 }, { width: 0, height: 0, right: 0, bottom: 0 }),
+    ).toEqual({ right: 0, bottom: 0 })
   })
 
   it('uses infinity when the map rect is zero (jsdom)', () => {
@@ -81,5 +105,40 @@ describe('schematicFrame', () => {
     expect(zoomDistance(10, 'out')).toBeCloseTo(12.5)
     expect(zoomDistance(2, 'in')).toBe(2)
     expect(zoomDistance(60, 'out')).toBe(60)
+  })
+
+  it('counts one wheel detent as one zoom step', () => {
+    const first = wheelZoomStep(0, { deltaY: 40, deltaMode: 0 })
+    const second = wheelZoomStep(first.accumulator, { deltaY: 40, deltaMode: 0 })
+    expect(first.direction).toBeNull()
+    expect(second.direction).toBeNull()
+    const third = wheelZoomStep(second.accumulator, { deltaY: 40, deltaMode: 0 })
+    expect(third.direction).toBe('out')
+    expect(third.accumulator).toBe(20)
+    expect(wheelZoomStep(0, { deltaY: 1, deltaMode: 1 }).direction).toBe('out')
+    expect(wheelZoomStep(0, { deltaY: -1, deltaMode: 2 }).direction).toBe('in')
+    expect(wheelZoomStep(40, { deltaY: 0, deltaMode: 0 })).toEqual({ direction: null, accumulator: 40 })
+  })
+
+  it('keeps a fitted frame inside the map when the start size cannot fit', () => {
+    const fitted = fitSchematicFrame({
+      width: FRAME_START.width,
+      ratio,
+      minWidth: FRAME_START.width,
+      maxWidth: 200,
+      maxHeight: 80,
+    })
+    expect(fitted.width).toBeLessThanOrEqual(200)
+    expect(fitted.height).toBeLessThanOrEqual(80)
+    expect(fitted.width).toBeGreaterThanOrEqual(0)
+    expect(fitted.height).toBeGreaterThanOrEqual(0)
+    expect(fitted.width).toBeLessThan(FRAME_START.width)
+    const minimum = initialSchematicFrame({ maxWidth: 200, maxHeight: 80 })
+    expect(minimum.minWidth).toBeCloseTo(minimum.frame.width)
+    expect(minimum.frame.width).toBeLessThanOrEqual(200)
+    expect(minimum.frame.height).toBeLessThanOrEqual(80)
+    expect(
+      fitSchematicFrame({ width: 400, ratio, minWidth: 328, maxWidth: -20, maxHeight: -10 }),
+    ).toEqual({ width: 0, height: 0 })
   })
 })

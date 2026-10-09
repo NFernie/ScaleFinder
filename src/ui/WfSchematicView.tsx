@@ -14,7 +14,7 @@ import {
 import { halfChannelGeometry } from './halfChannelGeometry'
 import { mouthBarGeometry } from './mouthBarGeometry'
 import { cssEaseOut } from '../core/cssEaseOut'
-import { ZOOM_MAX, ZOOM_MIN, zoomDistance } from './schematicFrame'
+import { ZOOM_MAX, ZOOM_MIN, wheelZoomStep, zoomDistance } from './schematicFrame'
 
 const TARGET = new THREE.Vector3(0, 0.4, 0.6)
 
@@ -246,18 +246,26 @@ const WfSchematicView = forwardRef<
     observer.observe(el)
     el.appendChild(renderer.domElement)
 
+    let wheelAccum = 0
     function onWheel(event: WheelEvent) {
       event.preventDefault()
       event.stopPropagation()
+      const step = wheelZoomStep(wheelAccum, event)
+      wheelAccum = step.accumulator
+      if (!step.direction) return
       const distance = camera.position.distanceTo(TARGET)
-      setCameraDistance(camera, zoomDistance(distance, event.deltaY < 0 ? 'in' : 'out'))
+      setCameraDistance(camera, zoomDistance(distance, step.direction))
       controls.update()
     }
     function onPointerDown(event: PointerEvent) {
       event.stopPropagation()
     }
+    function onPointerLeave() {
+      wheelAccum = 0
+    }
     renderer.domElement.addEventListener('wheel', onWheel, { passive: false })
     renderer.domElement.addEventListener('pointerdown', onPointerDown)
+    renderer.domElement.addEventListener('pointerleave', onPointerLeave)
 
     let frame = 0
     const tick = () => {
@@ -308,8 +316,10 @@ const WfSchematicView = forwardRef<
     return () => {
       cancelAnimationFrame(frame)
       observer.disconnect()
+      wheelAccum = 0
       renderer.domElement.removeEventListener('wheel', onWheel)
       renderer.domElement.removeEventListener('pointerdown', onPointerDown)
+      renderer.domElement.removeEventListener('pointerleave', onPointerLeave)
       geometries.forEach((geometry) => geometry.dispose())
       meshMaterials.forEach((material) => material.dispose())
       spriteMaterials.forEach((material) => material.dispose())

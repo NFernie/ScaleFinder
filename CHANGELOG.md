@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Wf schematic wheel zoom takes one detent as one step. A line or page wheel steps once, a pixel wheel steps after about 100px, and a zero deltaY does not zoom. The frame budget keeps a 12px top and left inset, and uses a measured bottom or right wrapper gap when that gap is already larger, so a home indicator is not subtracted twice.
 - Wf schematic panel width includes its 1px border so the view matches the frame. Zoom focus rings stay outside the stack. A WebGL startup failure keeps the caption, Explode slider, and full text list.
 - Wf schematic label fade uses inverted CSS `ease-out` cubic-bezier(0, 0, 0.58, 1) so opacity stays within 0–1 instead of overshooting when time was treated as the Bezier parameter.
 - Wf schematic panel open size uses `initialSchematicFrame` so a short map caps height (and minimum width) to the largest 328∶224 box that fits the 12px inset, not only when width is below 328.
@@ -23,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Wf schematic rank labels fade in over 120ms `ease-out` on opacity when a name first appears; hide stays instant, and `prefers-reduced-motion` snaps opacity on.
 - A pin at 44.878674, 29.515563 opens the Wf type schematic above Sfântu Gheorghe. The pin is in the snapshot. The panel is not.
 - Opening the Wf schematic draws the solids in a Three.js view and an Explode slider pulls the four ranks apart. The body list remains when WebGL cannot start.
-- The Wf schematic panel names Sfântu Gheorghe, states that the diagram is a type example, and lists each body when the 3D view cannot start.
+- The Wf schematic pin names Sfântu Gheorghe. The panel states that the diagram is a type example, and lists each body when the 3D view cannot start.
 - A pure Wf schematic lists element, element set, element complex, and element complex set bodies, with mouth bars in a fan and beach ridges stepping away from a central channel.
 - Vendored [img2threejs](https://github.com/img2threejs/img2threejs) agent skill under `.cursor/skills/img2threejs/` (Apache-2.0; upstream `main` @ `809b72d`) for procedural image-to–Three.js reconstruction workflows.
 - Vendored [threejs-skills](https://github.com/CloudAI-X/threejs-skills) under `.cursor/skills/threejs-skills/` (upstream `main` @ `b1c6230`). The README claims MIT and the tree has no LICENSE file. Use it for the next Wf schematic geometry pass.

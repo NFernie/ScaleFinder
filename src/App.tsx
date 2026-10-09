@@ -167,6 +167,7 @@ export default function App() {
   const [mapReady, setMapReady] = useState(false)
   const [mapTick, setMapTick] = useState(0)
   const [wfOpen, setWfOpen] = useState(false)
+  const [wfFrame, setWfFrame] = useState<{ width: number; height: number } | null>(null)
 
   const basemaps = useMemo(() => getBasemaps(MAPTILER_KEY), [])
   const [basemapId, setBasemapId] = useState(basemaps[0].id)
@@ -1234,7 +1235,12 @@ export default function App() {
 
           {wfOpen && (
             <div className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-10">
-              <WfSchematicPanel open={wfOpen} onClose={() => setWfOpen(false)} />
+              <WfSchematicPanel
+                open={wfOpen}
+                frame={wfFrame}
+                onFrame={setWfFrame}
+                onClose={() => setWfOpen(false)}
+              />
             </div>
           )}
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import * as THREE from 'three'
 import {
   beachRidgeRing,
@@ -106,10 +106,19 @@ function place(object: THREE.Object3D, body: PlacedBody) {
   object.rotation.y = body.yaw ?? 0
 }
 
-export default function WfSchematicView({ explode }: { explode: number }) {
+export type SchematicCameraHandle = {
+  zoomBy: (direction: 'in' | 'out') => void
+}
+
+const WfSchematicView = forwardRef<
+  SchematicCameraHandle,
+  { explode: number; width: number; height: number }
+>(function WfSchematicView({ explode, width, height }, ref) {
   const host = useRef<HTMLDivElement>(null)
   const explodeRef = useRef(explode)
   explodeRef.current = explode
+
+  useImperativeHandle(ref, () => ({ zoomBy() {} }), [])
 
   useEffect(() => {
     const el = host.current
@@ -157,10 +166,10 @@ export default function WfSchematicView({ explode }: { explode: number }) {
     }
 
     const resize = () => {
-      const width = el.clientWidth || 320
-      const height = el.clientHeight || 224
-      renderer.setSize(width, height, false)
-      camera.aspect = width / Math.max(height, 1)
+      const w = el.clientWidth || 320
+      const h = el.clientHeight || 224
+      renderer.setSize(w, h, false)
+      camera.aspect = w / Math.max(h, 1)
       camera.updateProjectionMatrix()
     }
     resize()
@@ -192,5 +201,7 @@ export default function WfSchematicView({ explode }: { explode: number }) {
     }
   }, [])
 
-  return <div ref={host} className="h-56 w-full" data-wf-view="" />
-}
+  return <div ref={host} style={{ width, height }} data-wf-view="" />
+})
+
+export default WfSchematicView

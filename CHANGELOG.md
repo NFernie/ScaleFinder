@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Wf schematic panel open size uses `initialSchematicFrame` so a short map caps height (and minimum width) to the largest 328∶224 box that fits the 12px inset, not only when width is below 328.
 - Wf schematic resize limits use the map column’s size (not the shrink-wrapped panel wrapper) and subtract title, caption, Explode, and padding from the height budget so the panel stays inset inside the map.
 
 ### Added

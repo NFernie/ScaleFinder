@@ -4,6 +4,7 @@ import {
   fitSchematicFrame,
   FRAME_KEY_STEP_PX,
   FRAME_START,
+  initialSchematicFrame,
   mapFrameElementFromPanel,
   panelVerticalChromePx,
   PANEL_VERTICAL_CHROME_FALLBACK_PX,
@@ -95,21 +96,10 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
 
   useEffect(() => {
     if (!open || frame !== null) return
-    const { maxWidth, maxHeight } = maxFrameDimensions(sectionRef.current)
-    if (maxWidth < FRAME_START.width && maxWidth !== Number.POSITIVE_INFINITY) {
-      const fitted = fitSchematicFrame({
-        width: maxWidth,
-        ratio: FRAME_RATIO,
-        minWidth: 0,
-        maxWidth,
-        maxHeight,
-      })
-      setMinWidth(fitted.width)
-      onFrame(fitted)
-    } else {
-      setMinWidth(FRAME_START.width)
-      onFrame(FRAME_START)
-    }
+    const limits = maxFrameDimensions(sectionRef.current)
+    const { frame: initial, minWidth: fittedMin } = initialSchematicFrame(limits)
+    setMinWidth(fittedMin)
+    onFrame(initial)
   }, [open, frame, onFrame])
 
   const applyWidth = useCallback(

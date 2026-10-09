@@ -3,6 +3,7 @@ import {
   fitSchematicFrame,
   FRAME_INSET_PX,
   FRAME_START,
+  initialSchematicFrame,
   PANEL_HORIZONTAL_PAD_PX,
   schematicFrameLimits,
   zoomDistance,
@@ -49,6 +50,30 @@ describe('schematicFrame', () => {
     const fromWrap = schematicFrameLimits(shrinkWrap, chrome)
     expect(fromMap.maxWidth).toBeGreaterThan(fromWrap.maxWidth)
     expect(fromMap.maxHeight).toBeGreaterThan(fromWrap.maxHeight)
+  })
+
+  it('initialSchematicFrame picks the largest start-ratio box that fits', () => {
+    const infinite = initialSchematicFrame({
+      maxWidth: Number.POSITIVE_INFINITY,
+      maxHeight: Number.POSITIVE_INFINITY,
+    })
+    expect(infinite.frame).toEqual({ width: 328, height: 224 })
+    expect(infinite.minWidth).toBe(328)
+
+    const short = initialSchematicFrame({ maxWidth: 800, maxHeight: 180 })
+    expect(short.frame.height).toBeCloseTo(180)
+    expect(short.frame.width).toBeCloseTo(180 * ratio)
+    expect(short.minWidth).toBeCloseTo(short.frame.width)
+
+    const narrow = initialSchematicFrame({ maxWidth: 280, maxHeight: 600 })
+    expect(narrow.frame.width).toBe(280)
+    expect(narrow.frame.height).toBeCloseTo(280 / ratio)
+    expect(narrow.minWidth).toBe(280)
+
+    const zero = initialSchematicFrame({ maxWidth: -10, maxHeight: 0 })
+    expect(zero.frame.width).toBeGreaterThanOrEqual(0)
+    expect(zero.frame.height).toBeGreaterThanOrEqual(0)
+    expect(zero.minWidth).toBeGreaterThanOrEqual(0)
   })
 
   it('steps zoom between 2 and 60', () => {

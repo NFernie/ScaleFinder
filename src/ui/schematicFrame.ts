@@ -21,6 +21,35 @@ export function panelVerticalChromePx(section: HTMLElement): number {
   return PANEL_VERTICAL_CHROME_FALLBACK_PX
 }
 
+const FRAME_RATIO = FRAME_START.width / FRAME_START.height
+
+function clampLimit(n: number): number {
+  if (!Number.isFinite(n)) return Number.POSITIVE_INFINITY
+  return Math.max(0, n)
+}
+
+/** Largest start-ratio box that fits inside limits; that box is the resize minimum. */
+export function initialSchematicFrame(limits: {
+  maxWidth: number
+  maxHeight: number
+}): { frame: { width: number; height: number }; minWidth: number } {
+  const maxWidth = clampLimit(limits.maxWidth)
+  const maxHeight = clampLimit(limits.maxHeight)
+  if (maxWidth === Number.POSITIVE_INFINITY && maxHeight === Number.POSITIVE_INFINITY) {
+    return { frame: { ...FRAME_START }, minWidth: FRAME_START.width }
+  }
+  const frame = fitSchematicFrame({
+    width: FRAME_START.width,
+    ratio: FRAME_RATIO,
+    minWidth: 0,
+    maxWidth,
+    maxHeight,
+  })
+  const width = Math.max(0, frame.width)
+  const height = Math.max(0, frame.height)
+  return { frame: { width, height }, minWidth: width }
+}
+
 export function schematicFrameLimits(
   mapRect: { width: number; height: number },
   verticalChromePx: number,

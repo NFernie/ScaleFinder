@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Wf schematic resize limits use the map column’s size (not the shrink-wrapped panel wrapper) and subtract title, caption, Explode, and padding from the height budget so the panel stays inset inside the map.
+
 ### Added
 
 - A pin at 44.878674, 29.515563 opens the Wf type schematic above Sfântu Gheorghe. The pin is in the snapshot. The panel is not.

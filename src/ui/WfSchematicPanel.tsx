@@ -2,9 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { sceneAt, type Rank } from '../core/wfSchematic'
 import {
   fitSchematicFrame,
-  FRAME_INSET_PX,
   FRAME_KEY_STEP_PX,
   FRAME_START,
+  mapFrameElementFromPanel,
+  panelVerticalChromePx,
+  PANEL_VERTICAL_CHROME_FALLBACK_PX,
+  schematicFrameLimits,
 } from './schematicFrame'
 import WfSchematicView, { type SchematicCameraHandle } from './WfSchematicView'
 
@@ -58,18 +61,14 @@ function sortedBodies() {
 }
 
 function maxFrameDimensions(section: HTMLElement | null): { maxWidth: number; maxHeight: number } {
-  const parent = section?.offsetParent as HTMLElement | null
-  if (!parent) {
+  const map = mapFrameElementFromPanel(section)
+  if (!map) {
     return { maxWidth: Number.POSITIVE_INFINITY, maxHeight: Number.POSITIVE_INFINITY }
   }
-  const rect = parent.getBoundingClientRect()
-  if (rect.width === 0 || rect.height === 0) {
-    return { maxWidth: Number.POSITIVE_INFINITY, maxHeight: Number.POSITIVE_INFINITY }
-  }
-  return {
-    maxWidth: rect.width - 24 - FRAME_INSET_PX * 2,
-    maxHeight: rect.height - 24 - FRAME_INSET_PX * 2,
-  }
+  const verticalChrome = section
+    ? panelVerticalChromePx(section)
+    : PANEL_VERTICAL_CHROME_FALLBACK_PX
+  return schematicFrameLimits(map.getBoundingClientRect(), verticalChrome)
 }
 
 export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Props) {

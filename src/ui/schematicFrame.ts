@@ -1,6 +1,38 @@
 export const FRAME_START = { width: 328, height: 224 }
 export const FRAME_INSET_PX = 12
 export const FRAME_KEY_STEP_PX = 16
+/** Horizontal padding on the panel section (`p-3` × 2); frame width is section width minus this. */
+export const PANEL_HORIZONTAL_PAD_PX = 24
+/** Conservative chrome below/above the frame when layout has not been measured yet. */
+export const PANEL_VERTICAL_CHROME_FALLBACK_PX = 218
+
+export function mapFrameElementFromPanel(section: HTMLElement | null): HTMLElement | null {
+  if (!section) return null
+  const wrapper = section.offsetParent as HTMLElement | null
+  if (!wrapper) return null
+  return (wrapper.offsetParent as HTMLElement | null) ?? null
+}
+
+export function panelVerticalChromePx(section: HTMLElement): number {
+  const frame = section.querySelector('[data-testid="wf-schematic-frame"]')
+  if (frame instanceof HTMLElement && section.offsetHeight >= frame.offsetHeight) {
+    return section.offsetHeight - frame.offsetHeight
+  }
+  return PANEL_VERTICAL_CHROME_FALLBACK_PX
+}
+
+export function schematicFrameLimits(
+  mapRect: { width: number; height: number },
+  verticalChromePx: number,
+): { maxWidth: number; maxHeight: number } {
+  if (mapRect.width === 0 || mapRect.height === 0) {
+    return { maxWidth: Number.POSITIVE_INFINITY, maxHeight: Number.POSITIVE_INFINITY }
+  }
+  return {
+    maxWidth: mapRect.width - PANEL_HORIZONTAL_PAD_PX - FRAME_INSET_PX * 2,
+    maxHeight: mapRect.height - verticalChromePx - FRAME_INSET_PX * 2,
+  }
+}
 export const ZOOM_MIN = 2
 export const ZOOM_MAX = 60
 export const ZOOM_STEP = 1.25

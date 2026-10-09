@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { fitSchematicFrame, FRAME_START, zoomDistance } from './schematicFrame'
+import {
+  fitSchematicFrame,
+  FRAME_INSET_PX,
+  FRAME_START,
+  PANEL_HORIZONTAL_PAD_PX,
+  schematicFrameLimits,
+  zoomDistance,
+} from './schematicFrame'
 
 describe('schematicFrame', () => {
   const ratio = FRAME_START.width / FRAME_START.height
@@ -19,6 +26,29 @@ describe('schematicFrame', () => {
     const short = fitSchematicFrame({ width: 900, ratio, minWidth: 328, maxWidth: 800, maxHeight: 200 })
     expect(short.height).toBeCloseTo(200)
     expect(short.width).toBeCloseTo(200 * ratio)
+  })
+
+  it('limits the frame to the map rect minus padding, chrome, and inset', () => {
+    const limits = schematicFrameLimits({ width: 800, height: 600 }, 200)
+    expect(limits.maxWidth).toBe(800 - PANEL_HORIZONTAL_PAD_PX - FRAME_INSET_PX * 2)
+    expect(limits.maxHeight).toBe(600 - 200 - FRAME_INSET_PX * 2)
+  })
+
+  it('uses infinity when the map rect is zero (jsdom)', () => {
+    expect(schematicFrameLimits({ width: 0, height: 0 }, 200)).toEqual({
+      maxWidth: Number.POSITIVE_INFINITY,
+      maxHeight: Number.POSITIVE_INFINITY,
+    })
+  })
+
+  it('does not treat a shrink-wrapped panel box as the map cap', () => {
+    const map = { width: 900, height: 700 }
+    const shrinkWrap = { width: 352, height: 280 }
+    const chrome = shrinkWrap.height - FRAME_START.height
+    const fromMap = schematicFrameLimits(map, chrome)
+    const fromWrap = schematicFrameLimits(shrinkWrap, chrome)
+    expect(fromMap.maxWidth).toBeGreaterThan(fromWrap.maxWidth)
+    expect(fromMap.maxHeight).toBeGreaterThan(fromWrap.maxHeight)
   })
 
   it('steps zoom between 2 and 60', () => {

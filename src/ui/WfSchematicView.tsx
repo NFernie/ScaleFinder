@@ -128,15 +128,22 @@ export type SchematicCameraHandle = {
   zoomBy: (direction: 'in' | 'out') => void
 }
 
+/** NaN has no band. Every other value is clamped inside sceneAt, which still returns every body. */
+function explodeForScene(value: number): number {
+  return Number.isFinite(value) ? value : 0
+}
+
 const WfSchematicView = forwardRef<
   SchematicCameraHandle,
-  { explode: number; width: number; height: number }
->(function WfSchematicView({ explode, width, height }, ref) {
+  { explode: number; width: number; height: number; onUnavailable?: () => void }
+>(function WfSchematicView({ explode, width, height, onUnavailable }, ref) {
   const host = useRef<HTMLDivElement>(null)
   const explodeRef = useRef(explode)
   explodeRef.current = explode
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
   const controlsRef = useRef<OrbitControls | null>(null)
+  const onUnavailableRef = useRef(onUnavailable)
+  onUnavailableRef.current = onUnavailable
 
   useImperativeHandle(
     ref,
@@ -156,7 +163,16 @@ const WfSchematicView = forwardRef<
   useEffect(() => {
     const el = host.current
     if (!el) return
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    let created: THREE.WebGLRenderer | null = null
+    try {
+      created = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+      if (!created.getContext()) throw new Error('WebGL unavailable')
+    } catch {
+      created?.dispose()
+      onUnavailableRef.current?.()
+      return
+    }
+    const renderer = created
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
     renderer.domElement.style.display = 'block'
     renderer.domElement.style.width = '100%'
@@ -245,7 +261,7 @@ const WfSchematicView = forwardRef<
 
     let frame = 0
     const tick = () => {
-      for (const body of sceneAt(explodeRef.current)) {
+      for (const body of sceneAt(explodeForScene(explodeRef.current))) {
         const object = objects.get(body.id)
         if (!object) continue
         place(object, body)

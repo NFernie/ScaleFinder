@@ -7,6 +7,7 @@ import {
   initialSchematicFrame,
   mapFrameElementFromPanel,
   panelVerticalChromePx,
+  PANEL_HORIZONTAL_PAD_PX,
   PANEL_VERTICAL_CHROME_FALLBACK_PX,
   schematicFrameLimits,
 } from './schematicFrame'
@@ -41,6 +42,17 @@ const CAPTION =
 
 const TAP_HIGHLIGHT = { WebkitTapHighlightColor: 'transparent' } as const
 
+/** 1px border on each side. border-box width has to include it or the content box is 2px under the frame. */
+const PANEL_BORDER_X_PX = 2
+
+const FOCUS_RING =
+  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5eead4]'
+
+function clampExplode(value: number): number {
+  if (!Number.isFinite(value)) return 0
+  return Math.min(1, Math.max(0, value))
+}
+
 interface Props {
   open: boolean
   frame: { width: number; height: number } | null
@@ -69,18 +81,25 @@ function maxFrameDimensions(section: HTMLElement | null): { maxWidth: number; ma
   const verticalChrome = section
     ? panelVerticalChromePx(section)
     : PANEL_VERTICAL_CHROME_FALLBACK_PX
-  return schematicFrameLimits(map.getBoundingClientRect(), verticalChrome)
+  const limits = schematicFrameLimits(map.getBoundingClientRect(), verticalChrome)
+  const maxWidth = Number.isFinite(limits.maxWidth)
+    ? Math.max(0, limits.maxWidth - PANEL_BORDER_X_PX)
+    : limits.maxWidth
+  return { maxWidth, maxHeight: limits.maxHeight }
 }
 
 export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Props) {
   const [explode, setExplode] = useState(0)
+  const [viewFailed, setViewFailed] = useState(false)
   const [minWidth, setMinWidth] = useState(FRAME_START.width)
   const sectionRef = useRef<HTMLElement>(null)
   const cameraRef = useRef<SchematicCameraHandle>(null)
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null)
+  const onViewUnavailable = useCallback(() => setViewFailed(true), [])
 
   useEffect(() => {
     if (open) setExplode(0)
+    else setViewFailed(false)
   }, [open])
 
   useEffect(() => {
@@ -153,7 +172,7 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
 
   if (!open) return null
 
-  const showText = !webglAvailable()
+  const showText = !webglAvailable() || viewFailed
   const width = frame?.width ?? FRAME_START.width
   const height = frame?.height ?? FRAME_START.height
   const rows = sortedBodies()
@@ -163,8 +182,8 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
       ref={sectionRef}
       role="dialog"
       aria-label="Wf Schematic"
-      style={{ width: width + 24 }}
-      className="toolbox-pop pointer-events-auto w-[min(22rem,calc(100vw-1.5rem))] rounded-xl border border-white/15 bg-surface-raised/95 p-3 text-sm text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
+      style={{ width: width + PANEL_HORIZONTAL_PAD_PX + PANEL_BORDER_X_PX }}
+      className="toolbox-pop pointer-events-auto box-border rounded-xl border border-white/15 bg-surface-raised/95 p-3 text-sm text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
     >
       <div className="mb-2 flex items-start justify-between gap-2">
         <h2 className="text-sm font-semibold text-slate-100">Wf Schematic</h2>
@@ -174,7 +193,7 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
             document.getElementById('wf-schematic-pin')?.focus()
             onClose()
           }}
-          className="pressable min-h-11 rounded-lg px-3 text-sm text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5eead4]"
+          className={`pressable min-h-11 rounded-lg px-3 text-sm text-slate-100 ${FOCUS_RING}`}
         >
           Close
         </button>
@@ -193,11 +212,11 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
           onPointerMove={onResizePointerMove}
           onPointerUp={onResizePointerUp}
           onPointerCancel={onResizePointerUp}
-          className="pressable absolute left-0 top-0 z-10 h-11 w-11 touch-none rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5eead4]"
+          className={`pressable absolute left-0 top-0 z-10 h-11 w-11 touch-none rounded-lg ${FOCUS_RING}`}
           style={TAP_HIGHLIGHT}
         />
         {!showText && (
-          <div className="absolute right-2 top-2 z-10 flex flex-col overflow-hidden rounded-[4px] bg-white shadow-[0_0_0_2px_rgb(0_0_0/0.1)]">
+          <div className="absolute right-2 top-2 z-10 flex flex-col rounded-[4px] bg-white shadow-[0_0_0_2px_rgb(0_0_0/0.1)]">
             <button
               type="button"
               aria-label="Zoom in"
@@ -206,7 +225,7 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
                 event.stopPropagation()
                 cameraRef.current?.zoomBy('in')
               }}
-              className="pressable flex h-[29px] w-[29px] items-center justify-center bg-white text-[#333] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5eead4]"
+              className={`pressable relative flex h-[29px] w-[29px] items-center justify-center rounded-t-[4px] bg-white text-[#333] focus-visible:z-10 ${FOCUS_RING}`}
             >
               +
             </button>
@@ -218,7 +237,7 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
                 event.stopPropagation()
                 cameraRef.current?.zoomBy('out')
               }}
-              className="pressable flex h-[29px] w-[29px] items-center justify-center border-t border-[#ddd] bg-white text-[#333] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5eead4]"
+              className={`pressable relative flex h-[29px] w-[29px] items-center justify-center rounded-b-[4px] border-t border-[#ddd] bg-white text-[#333] focus-visible:z-10 ${FOCUS_RING}`}
             >
               −
             </button>
@@ -234,7 +253,13 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
             ))}
           </ul>
         ) : (
-          <WfSchematicView ref={cameraRef} explode={explode} width={width} height={height} />
+          <WfSchematicView
+            ref={cameraRef}
+            explode={explode}
+            width={width}
+            height={height}
+            onUnavailable={onViewUnavailable}
+          />
         )}
       </div>
       <label className="mt-3 block text-xs">
@@ -246,14 +271,14 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
           step={0.01}
           value={explode}
           aria-label="Explode"
-          onChange={(event) => setExplode(Number(event.target.value))}
+          onChange={(event) => setExplode(clampExplode(Number(event.target.value)))}
           onKeyDown={(event) => {
             if (event.key === 'End') {
               event.preventDefault()
               setExplode(1)
             }
           }}
-          className="mt-1 w-full"
+          className={`mt-1 w-full ${FOCUS_RING}`}
         />
       </label>
     </section>

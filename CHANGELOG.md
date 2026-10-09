@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Wf schematic panel width includes its 1px border so the view matches the frame. Zoom focus rings stay outside the stack. A WebGL startup failure keeps the caption, Explode slider, and full text list.
 - Wf schematic label fade uses inverted CSS `ease-out` cubic-bezier(0, 0, 0.58, 1) so opacity stays within 0–1 instead of overshooting when time was treated as the Bezier parameter.
 - Wf schematic panel open size uses `initialSchematicFrame` so a short map caps height (and minimum width) to the largest 328∶224 box that fits the 12px inset, not only when width is below 328.
 - Wf schematic resize limits use the map column’s size (not the shrink-wrapped panel wrapper) and subtract title, caption, Explode, and padding from the height budget so the panel stays inset inside the map.

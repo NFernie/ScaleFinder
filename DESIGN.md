@@ -234,7 +234,15 @@ The Toolbox replaces Measure. It sits on the map in the top-left slot, outside t
 
 ### Wf schematic pin
 
-A teal pin sits on the map at 44.878674, 29.515563. The hit target is 44px and uses the pressable scale. It is inside the snapshot. Choosing it opens a panel at the bottom-right of the map, outside the snapshot frame, clear of the home indicator. The panel uses Panel at 95%, 12px corners, a white 15% border, the Float shadow, and the 160ms toolbox pop. Close is 44px. Focus is Focus teal, 2px, offset 2px. The title is Sfântu Gheorghe. The subtitle is Wf schematic, in Focus teal. The caption says the diagram is a type schematic and not a measured map of this coast. Explode is a native slider from nested to pulled apart. The solids track the thumb with no extra ease. Solid colours inside the canvas are gold for beach ridges, green for mouth bars, and orange for the channel. The ground slab is a blue water line at 30% opacity, aligned with the base of the channel. Swales, the green mouth-bar slab, and the blue lobe solid are not drawn. Those fills stay inside the canvas.
+A teal pin sits on the map at 44.878674, 29.515563. The hit target is 44px and uses the pressable scale. It is inside the snapshot. Choosing it opens a panel at the bottom-right of the map, outside the snapshot frame, clear of the home indicator. The panel uses Panel at 95%, 12px corners, a white 15% border, the Float shadow, and the 160ms toolbox pop. Close is 44px. Focus is Focus teal, 2px, offset 2px. The title is Wf Schematic. The caption says the diagram is a type schematic and not a measured map of this coast. The place name stays on the pin and is absent from the panel.
+
+The 3D view keeps the width-to-height ratio of its first layout. A 44px handle on the top-left of the view resizes it. The panel's bottom-right stays fixed. The title, caption, Close, and Explode slider stay the same type size and match the view width. The view cannot shrink below its starting size. When that starting box would cross the map inset, the start size is the largest box of that ratio which fits. The panel stays at least 0.75rem inside the map edges, including the safe area. The size lasts for the session.
+
+Zoom-in and zoom-out sit in a stack at the top-right of the view, in the same size and stacking as the map's zoom buttons. The scroll wheel zooms the same way. Dragging on the view orbits the camera. Zoom and orbit follow the pointer with no glide. The map does not pan or zoom while the pointer is on the view. Those controls stay outside the snapshot.
+
+Explode runs from nested to pulled apart. The solids track the thumb with no extra ease. From 0 to ⅓ the element complexes leave the element complex set. From ⅓ to ⅔ the element sets leave their complexes. From ⅔ to 1 the elements leave their parents. Each group opens on a sphere around its parent. Full distances are 8, 6, and 5 schematic units. Names accumulate: the element complex set at 0, the complexes after the slider leaves 0, the element sets after ⅓, and one Beach ridge, one Mouth bar, and one Channel fill after ⅔.
+
+Solid colours inside the canvas stay gold for beach ridges, green for mouth bars, and orange for the channel. The ground slab is a blue water line at 30% opacity. Swales, the green mouth-bar slab, and the blue lobe solid are not drawn.
 
 ## Do's and Don'ts
 

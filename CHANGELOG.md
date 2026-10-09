@@ -11,11 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Wf schematic resize minimum follows `initialSchematicFrame` after the map grows again, so the floor is not stuck at a width from when the map was smaller.
+- Wf schematic wheel zoom takes one detent as one step. A line or page wheel steps once, a pixel wheel steps after about 100px, and a zero deltaY does not zoom. The frame budget keeps a 12px top and left inset, and uses a measured bottom or right wrapper gap when that gap is already larger, so a home indicator is not subtracted twice.
+- Wf schematic panel width includes its 1px border so the view matches the frame. Zoom focus rings stay outside the stack. A WebGL startup failure keeps the caption, Explode slider, and full text list.
+- Wf schematic label fade uses inverted CSS `ease-out` cubic-bezier(0, 0, 0.58, 1) so opacity stays within 0–1 instead of overshooting when time was treated as the Bezier parameter.
+- Wf schematic panel open size uses `initialSchematicFrame` so a short map caps height (and minimum width) to the largest 328∶224 box that fits the 12px inset, not only when width is below 328.
+- Wf schematic resize limits use the map column’s size (not the shrink-wrapped panel wrapper) and subtract title, caption, Explode, and padding from the height budget so the panel stays inset inside the map.
+
 ### Added
 
+- Wf schematic rank labels fade in over 120ms `ease-out` on opacity when a name first appears; hide stays instant, and `prefers-reduced-motion` snaps opacity on.
 - A pin at 44.878674, 29.515563 opens the Wf type schematic above Sfântu Gheorghe. The pin is in the snapshot. The panel is not.
 - Opening the Wf schematic draws the solids in a Three.js view and an Explode slider pulls the four ranks apart. The body list remains when WebGL cannot start.
-- The Wf schematic panel names Sfântu Gheorghe, states that the diagram is a type example, and lists each body when the 3D view cannot start.
+- The Wf schematic pin names Sfântu Gheorghe. The panel states that the diagram is a type example, and lists each body when the 3D view cannot start.
 - A pure Wf schematic lists element, element set, element complex, and element complex set bodies, with mouth bars in a fan and beach ridges stepping away from a central channel.
 - Vendored [img2threejs](https://github.com/img2threejs/img2threejs) agent skill under `.cursor/skills/img2threejs/` (Apache-2.0; upstream `main` @ `809b72d`) for procedural image-to–Three.js reconstruction workflows.
 - Vendored [threejs-skills](https://github.com/CloudAI-X/threejs-skills) under `.cursor/skills/threejs-skills/` (upstream `main` @ `b1c6230`). The README claims MIT and the tree has no LICENSE file. Use it for the next Wf schematic geometry pass.
@@ -45,6 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The Wf schematic panel title is Wf Schematic. The place name stays on the pin. The view resizes from the top-left with a locked ratio, and zoom and orbit stay inside the panel.
+- Explode opens the Wf ranks in three bands on a sphere: complexes at 8, element sets at 6, elements at 5. Names accumulate. One Beach ridge, one Mouth bar, and one Channel fill are labelled.
 - The Wf schematic beach ridges are wedges: thick where they meet the channel, thin at the alongshore tips. The centreline is sigmoidal alongshore, swinging landward and then turning the tips slightly seaward. The whole crest stays above the water line, the ridge bases keep their elevations, and the most seaward crest meets the top of the channel. Each landward ridge sits 2% of the reference crest height above the next seaward ridge. The fore-aft width is half the previous ridge thickness. The seaward face is a sigmoid, and the base sits further seaward of the crest. Mouth bars are half spheroids in a filled V in front of the channel, dome upward, 50% thicker and 50% longer seaward. Each bar’s base follows an exaggerated sigmoid, so the seaward rim is lowest. The landward base of the channel bar sits at the base of the most seaward beach ridge. Each bar farther seaward steps down by 5% of the bar thickness and yaws outward by another 1°, toward +X on the right and −X on the left. The channel bar stays straight. A second fan of the same shape sits under the channel: its landward rim is where the channel meets the most landward beach ridge, its crown meets the channel base, and it progrades seaward onto the fan in front of the channel. The channel is a half cylinder, flat face up, half the previous thickness, ending at the seaward beach ridges. The ground slab is a blue water line at 30% opacity, aligned with the base of the channel, and the mouth bars sit below it. Swales, the green mouth-bar slab, and the blue lobe solid are not drawn.
 - The Toolbox has six tools. Lasso is the outline stroke. Dynamic and Static move to Paint Brush. Drawing, sampling, and vertex edit are unchanged.
 - Outline Lasso strokes are not sampled. Static Lasso stores the colour of the first sample and reuses it for the rest of the stroke.
@@ -77,6 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `docs/superpowers/plans/2026-10-09-wf-schematic-panel.md` — implementation plan for the approved Wf schematic panel. Core tasks are Vitest-first. UI tasks follow `WORKFLOW.md` one skill per message: UI UX Pro Max `ui-styling`, Impeccable shape and critique, then Emil Kowalski (`emil-design-eng`, `find-animation-opportunities`, `animate`, `review-animations`, `mobile-native`), then polish, audit, harden, and document.
+- `docs/superpowers/specs/2026-10-09-wf-schematic-panel-design.md` — approved panel revision for the Wf schematic: title Wf Schematic, aspect-locked resize, map-style zoom, orbit, and a three-band spherical explode with accumulated labels. Mesh geometry is unchanged.
 - `features/schematic_module.md` — workflow for the Wf schematic geometry pass, including the cast that replaced the boxes and spheres.
 - The Wf schematic spec and design record drop swales, the mouth-bar slab, and the lobe solid, and describe the seaward-convex ridges, the sigmoid mouth-bar fan, and the half-cylinder channel.
 - `docs/superpowers/plans/2026-10-08-wf-schematic-pin.md` — implementation plan for the approved Wf schematic pin. UI tasks follow `WORKFLOW.md`: UI UX Pro Max `ui-styling`, Impeccable shape, critique, polish, audit, harden, and document, then Emil Kowalski (`emil-design-eng`, `find-animation-opportunities`, `animate`, `review-animations`, `mobile-native`), one skill per message, before the screen ships.

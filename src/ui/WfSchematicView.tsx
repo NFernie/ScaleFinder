@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import {
   beachRidgeRing,
   beachRidgeStations,
@@ -12,6 +13,23 @@ import {
 } from '../core/wfSchematic'
 import { halfChannelGeometry } from './halfChannelGeometry'
 import { mouthBarGeometry } from './mouthBarGeometry'
+import { cssEaseOut } from '../core/cssEaseOut'
+import { ZOOM_MAX, ZOOM_MIN, wheelZoomStep, zoomDistance } from './schematicFrame'
+
+const TARGET = new THREE.Vector3(0, 0.4, 0.6)
+
+const LABEL_FADE_MS = 120
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+}
+
+function setCameraDistance(camera: THREE.PerspectiveCamera, distance: number) {
+  const offset = camera.position.clone().sub(TARGET)
+  const length = offset.length() || 1
+  offset.multiplyScalar(distance / length)
+  camera.position.copy(TARGET).add(offset)
+}
 
 const COLOUR: Record<SolidKind, number> = {
   ground: WATER_COLOUR,
@@ -106,23 +124,75 @@ function place(object: THREE.Object3D, body: PlacedBody) {
   object.rotation.y = body.yaw ?? 0
 }
 
-export default function WfSchematicView({ explode }: { explode: number }) {
+export type SchematicCameraHandle = {
+  zoomBy: (direction: 'in' | 'out') => void
+}
+
+/** NaN has no band. Every other value is clamped inside sceneAt, which still returns every body. */
+function explodeForScene(value: number): number {
+  return Number.isFinite(value) ? value : 0
+}
+
+const WfSchematicView = forwardRef<
+  SchematicCameraHandle,
+  { explode: number; width: number; height: number; onUnavailable?: () => void }
+>(function WfSchematicView({ explode, width, height, onUnavailable }, ref) {
   const host = useRef<HTMLDivElement>(null)
   const explodeRef = useRef(explode)
   explodeRef.current = explode
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
+  const controlsRef = useRef<OrbitControls | null>(null)
+  const onUnavailableRef = useRef(onUnavailable)
+  onUnavailableRef.current = onUnavailable
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      zoomBy(direction: 'in' | 'out') {
+        const camera = cameraRef.current
+        const controls = controlsRef.current
+        if (!camera || !controls) return
+        const distance = camera.position.distanceTo(TARGET)
+        setCameraDistance(camera, zoomDistance(distance, direction))
+        controls.update()
+      },
+    }),
+    [],
+  )
 
   useEffect(() => {
     const el = host.current
     if (!el) return
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    let created: THREE.WebGLRenderer | null = null
+    try {
+      created = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+      if (!created.getContext()) throw new Error('WebGL unavailable')
+    } catch {
+      created?.dispose()
+      onUnavailableRef.current?.()
+      return
+    }
+    const renderer = created
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
     renderer.domElement.style.display = 'block'
     renderer.domElement.style.width = '100%'
     renderer.domElement.style.height = '100%'
+    renderer.domElement.style.touchAction = 'none'
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100)
     camera.position.set(6.5, 5.5, 7.5)
-    camera.lookAt(0, 0.4, 0.6)
+    camera.lookAt(TARGET)
+    cameraRef.current = camera
+    const controls = new OrbitControls(camera, renderer.domElement)
+    controls.target.copy(TARGET)
+    controls.enablePan = false
+    controls.enableZoom = false
+    controls.enableDamping = false
+    controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE
+    controls.minDistance = ZOOM_MIN
+    controls.maxDistance = ZOOM_MAX
+    controls.update()
+    controlsRef.current = controls
     scene.add(new THREE.AmbientLight(0xffffff, 0.35))
     scene.add(new THREE.HemisphereLight(0xe2e8f0, 0x64748b, 0.65))
     const sun = new THREE.DirectionalLight(0xffffff, 1.15)
@@ -150,17 +220,25 @@ export default function WfSchematicView({ explode }: { explode: number }) {
         meshMaterials.push(material)
         group.add(new THREE.Mesh(geometry, material))
       }
-      group.add(makeLabel(body.name, spriteMaterials, labelTextures))
+      const label = makeLabel(body.name, spriteMaterials, labelTextures)
+      const showAtMount = body.showLabel
+      label.visible = showAtMount
+      const labelMaterial = label.material as THREE.SpriteMaterial
+      labelMaterial.opacity = showAtMount ? 1 : 0
+      label.userData.prevShowLabel = showAtMount
+      label.userData.fadeStart = null
+      group.userData.label = label
+      group.add(label)
       place(group, body)
       scene.add(group)
       objects.set(body.id, group)
     }
 
     const resize = () => {
-      const width = el.clientWidth || 320
-      const height = el.clientHeight || 224
-      renderer.setSize(width, height, false)
-      camera.aspect = width / Math.max(height, 1)
+      const w = el.clientWidth || 320
+      const h = el.clientHeight || 224
+      renderer.setSize(w, h, false)
+      camera.aspect = w / Math.max(h, 1)
       camera.updateProjectionMatrix()
     }
     resize()
@@ -168,12 +246,68 @@ export default function WfSchematicView({ explode }: { explode: number }) {
     observer.observe(el)
     el.appendChild(renderer.domElement)
 
+    let wheelAccum = 0
+    function onWheel(event: WheelEvent) {
+      event.preventDefault()
+      event.stopPropagation()
+      const step = wheelZoomStep(wheelAccum, event)
+      wheelAccum = step.accumulator
+      if (!step.direction) return
+      const distance = camera.position.distanceTo(TARGET)
+      setCameraDistance(camera, zoomDistance(distance, step.direction))
+      controls.update()
+    }
+    function onPointerDown(event: PointerEvent) {
+      event.stopPropagation()
+    }
+    function onPointerLeave() {
+      wheelAccum = 0
+    }
+    renderer.domElement.addEventListener('wheel', onWheel, { passive: false })
+    renderer.domElement.addEventListener('pointerdown', onPointerDown)
+    renderer.domElement.addEventListener('pointerleave', onPointerLeave)
+
     let frame = 0
     const tick = () => {
-      for (const body of sceneAt(explodeRef.current)) {
+      for (const body of sceneAt(explodeForScene(explodeRef.current))) {
         const object = objects.get(body.id)
-        if (object) place(object, body)
+        if (!object) continue
+        place(object, body)
+        const sprite = object.userData.label as THREE.Sprite | undefined
+        if (sprite) {
+          const material = sprite.material as THREE.SpriteMaterial
+          const show = body.showLabel
+          const prevShow = sprite.userData.prevShowLabel === true
+          if (!show) {
+            sprite.visible = false
+            material.opacity = 0
+            sprite.userData.prevShowLabel = false
+            sprite.userData.fadeStart = null
+          } else {
+            sprite.visible = true
+            if (!prevShow) {
+              if (prefersReducedMotion()) {
+                material.opacity = 1
+                sprite.userData.fadeStart = null
+              } else {
+                material.opacity = 0
+                sprite.userData.fadeStart = performance.now()
+              }
+            }
+            const fadeStart = sprite.userData.fadeStart as number | null
+            if (fadeStart != null) {
+              const elapsed = performance.now() - fadeStart
+              const linear = Math.min(1, elapsed / LABEL_FADE_MS)
+              material.opacity = cssEaseOut(linear)
+              if (linear >= 1) sprite.userData.fadeStart = null
+            } else if (material.opacity < 1) {
+              material.opacity = 1
+            }
+            sprite.userData.prevShowLabel = true
+          }
+        }
       }
+      controls.update()
       renderer.render(scene, camera)
       frame = requestAnimationFrame(tick)
     }
@@ -182,15 +316,24 @@ export default function WfSchematicView({ explode }: { explode: number }) {
     return () => {
       cancelAnimationFrame(frame)
       observer.disconnect()
+      wheelAccum = 0
+      renderer.domElement.removeEventListener('wheel', onWheel)
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown)
+      renderer.domElement.removeEventListener('pointerleave', onPointerLeave)
       geometries.forEach((geometry) => geometry.dispose())
       meshMaterials.forEach((material) => material.dispose())
       spriteMaterials.forEach((material) => material.dispose())
       labelTextures.forEach((texture) => texture.dispose())
+      controls.dispose()
+      controlsRef.current = null
+      cameraRef.current = null
       renderer.dispose()
       renderer.forceContextLoss()
       renderer.domElement.remove()
     }
   }, [])
 
-  return <div ref={host} className="h-56 w-full" data-wf-view="" />
-}
+  return <div ref={host} style={{ width, height }} data-wf-view="" />
+})
+
+export default WfSchematicView

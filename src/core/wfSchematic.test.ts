@@ -219,21 +219,81 @@ describe('wfSchematic', () => {
     expect(waterlineY()).toBeCloseTo(span.flatY - CHANNEL_RADIUS)
   })
 
-  it('separates ranks along Y and clamps explode', () => {
-    const nested = sceneAt(0)
-    const apart = sceneAt(1)
-    expect(apart.map((body) => body.id)).toEqual(nested.map((body) => body.id))
-    expect(apart.map((body) => body.parentId)).toEqual(nested.map((body) => body.parentId))
-    const gap = (rank: string) => {
-      const at0 = nested.find((body) => body.rank === rank)!
-      const at1 = apart.find((body) => body.id === at0.id)!
-      return at1.position.y - at0.position.y
+  it('opens ranks on a sphere and accumulates one label per element kind', () => {
+    const at = (t: number) => sceneAt(t)
+    const byId = (bodies: ReturnType<typeof sceneAt>, id: string) => bodies.find((body) => body.id === id)!
+    const length = (point: { x: number; y: number; z: number }) =>
+      Math.hypot(point.x, point.y, point.z)
+    const delta = (
+      bodies: ReturnType<typeof sceneAt>,
+      childId: string,
+      parentId: string,
+    ) => {
+      const child = byId(bodies, childId).position
+      const parent = byId(bodies, parentId).position
+      return {
+        x: child.x - parent.x,
+        y: child.y - parent.y,
+        z: child.z - parent.z,
+      }
     }
-    expect(gap('element-complex-set')).toBe(0)
-    expect(gap('element')).toBeGreaterThan(gap('element-set'))
-    expect(gap('element-set')).toBeGreaterThan(gap('element-complex'))
-    expect(gap('element-complex')).toBeGreaterThan(0)
-    expect(sceneAt(-1)).toEqual(sceneAt(0))
-    expect(sceneAt(2)).toEqual(sceneAt(1))
+    const apart = (bodies: ReturnType<typeof sceneAt>, childId: string, parentId: string) =>
+      length(delta(bodies, childId, parentId))
+
+    const nested = at(0)
+    for (const body of nested) {
+      expect(body.position).toEqual(body.nested)
+    }
+    expect(nested.filter((body) => body.showLabel).map((body) => body.id)).toEqual(['ecs'])
+
+    const third = at(1 / 3)
+    const root = byId(third, 'ecs').position
+    expect(byId(third, 'ec-lobe').position).toEqual({ x: root.x + 8, y: root.y, z: root.z })
+    expect(byId(third, 'ec-mouth').position).toEqual({ x: root.x - 8, y: root.y, z: root.z })
+    const nestedSet = delta(nested, 'es-ridge-l', 'ec-lobe')
+    const heldSet = delta(third, 'es-ridge-l', 'ec-lobe')
+    expect(heldSet.x).toBeCloseTo(nestedSet.x, 6)
+    expect(heldSet.y).toBeCloseTo(nestedSet.y, 6)
+    expect(heldSet.z).toBeCloseTo(nestedSet.z, 6)
+    expect(third.filter((body) => body.rank === 'element-set' && body.showLabel)).toHaveLength(0)
+    expect(third.filter((body) => body.rank === 'element-complex' && body.showLabel).map((body) => body.id).sort()).toEqual([
+      'ec-lobe',
+      'ec-mouth',
+    ])
+
+    const twoThirds = at(2 / 3)
+    expect(apart(twoThirds, 'es-ridge-l', 'ec-lobe')).toBeCloseTo(6, 6)
+    expect(apart(twoThirds, 'es-ridge-r', 'ec-lobe')).toBeCloseTo(6, 6)
+    expect(apart(twoThirds, 'es-mouth', 'ec-mouth')).toBeCloseTo(6, 6)
+    const nestedRidge = delta(nested, 'e-ridge-r-0', 'es-ridge-r')
+    const heldRidge = delta(twoThirds, 'e-ridge-r-0', 'es-ridge-r')
+    expect(heldRidge.x).toBeCloseTo(nestedRidge.x, 6)
+    expect(heldRidge.y).toBeCloseTo(nestedRidge.y, 6)
+    expect(heldRidge.z).toBeCloseTo(nestedRidge.z, 6)
+    expect(twoThirds.filter((body) => body.rank === 'element' && body.showLabel)).toHaveLength(0)
+    expect(twoThirds.filter((body) => body.showLabel && body.rank === 'element-set')).toHaveLength(3)
+
+    const full = at(1)
+    for (const body of full.filter((item) => item.rank === 'element')) {
+      expect(apart(full, body.id, body.parentId!)).toBeCloseTo(5, 6)
+    }
+    expect(apart(full, 'e-channel', 'ec-mouth')).toBeCloseTo(5, 6)
+    for (const body of full.filter((item) => item.kind === 'mouth-bar')) {
+      expect(apart(full, body.id, 'es-mouth')).toBeCloseTo(5, 6)
+    }
+    const mouths = full.filter((body) => body.parentId === 'es-mouth')
+    const dirs = mouths.map((body) => delta(full, body.id, 'es-mouth'))
+    for (const dir of dirs) expect(length(dir)).toBeCloseTo(5, 6)
+    const unique = new Set(dirs.map((dir) => `${dir.x.toFixed(4)},${dir.y.toFixed(4)},${dir.z.toFixed(4)}`))
+    expect(unique.size).toBe(mouths.length)
+    expect(full.filter((body) => body.rank === 'element' && body.showLabel).map((body) => body.id).sort()).toEqual([
+      'e-channel',
+      'e-mouth-0',
+      'e-ridge-r-0',
+    ])
+    expect(full.map((body) => body.id)).toEqual(nested.map((body) => body.id))
+    expect(full.map((body) => body.parentId)).toEqual(nested.map((body) => body.parentId))
+    expect(at(-1)).toEqual(at(0))
+    expect(at(2)).toEqual(at(1))
   })
 })

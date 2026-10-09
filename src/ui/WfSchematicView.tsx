@@ -17,6 +17,36 @@ import { ZOOM_MAX, ZOOM_MIN, zoomDistance } from './schematicFrame'
 
 const TARGET = new THREE.Vector3(0, 0.4, 0.6)
 
+/** CSS `ease-out` — cubic-bezier(0, 0, 0.58, 1). */
+const LABEL_FADE_MS = 120
+
+function cssEaseOut(t: number): number {
+  if (t <= 0) return 0
+  if (t >= 1) return 1
+  const cx = 3 * 0.58
+  const bx = 3 * 0.58 - 3
+  const ax = 1 - cx - bx
+  const cy = 3 * 1
+  const by = 3 * 1 - 3
+  const ay = 1 - cy - by
+  const sampleX = (u: number) => ((ax * u + bx) * u + cx) * u
+  const sampleY = (u: number) => ((ay * u + by) * u + cy) * u
+  const sampleDerivX = (u: number) => (3 * ax * u + 2 * bx) * u + cx
+  let u = t
+  for (let i = 0; i < 8; i += 1) {
+    const x = sampleX(u) - t
+    if (Math.abs(x) < 1e-6) break
+    const dx = sampleDerivX(u)
+    if (Math.abs(dx) < 1e-6) break
+    u -= x / dx
+  }
+  return sampleY(u)
+}
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+}
+
 function setCameraDistance(camera: THREE.PerspectiveCamera, distance: number) {
   const offset = camera.position.clone().sub(TARGET)
   const length = offset.length() || 1
@@ -198,6 +228,12 @@ const WfSchematicView = forwardRef<
         group.add(new THREE.Mesh(geometry, material))
       }
       const label = makeLabel(body.name, spriteMaterials, labelTextures)
+      const showAtMount = body.showLabel
+      label.visible = showAtMount
+      const labelMaterial = label.material as THREE.SpriteMaterial
+      labelMaterial.opacity = showAtMount ? 1 : 0
+      label.userData.prevShowLabel = showAtMount
+      label.userData.fadeStart = null
       group.userData.label = label
       group.add(label)
       place(group, body)
@@ -237,7 +273,38 @@ const WfSchematicView = forwardRef<
         if (!object) continue
         place(object, body)
         const sprite = object.userData.label as THREE.Sprite | undefined
-        if (sprite) sprite.visible = body.showLabel
+        if (sprite) {
+          const material = sprite.material as THREE.SpriteMaterial
+          const show = body.showLabel
+          const prevShow = sprite.userData.prevShowLabel === true
+          if (!show) {
+            sprite.visible = false
+            material.opacity = 0
+            sprite.userData.prevShowLabel = false
+            sprite.userData.fadeStart = null
+          } else {
+            sprite.visible = true
+            if (!prevShow) {
+              if (prefersReducedMotion()) {
+                material.opacity = 1
+                sprite.userData.fadeStart = null
+              } else {
+                material.opacity = 0
+                sprite.userData.fadeStart = performance.now()
+              }
+            }
+            const fadeStart = sprite.userData.fadeStart as number | null
+            if (fadeStart != null) {
+              const elapsed = performance.now() - fadeStart
+              const linear = Math.min(1, elapsed / LABEL_FADE_MS)
+              material.opacity = cssEaseOut(linear)
+              if (linear >= 1) sprite.userData.fadeStart = null
+            } else if (material.opacity < 1) {
+              material.opacity = 1
+            }
+            sprite.userData.prevShowLabel = true
+          }
+        }
       }
       controls.update()
       renderer.render(scene, camera)

@@ -13,35 +13,12 @@ import {
 } from '../core/wfSchematic'
 import { halfChannelGeometry } from './halfChannelGeometry'
 import { mouthBarGeometry } from './mouthBarGeometry'
+import { cssEaseOut } from '../core/cssEaseOut'
 import { ZOOM_MAX, ZOOM_MIN, zoomDistance } from './schematicFrame'
 
 const TARGET = new THREE.Vector3(0, 0.4, 0.6)
 
-/** CSS `ease-out` — cubic-bezier(0, 0, 0.58, 1). */
 const LABEL_FADE_MS = 120
-
-function cssEaseOut(t: number): number {
-  if (t <= 0) return 0
-  if (t >= 1) return 1
-  const cx = 3 * 0.58
-  const bx = 3 * 0.58 - 3
-  const ax = 1 - cx - bx
-  const cy = 3 * 1
-  const by = 3 * 1 - 3
-  const ay = 1 - cy - by
-  const sampleX = (u: number) => ((ax * u + bx) * u + cx) * u
-  const sampleY = (u: number) => ((ay * u + by) * u + cy) * u
-  const sampleDerivX = (u: number) => (3 * ax * u + 2 * bx) * u + cx
-  let u = t
-  for (let i = 0; i < 8; i += 1) {
-    const x = sampleX(u) - t
-    if (Math.abs(x) < 1e-6) break
-    const dx = sampleDerivX(u)
-    if (Math.abs(dx) < 1e-6) break
-    u -= x / dx
-  }
-  return sampleY(u)
-}
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false

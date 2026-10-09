@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { cssEaseOut } from './cssEaseOut'
 import {
   beachRidgeRing,
   beachRidgeStations,
@@ -295,5 +296,20 @@ describe('wfSchematic', () => {
     expect(full.map((body) => body.parentId)).toEqual(nested.map((body) => body.parentId))
     expect(at(-1)).toEqual(at(0))
     expect(at(2)).toEqual(at(1))
+  })
+})
+
+describe('cssEaseOut', () => {
+  it('matches CSS ease-out endpoints and midpoint', () => {
+    expect(cssEaseOut(0)).toBe(0)
+    expect(cssEaseOut(1)).toBe(1)
+    expect(cssEaseOut(0.5)).toBeCloseTo(0.68, 1)
+  })
+
+  it('never exceeds 1 for sample times', () => {
+    for (const t of [0, 0.25, 0.5, 0.8, 1]) {
+      expect(cssEaseOut(t)).toBeLessThanOrEqual(1)
+      expect(cssEaseOut(t)).toBeGreaterThanOrEqual(0)
+    }
   })
 })

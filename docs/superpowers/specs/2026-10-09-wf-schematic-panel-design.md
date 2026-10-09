@@ -1,6 +1,6 @@
 # Wf schematic panel — Design Spec
 
-- **Status:** Agreed in conversation on 2026-10-09. Awaiting a read of this file.
+- **Status:** Approved 2026-10-09.
 - **Date:** 2026-10-09
 - **Branch:** `cursor/wf-schematic-panel-design-69e0`
 - **Revises:** [`2026-10-08-wf-schematic-pin-design.md`](2026-10-08-wf-schematic-pin-design.md), panel title, Explode motion, and which names are drawn. The pin, the caption, the cast, the diagram colours, and the meshes stay as that spec and [`features/schematic_module.md`](../../../features/schematic_module.md) left them.

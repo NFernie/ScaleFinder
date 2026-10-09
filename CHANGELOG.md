@@ -77,7 +77,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
-- `docs/superpowers/specs/2026-10-09-wf-schematic-panel-design.md` — panel revision for the Wf schematic: title Wf Schematic, aspect-locked resize, map-style zoom, orbit, and a three-band spherical explode with accumulated labels. Mesh geometry is unchanged. Product copy waits until the spec is accepted.
+- `docs/superpowers/plans/2026-10-09-wf-schematic-panel.md` — implementation plan for the approved Wf schematic panel. Core tasks are Vitest-first. UI tasks follow `WORKFLOW.md` one skill per message: UI UX Pro Max `ui-styling`, Impeccable shape and critique, then Emil Kowalski (`emil-design-eng`, `find-animation-opportunities`, `animate`, `review-animations`, `mobile-native`), then polish, audit, harden, and document.
+- `docs/superpowers/specs/2026-10-09-wf-schematic-panel-design.md` — approved panel revision for the Wf schematic: title Wf Schematic, aspect-locked resize, map-style zoom, orbit, and a three-band spherical explode with accumulated labels. Mesh geometry is unchanged.
 - `features/schematic_module.md` — workflow for the Wf schematic geometry pass, including the cast that replaced the boxes and spheres.
 - The Wf schematic spec and design record drop swales, the mouth-bar slab, and the lobe solid, and describe the seaward-convex ridges, the sigmoid mouth-bar fan, and the half-cylinder channel.
 - `docs/superpowers/plans/2026-10-08-wf-schematic-pin.md` — implementation plan for the approved Wf schematic pin. UI tasks follow `WORKFLOW.md`: UI UX Pro Max `ui-styling`, Impeccable shape, critique, polish, audit, harden, and document, then Emil Kowalski (`emil-design-eng`, `find-animation-opportunities`, `animate`, `review-animations`, `mobile-native`), one skill per message, before the screen ships.

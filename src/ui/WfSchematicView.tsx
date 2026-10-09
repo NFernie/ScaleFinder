@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import {
   beachRidgeRing,
   beachRidgeStations,
@@ -12,6 +13,16 @@ import {
 } from '../core/wfSchematic'
 import { halfChannelGeometry } from './halfChannelGeometry'
 import { mouthBarGeometry } from './mouthBarGeometry'
+import { ZOOM_MAX, ZOOM_MIN, zoomDistance } from './schematicFrame'
+
+const TARGET = new THREE.Vector3(0, 0.4, 0.6)
+
+function setCameraDistance(camera: THREE.PerspectiveCamera, distance: number) {
+  const offset = camera.position.clone().sub(TARGET)
+  const length = offset.length() || 1
+  offset.multiplyScalar(distance / length)
+  camera.position.copy(TARGET).add(offset)
+}
 
 const COLOUR: Record<SolidKind, number> = {
   ground: WATER_COLOUR,
@@ -117,8 +128,23 @@ const WfSchematicView = forwardRef<
   const host = useRef<HTMLDivElement>(null)
   const explodeRef = useRef(explode)
   explodeRef.current = explode
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
+  const controlsRef = useRef<OrbitControls | null>(null)
 
-  useImperativeHandle(ref, () => ({ zoomBy() {} }), [])
+  useImperativeHandle(
+    ref,
+    () => ({
+      zoomBy(direction: 'in' | 'out') {
+        const camera = cameraRef.current
+        const controls = controlsRef.current
+        if (!camera || !controls) return
+        const distance = camera.position.distanceTo(TARGET)
+        setCameraDistance(camera, zoomDistance(distance, direction))
+        controls.update()
+      },
+    }),
+    [],
+  )
 
   useEffect(() => {
     const el = host.current
@@ -128,10 +154,22 @@ const WfSchematicView = forwardRef<
     renderer.domElement.style.display = 'block'
     renderer.domElement.style.width = '100%'
     renderer.domElement.style.height = '100%'
+    renderer.domElement.style.touchAction = 'none'
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100)
     camera.position.set(6.5, 5.5, 7.5)
-    camera.lookAt(0, 0.4, 0.6)
+    camera.lookAt(TARGET)
+    cameraRef.current = camera
+    const controls = new OrbitControls(camera, renderer.domElement)
+    controls.target.copy(TARGET)
+    controls.enablePan = false
+    controls.enableZoom = false
+    controls.enableDamping = false
+    controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE
+    controls.minDistance = ZOOM_MIN
+    controls.maxDistance = ZOOM_MAX
+    controls.update()
+    controlsRef.current = controls
     scene.add(new THREE.AmbientLight(0xffffff, 0.35))
     scene.add(new THREE.HemisphereLight(0xe2e8f0, 0x64748b, 0.65))
     const sun = new THREE.DirectionalLight(0xffffff, 1.15)
@@ -159,7 +197,9 @@ const WfSchematicView = forwardRef<
         meshMaterials.push(material)
         group.add(new THREE.Mesh(geometry, material))
       }
-      group.add(makeLabel(body.name, spriteMaterials, labelTextures))
+      const label = makeLabel(body.name, spriteMaterials, labelTextures)
+      group.userData.label = label
+      group.add(label)
       place(group, body)
       scene.add(group)
       objects.set(body.id, group)
@@ -177,12 +217,29 @@ const WfSchematicView = forwardRef<
     observer.observe(el)
     el.appendChild(renderer.domElement)
 
+    function onWheel(event: WheelEvent) {
+      event.preventDefault()
+      event.stopPropagation()
+      const distance = camera.position.distanceTo(TARGET)
+      setCameraDistance(camera, zoomDistance(distance, event.deltaY < 0 ? 'in' : 'out'))
+      controls.update()
+    }
+    function onPointerDown(event: PointerEvent) {
+      event.stopPropagation()
+    }
+    renderer.domElement.addEventListener('wheel', onWheel, { passive: false })
+    renderer.domElement.addEventListener('pointerdown', onPointerDown)
+
     let frame = 0
     const tick = () => {
       for (const body of sceneAt(explodeRef.current)) {
         const object = objects.get(body.id)
-        if (object) place(object, body)
+        if (!object) continue
+        place(object, body)
+        const sprite = object.userData.label as THREE.Sprite | undefined
+        if (sprite) sprite.visible = body.showLabel
       }
+      controls.update()
       renderer.render(scene, camera)
       frame = requestAnimationFrame(tick)
     }
@@ -191,10 +248,15 @@ const WfSchematicView = forwardRef<
     return () => {
       cancelAnimationFrame(frame)
       observer.disconnect()
+      renderer.domElement.removeEventListener('wheel', onWheel)
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown)
       geometries.forEach((geometry) => geometry.dispose())
       meshMaterials.forEach((material) => material.dispose())
       spriteMaterials.forEach((material) => material.dispose())
       labelTextures.forEach((texture) => texture.dispose())
+      controls.dispose()
+      controlsRef.current = null
+      cameraRef.current = null
       renderer.dispose()
       renderer.forceContextLoss()
       renderer.domElement.remove()

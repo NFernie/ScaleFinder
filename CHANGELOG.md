@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The Wf schematic resize handle is a visible corner mark on the top-left of the view, with a resize cursor. Dragging it, or the arrow keys, still changes the view.
 - Wf schematic resize minimum follows `initialSchematicFrame` after the map grows again, so the floor is not stuck at a width from when the map was smaller.
 - Wf schematic wheel zoom takes one detent as one step. A line or page wheel steps once, a pixel wheel steps after about 100px, and a zero deltaY does not zoom. The frame budget keeps a 12px top and left inset, and uses a measured bottom or right wrapper gap when that gap is already larger, so a home indicator is not subtracted twice.
 - Wf schematic panel width includes its 1px border so the view matches the frame. Zoom focus rings stay outside the stack. A WebGL startup failure keeps the caption, Explode slider, and full text list.

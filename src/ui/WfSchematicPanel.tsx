@@ -231,17 +231,6 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
         className="relative"
         style={{ width, height, touchAction: 'none' }}
       >
-        <button
-          type="button"
-          aria-label="Resize schematic view"
-          onKeyDown={onResizeKey}
-          onPointerDown={onResizePointerDown}
-          onPointerMove={onResizePointerMove}
-          onPointerUp={onResizePointerUp}
-          onPointerCancel={onResizePointerUp}
-          className={`pressable absolute left-0 top-0 z-10 h-11 w-11 touch-none rounded-lg ${FOCUS_RING}`}
-          style={TAP_HIGHLIGHT}
-        />
         {!showText && (
           <div className="absolute right-2 top-2 z-10 flex flex-col rounded-[4px] bg-white shadow-[0_0_0_2px_rgb(0_0_0/0.1)]">
             <button
@@ -288,6 +277,23 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
             onUnavailable={onViewUnavailable}
           />
         )}
+        <button
+          type="button"
+          aria-label="Resize schematic view"
+          title="Drag to resize"
+          onKeyDown={onResizeKey}
+          onPointerDown={onResizePointerDown}
+          onPointerMove={onResizePointerMove}
+          onPointerUp={onResizePointerUp}
+          onPointerCancel={onResizePointerUp}
+          className={`absolute left-1 top-1 z-20 flex h-11 w-11 cursor-nwse-resize touch-none items-start justify-start rounded-md border border-white/15 bg-surface-raised/95 p-1.5 text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)] ${FOCUS_RING}`}
+          style={TAP_HIGHLIGHT}
+        >
+          <svg aria-hidden="true" viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M3 10V3h7" />
+            <path d="M3 3l8 8" />
+          </svg>
+        </button>
       </div>
       <label className="mt-3 block text-xs">
         Explode

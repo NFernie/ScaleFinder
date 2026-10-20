@@ -14,7 +14,14 @@ import {
 import { halfChannelGeometry } from './halfChannelGeometry'
 import { mouthBarGeometry } from './mouthBarGeometry'
 import { cssEaseOut } from '../core/cssEaseOut'
-import { ZOOM_MAX, ZOOM_MIN, wheelZoomStep, zoomDistance } from './schematicFrame'
+import {
+  cameraPositionAtDistance,
+  schematicDrag,
+  ZOOM_MAX,
+  ZOOM_MIN,
+  wheelZoomStep,
+  zoomDistance,
+} from './schematicFrame'
 
 const TARGET = new THREE.Vector3(0, 0.4, 0.6)
 
@@ -24,11 +31,18 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 }
 
-function setCameraDistance(camera: THREE.PerspectiveCamera, distance: number) {
-  const offset = camera.position.clone().sub(TARGET)
-  const length = offset.length() || 1
-  offset.multiplyScalar(distance / length)
-  camera.position.copy(TARGET).add(offset)
+function setCameraDistance(camera: THREE.PerspectiveCamera, target: THREE.Vector3, distance: number) {
+  const next = cameraPositionAtDistance(camera.position, target, distance)
+  camera.position.set(next.x, next.y, next.z)
+}
+
+function isTextEntry(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  if (target.isContentEditable) return true
+  if (target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return true
+  if (target.tagName !== 'INPUT') return false
+  const type = (target as HTMLInputElement).type
+  return type !== 'range' && type !== 'button' && type !== 'checkbox' && type !== 'radio'
 }
 
 const COLOUR: Record<SolidKind, number> = {
@@ -152,8 +166,8 @@ const WfSchematicView = forwardRef<
         const camera = cameraRef.current
         const controls = controlsRef.current
         if (!camera || !controls) return
-        const distance = camera.position.distanceTo(TARGET)
-        setCameraDistance(camera, zoomDistance(distance, direction))
+        const distance = camera.position.distanceTo(controls.target)
+        setCameraDistance(camera, controls.target, zoomDistance(distance, direction))
         controls.update()
       },
     }),
@@ -188,10 +202,18 @@ const WfSchematicView = forwardRef<
     controls.enablePan = false
     controls.enableZoom = false
     controls.enableDamping = false
+    controls.screenSpacePanning = true
+    controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE
     controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE
     controls.minDistance = ZOOM_MIN
     controls.maxDistance = ZOOM_MAX
     controls.update()
+    const applyDrag = (spaceHeld: boolean) => {
+      const mode = schematicDrag(spaceHeld)
+      controls.enablePan = mode === 'pan'
+      controls.mouseButtons.LEFT = mode === 'pan' ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE
+      renderer.domElement.style.cursor = mode === 'pan' ? 'grab' : ''
+    }
     controlsRef.current = controls
     scene.add(new THREE.AmbientLight(0xffffff, 0.35))
     scene.add(new THREE.HemisphereLight(0xe2e8f0, 0x64748b, 0.65))
@@ -253,9 +275,23 @@ const WfSchematicView = forwardRef<
       const step = wheelZoomStep(wheelAccum, event)
       wheelAccum = step.accumulator
       if (!step.direction) return
-      const distance = camera.position.distanceTo(TARGET)
-      setCameraDistance(camera, zoomDistance(distance, step.direction))
+      const distance = camera.position.distanceTo(controls.target)
+      setCameraDistance(camera, controls.target, zoomDistance(distance, step.direction))
       controls.update()
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.code !== 'Space') return
+      if (isTextEntry(event.target)) return
+      event.preventDefault()
+      if (event.repeat) return
+      applyDrag(true)
+    }
+    function onKeyUp(event: KeyboardEvent) {
+      if (event.code !== 'Space') return
+      applyDrag(false)
+    }
+    function onWindowBlur() {
+      applyDrag(false)
     }
     function onPointerDown(event: PointerEvent) {
       event.stopPropagation()
@@ -266,6 +302,9 @@ const WfSchematicView = forwardRef<
     renderer.domElement.addEventListener('wheel', onWheel, { passive: false })
     renderer.domElement.addEventListener('pointerdown', onPointerDown)
     renderer.domElement.addEventListener('pointerleave', onPointerLeave)
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', onWindowBlur)
 
     let frame = 0
     const tick = () => {
@@ -320,6 +359,9 @@ const WfSchematicView = forwardRef<
       renderer.domElement.removeEventListener('wheel', onWheel)
       renderer.domElement.removeEventListener('pointerdown', onPointerDown)
       renderer.domElement.removeEventListener('pointerleave', onPointerLeave)
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', onWindowBlur)
       geometries.forEach((geometry) => geometry.dispose())
       meshMaterials.forEach((material) => material.dispose())
       spriteMaterials.forEach((material) => material.dispose())

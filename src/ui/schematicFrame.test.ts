@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cameraPositionAtDistance,
   fitSchematicFrame,
   FRAME_INSET_PX,
   FRAME_START,
   initialSchematicFrame,
   PANEL_HORIZONTAL_PAD_PX,
+  schematicDrag,
   schematicFrameLimits,
   wheelZoomStep,
   wrapperEdgeGaps,
@@ -105,6 +107,26 @@ describe('schematicFrame', () => {
     expect(zoomDistance(10, 'out')).toBeCloseTo(12.5)
     expect(zoomDistance(2, 'in')).toBe(2)
     expect(zoomDistance(60, 'out')).toBe(60)
+  })
+
+  it('keeps a panned look-at when the camera distance changes', () => {
+    const target = { x: 1.5, y: 0.2, z: -0.4 }
+    const position = { x: 6.5, y: 5.5, z: 7.5 }
+    const next = cameraPositionAtDistance(position, target, 10)
+    const offset = { x: next.x - target.x, y: next.y - target.y, z: next.z - target.z }
+    expect(Math.hypot(offset.x, offset.y, offset.z)).toBeCloseTo(10)
+    const before = { x: position.x - target.x, y: position.y - target.y, z: position.z - target.z }
+    const beforeLength = Math.hypot(before.x, before.y, before.z)
+    expect(offset.x / 10).toBeCloseTo(before.x / beforeLength)
+    expect(offset.y / 10).toBeCloseTo(before.y / beforeLength)
+    expect(offset.z / 10).toBeCloseTo(before.z / beforeLength)
+    const home = { x: 0, y: 0.4, z: 0.6 }
+    expect(Math.hypot(next.x - home.x, next.y - home.y, next.z - home.z)).not.toBeCloseTo(10)
+  })
+
+  it('uses space to switch the schematic drag from orbit to pan', () => {
+    expect(schematicDrag(false)).toBe('orbit')
+    expect(schematicDrag(true)).toBe('pan')
   })
 
   it('counts one wheel detent as one zoom step', () => {

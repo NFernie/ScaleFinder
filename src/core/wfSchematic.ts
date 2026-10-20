@@ -64,29 +64,12 @@ export const GROUND_THICKNESS = 0.05
 export const WATER_COLOUR = 0x38bdf8
 export const WATER_OPACITY = 0.3
 
-const RANK_DISTANCE: Record<Rank, number> = {
-  'element-complex-set': 0,
-  'element-complex': 8,
-  'element-set': 6,
-  element: 5,
-}
-
-function bandProgress(rank: Rank, t: number): number {
-  if (rank === 'element-complex-set') return 0
-  if (rank === 'element-complex') {
-    if (t <= 0) return 0
-    if (t >= 1 / 3) return 1
-    return t / (1 / 3)
-  }
-  if (rank === 'element-set') {
-    if (t <= 1 / 3) return 0
-    if (t >= 2 / 3) return 1
-    return (t - 1 / 3) / (1 / 3)
-  }
-  if (t <= 2 / 3) return 0
-  if (t >= 1) return 1
-  return (t - 2 / 3) / (1 / 3)
-}
+/**
+ * At full explode, each body's centre is this many times farther from the origin.
+ * The direction is the centre itself, so the largest coordinate does most of the travel
+ * and the smaller ones keep the same proportion.
+ */
+export const EXPLODE_SPREAD = 5
 
 function labelVisible(body: SceneBody, t: number): boolean {
   if (body.rank === 'element-complex-set') return true
@@ -95,16 +78,43 @@ function labelVisible(body: SceneBody, t: number): boolean {
   return t > 2 / 3 && (body.id === 'e-ridge-r-0' || body.id === 'e-mouth-0' || body.id === 'e-channel')
 }
 
-function siblingDirection(id: string, siblingIds: string[]): { x: number; y: number; z: number } {
-  const ids = [...siblingIds].sort()
-  const index = ids.indexOf(id)
-  const count = ids.length
-  if (count <= 1) return { x: 0, y: 1, z: 0 }
-  if (count === 2) return index === 0 ? { x: 1, y: 0, z: 0 } : { x: -1, y: 0, z: 0 }
-  const y = 1 - (2 * index + 1) / count
-  const radius = Math.sqrt(1 - y * y)
-  const theta = Math.PI * (3 - Math.sqrt(5)) * index
-  return { x: Math.cos(theta) * radius, y, z: Math.sin(theta) * radius }
+function rotateYaw(point: { x: number; y: number; z: number }, yaw: number): { x: number; y: number; z: number } {
+  const cos = Math.cos(yaw)
+  const sin = Math.sin(yaw)
+  return {
+    x: point.x * cos + point.z * sin,
+    y: point.y,
+    z: -point.x * sin + point.z * cos,
+  }
+}
+
+/** Centre of the solid in the body's local frame, before the nested offset. */
+function localCenter(body: SceneBody): { x: number; y: number; z: number } {
+  if (body.kind === 'beach-ridge') {
+    const stations = beachRidgeStations(body.id.includes('-r-') ? 'r' : 'l')
+    const sum = stations.reduce(
+      (total, station) => ({
+        x: total.x + station.x,
+        y: total.y + station.height / 2,
+        z: total.z + station.z,
+      }),
+      { x: 0, y: 0, z: 0 },
+    )
+    return { x: sum.x / stations.length, y: sum.y / stations.length, z: sum.z / stations.length }
+  }
+  if (body.kind === 'mouth-bar') return { x: 0, y: MOUTH_BAR_SCALE.y / 2, z: 0 }
+  if (body.kind === 'channel') return { x: 0, y: -CHANNEL_RADIUS / 2, z: 0 }
+  return { x: 0, y: 0, z: 0 }
+}
+
+/** Where the solid sits in the nested pose, measured from the origin. */
+export function bodyCenter(body: SceneBody): { x: number; y: number; z: number } {
+  const local = rotateYaw(localCenter(body), body.yaw ?? 0)
+  return {
+    x: body.nested.x + local.x,
+    y: body.nested.y + local.y,
+    z: body.nested.z + local.z,
+  }
 }
 
 const RIDGE_COUNT = 4
@@ -410,48 +420,19 @@ const BODIES: SceneBody[] = [
 
 export function sceneAt(explode: number): PlacedBody[] {
   const t = Math.min(1, Math.max(0, explode))
-  if (t === 0) {
-    return BODIES.map((body) => ({
+  const spread = 1 + (EXPLODE_SPREAD - 1) * t
+  return BODIES.map((body) => {
+    if (spread === 1) return { ...body, position: body.nested, showLabel: labelVisible(body, t) }
+    const local = rotateYaw(localCenter(body), body.yaw ?? 0)
+    const center = bodyCenter(body)
+    return {
       ...body,
-      position: { x: body.nested.x, y: body.nested.y, z: body.nested.z },
+      position: {
+        x: center.x * spread - local.x,
+        y: center.y * spread - local.y,
+        z: center.z * spread - local.z,
+      },
       showLabel: labelVisible(body, t),
-    }))
-  }
-  const byId = new Map(BODIES.map((body) => [body.id, body]))
-  const children = new Map<string, string[]>()
-  for (const body of BODIES) {
-    if (!body.parentId) continue
-    const list = children.get(body.parentId) ?? []
-    list.push(body.id)
-    children.set(body.parentId, list)
-  }
-  const placed = new Map<string, { x: number; y: number; z: number }>()
-  const place = (id: string): { x: number; y: number; z: number } => {
-    const cached = placed.get(id)
-    if (cached) return cached
-    const body = byId.get(id)!
-    if (!body.parentId) {
-      const position = { x: body.nested.x, y: body.nested.y, z: body.nested.z }
-      placed.set(id, position)
-      return position
     }
-    const parent = place(body.parentId)
-    const parentBody = byId.get(body.parentId)!
-    const progress = bandProgress(body.rank, t)
-    const direction = siblingDirection(body.id, children.get(body.parentId) ?? [])
-    const distance = RANK_DISTANCE[body.rank]
-    const step = {
-      x: (1 - progress) * (body.nested.x - parentBody.nested.x) + progress * direction.x * distance,
-      y: (1 - progress) * (body.nested.y - parentBody.nested.y) + progress * direction.y * distance,
-      z: (1 - progress) * (body.nested.z - parentBody.nested.z) + progress * direction.z * distance,
-    }
-    const position = { x: parent.x + step.x, y: parent.y + step.y, z: parent.z + step.z }
-    placed.set(id, position)
-    return position
-  }
-  return BODIES.map((body) => ({
-    ...body,
-    position: place(body.id),
-    showLabel: labelVisible(body, t),
-  }))
+  })
 }

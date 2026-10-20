@@ -170,6 +170,33 @@ export function zoomDistance(distance: number, direction: 'in' | 'out'): number 
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next))
 }
 
+export type SchematicDrag = 'orbit' | 'pan'
+
+/** Space held pans. Otherwise a drag orbits. */
+export function schematicDrag(spaceHeld: boolean): SchematicDrag {
+  return spaceHeld ? 'pan' : 'orbit'
+}
+
+/** Move the camera along its current look direction so it stays aimed at `target`. */
+export function cameraPositionAtDistance(
+  position: { x: number; y: number; z: number },
+  target: { x: number; y: number; z: number },
+  distance: number,
+): { x: number; y: number; z: number } {
+  const offset = {
+    x: position.x - target.x,
+    y: position.y - target.y,
+    z: position.z - target.z,
+  }
+  const length = Math.hypot(offset.x, offset.y, offset.z) || 1
+  const scale = distance / length
+  return {
+    x: target.x + offset.x * scale,
+    y: target.y + offset.y * scale,
+    z: target.z + offset.z * scale,
+  }
+}
+
 /** Pixel deltas that add up to one wheel detent. Line and page modes step on the event itself. */
 export const WHEEL_PIXEL_THRESHOLD = 100
 

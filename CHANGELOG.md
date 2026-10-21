@@ -56,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The Wf mouth-bar complex is raised so the landward apex base meets the channel top. Every bar keeps the same relative Y. Seaward downsteps and yaw are unchanged.
+- The Wf mouth-bar complex sits so the landward apex crown meets the channel centre in Y. Every bar keeps the same relative Y. Fan centres are pulled toward X=0 with 100% more alongshore overlap. Seaward downsteps and yaw are unchanged.
 - The Wf schematic panel title is Wf Schematic. The place name stays on the pin. The view resizes from the top-left with a locked ratio, and zoom and orbit stay inside the panel.
 - Explode pulls every Wf solid away from the origin along its own centre. The nested arrangement stays, and at the end of the slider each centre is five times farther out. The largest coordinate does most of the travel. Names still accumulate. One Beach ridge, one Mouth bar, and one Channel fill are labelled.
 - Holding Space and dragging the Wf schematic view pans it. Zoom and orbit then follow that look-at. Releasing Space returns the drag to orbit.

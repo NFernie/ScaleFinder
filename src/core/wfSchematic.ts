@@ -51,6 +51,16 @@ export const MOUTH_BAR_STEP = 0.05
 /** Degrees added to the yaw for each step seaward of the channel bar. */
 export const MOUTH_BAR_YAW_STEP = 1
 
+/** Cross-axis centres in the fan template before alongshore compression. */
+const MOUTH_FAN_INNER_X = 0.16
+
+/**
+ * Scale on fan X centres. The inner ±0.16 pair gets 100% more alongshore overlap
+ * (centre gap 0.32 → 0.14 for bar width 0.5).
+ */
+export const MOUTH_FAN_X_SCALE =
+  (MOUTH_BAR_SCALE.x - 2 * (MOUTH_BAR_SCALE.x - 2 * MOUTH_FAN_INNER_X)) / (2 * MOUTH_FAN_INNER_X)
+
 /** How far the ridge base (lowest Y) sits seaward of the crest. */
 export const RIDGE_BASE_SEAWARD = 0.12
 
@@ -269,12 +279,18 @@ export function seawardRidgeBaseY(): number {
 }
 
 /**
- * Uniform Y lift for every mouth bar. The landward apex base meets the channel top.
+ * Uniform Y offset for every mouth bar. The landward apex crown meets the channel centre.
  * Seaward steps and the offset between the two fans stay the same.
  */
 export function mouthBarComplexLift(): number {
   const landwardBaseY = waterlineY() - mouthBarCrownY()
-  return channelSpan().flatY - landwardBaseY
+  const targetBaseY = channelSpan().flatY - CHANNEL_RADIUS / 2 - mouthBarCrownY()
+  return targetBaseY - landwardBaseY
+}
+
+/** World Y of the channel half-cylinder centre (flat face at channelSpan().flatY). */
+export function channelCenterY(): number {
+  return channelSpan().flatY - CHANNEL_RADIUS / 2
 }
 
 /**
@@ -309,7 +325,7 @@ function layMouthFan(originZ: number, yLand: number): Array<{ x: number; y: numb
     const seaward = rank.get(point.z) ?? 0
     const degrees = point.x === 0 ? 0 : Math.sign(point.x) * seaward * MOUTH_BAR_YAW_STEP
     return {
-      x: point.x,
+      x: point.x * MOUTH_FAN_X_SCALE,
       y: yLand - seaward * step,
       z: originZ + point.z,
       yaw: (degrees * Math.PI) / 180,

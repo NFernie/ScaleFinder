@@ -91,6 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `features/wfpaneldesignsummary.md` — branch summary and Three.js geometry digest for follow-up schematic mesh work.
 - `DESIGN.md` — the Wf schematic explodes radially from the origin, and Space-drag pans the view.
 - `docs/superpowers/plans/2026-10-09-wf-schematic-panel.md` — implementation plan for the approved Wf schematic panel. Core tasks are Vitest-first. UI tasks follow `WORKFLOW.md` one skill per message: UI UX Pro Max `ui-styling`, Impeccable shape and critique, then Emil Kowalski (`emil-design-eng`, `find-animation-opportunities`, `animate`, `review-animations`, `mobile-native`), then polish, audit, harden, and document.
 - `docs/superpowers/specs/2026-10-09-wf-schematic-panel-design.md` — approved panel revision for the Wf schematic: title Wf Schematic, aspect-locked resize, map-style zoom, orbit, and a three-band spherical explode with accumulated labels. Mesh geometry is unchanged.

@@ -18,10 +18,10 @@ function faceNormal(geometry: THREE.BufferGeometry, triangle: number): THREE.Vec
 
 describe('beachRidgeGeometry', () => {
   it('lofts the right-flank rings and mirrors that mesh onto the left flank', () => {
-    const stations = beachRidgeStations('r')
+    const stations = beachRidgeStations('r', 3)
     const corners = beachRidgeRing(stations[0]).length
-    const right = beachRidgeGeometry('r')
-    const left = beachRidgeGeometry('l')
+    const right = beachRidgeGeometry('r', 3)
+    const left = beachRidgeGeometry('l', 3)
     const rightPos = right.getAttribute('position')
     const leftPos = left.getAttribute('position')
 

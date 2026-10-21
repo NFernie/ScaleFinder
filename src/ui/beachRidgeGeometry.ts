@@ -2,13 +2,14 @@ import * as THREE from 'three'
 import { beachRidgeRing, beachRidgeStations } from '../core/wfSchematic'
 
 /**
- * Lofted beach-ridge element. The right flank follows the core stations in +X.
- * The left flank is that same mesh mirrored in X, with winding flipped.
+ * Lofted beach-ridge element for one index in the stack. The right flank follows
+ * the core stations in +X. The left flank is that same mesh mirrored in X, with
+ * winding flipped. Index 0 is the most landward ridge.
  * Another schematic can import this mesh and place it; this file does not
  * decide where the ridge sits.
  */
-export function beachRidgeGeometry(side: 'l' | 'r'): THREE.BufferGeometry {
-  const stations = beachRidgeStations('r')
+export function beachRidgeGeometry(side: 'l' | 'r', index: number): THREE.BufferGeometry {
+  const stations = beachRidgeStations('r', index)
   const positions: number[] = []
   const indices: number[] = []
   for (const station of stations) {

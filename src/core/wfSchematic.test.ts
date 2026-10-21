@@ -15,9 +15,12 @@ import {
   mouthBarCrownY,
   MOUTH_FAN_X_SCALE,
   seawardRidgeBaseY,
+  beachRidgePlanAngleDeg,
+  RIDGE_ANGLE_LANDWARD_DROP,
   RIDGE_BASE_SEAWARD,
   RIDGE_DOWNSTEP,
   RIDGE_FACE_SLOPE,
+  RIDGE_SEAWARD_ANGLE_DEG,
   bodyCenter,
   EXPLODE_SPREAD,
   sceneAt,
@@ -120,7 +123,7 @@ describe('wfSchematic', () => {
       .sort((a, b) => a.position.z - b.position.z)[0]
     const halfZ = MOUTH_BAR_SCALE.z / 2
     const apex = proximal.find((body) => body.position.x === 0)
-    const intersectZ = (landwardRidge?.position.z ?? 0) + beachRidgeStations('r')[0].z
+    const intersectZ = (landwardRidge?.position.z ?? 0) + beachRidgeStations('r', 0)[0].z
     expect(proximal).toHaveLength(9)
     expect(apex?.position.z).toBe(Math.min(...proximal.map((body) => body.position.z)))
     expect(apex && apex.position.z - halfZ).toBeCloseTo(intersectZ)
@@ -153,7 +156,8 @@ describe('wfSchematic', () => {
         .sort((a, b) => a.position.z - b.position.z)
       expect(ridges).toHaveLength(4)
       expect(new Set(ridges.map((body) => body.parentId))).toEqual(new Set([`es-ridge-${side}`]))
-      const stations = beachRidgeStations(side)
+      const seawardIndex = ridges.length - 1
+      const stations = beachRidgeStations(side, seawardIndex)
       const channelEnd = stations[0]
       const tip = stations[stations.length - 1]
       const ring = beachRidgeRing(channelEnd)
@@ -169,16 +173,32 @@ describe('wfSchematic', () => {
       }
       const baseZ = base.reduce((sum, corner) => sum + corner.z, 0) / base.length
       const crestZ = crest.reduce((sum, corner) => sum + corner.z, 0) / crest.length
-      const lowest = stations.reduce((best, station) => (station.z < best.z ? station : best))
       const water = waterlineY()
       expect(channelEnd.halfWidth).toBeCloseTo(0.145)
       expect(channelEnd.halfWidth).toBeGreaterThan(tip.halfWidth * 4)
       expect(channelEnd.height).toBeGreaterThan(tip.height)
       expect(tip.z).toBeLessThan(channelEnd.z)
-      expect(tip.z).toBeGreaterThan(lowest.z)
-      expect(tip.z).toBeGreaterThan(stations[stations.length - 2].z)
-      expect(stations[stations.length - 2].z).toBeGreaterThan(stations[stations.length - 3].z)
-      expect(stations[1].z).toBeLessThan(stations[0].z)
+      expect(stations.every((station, index) => index === 0 || station.z < stations[index - 1].z)).toBe(true)
+      expect(beachRidgePlanAngleDeg(seawardIndex)).toBe(RIDGE_SEAWARD_ANGLE_DEG)
+      const centreGaps: number[] = []
+      const tipGaps: number[] = []
+      for (let index = 0; index < seawardIndex; index += 1) {
+        expect(beachRidgePlanAngleDeg(index)).toBeCloseTo(
+          beachRidgePlanAngleDeg(index + 1) * (1 - RIDGE_ANGLE_LANDWARD_DROP),
+        )
+        const landwardStations = beachRidgeStations(side, index)
+        const seawardStations = beachRidgeStations(side, index + 1)
+        expect(landwardStations[0].z).toBeCloseTo(seawardStations[0].z)
+        const channelGap = ridges[index + 1].position.z - ridges[index].position.z
+        const landwardTip = landwardStations[landwardStations.length - 1]
+        const seawardTip = seawardStations[seawardStations.length - 1]
+        const tipGap = channelGap + seawardTip.z - landwardTip.z
+        centreGaps.push(channelGap)
+        tipGaps.push(tipGap)
+        expect(tipGap).toBeGreaterThan(0.02)
+        expect(tipGap).toBeLessThan(channelGap * 0.5)
+      }
+      expect(Math.min(...tipGaps)).toBeLessThan(Math.min(...centreGaps) * 0.25)
       const crown = crestSea.z - channelEnd.z
       const steepRun = channelEnd.halfWidth - crown + RIDGE_BASE_SEAWARD
       expect(RIDGE_FACE_SLOPE).toBe(0.25)
@@ -230,7 +250,7 @@ describe('wfSchematic', () => {
       .filter((body) => body.id.startsWith('e-ridge-r-'))
       .sort((a, b) => a.position.z - b.position.z)
     const seaward = rightRidges[rightRidges.length - 1]
-    const thickZ = (seaward?.position.z ?? 0) + beachRidgeStations('r')[0].z
+    const thickZ = (seaward?.position.z ?? 0) + beachRidgeStations('r', rightRidges.length - 1)[0].z
     expect(channel?.position.x).toBe(0)
     expect(channel?.position.y).toBe(span.flatY)
     expect(channel?.position.z).toBeCloseTo(span.centerZ)

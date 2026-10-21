@@ -57,7 +57,8 @@ function geometryFor(body: PlacedBody): THREE.BufferGeometry {
   if (body.kind === 'channel') return halfChannelGeometry()
   if (body.kind === 'mouth-bar') return mouthBarGeometry()
   if (body.kind === 'beach-ridge') {
-    return beachRidgeGeometry(body.id.includes('-r-') ? 'r' : 'l')
+    const index = Number(body.id.slice(body.id.lastIndexOf('-') + 1))
+    return beachRidgeGeometry(body.id.includes('-r-') ? 'r' : 'l', Number.isFinite(index) ? index : 0)
   }
   return new THREE.BoxGeometry(0.01, 0.01, 0.01)
 }

@@ -74,6 +74,19 @@ export const RIDGE_FACE_SLOPE = 0.25
 /** Each landward beach ridge sits this fraction of the crest height above the next seaward ridge. */
 export const RIDGE_DOWNSTEP = 0.02
 
+/**
+ * Plan angle, in degrees, added at the channel end of the most seaward beach ridge.
+ * Positive swings the alongshore tip landward so the channel stays the seaward apex.
+ */
+export const RIDGE_SEAWARD_ANGLE_DEG = 30
+
+/**
+ * Each ridge landward of the next keeps this fraction less plan angle.
+ * 12% leaves a small positive centreline gap at the tips (about 0.07 on the
+ * seaward pair) while the channel-end gap stays on RIDGE_Z_STEP.
+ */
+export const RIDGE_ANGLE_LANDWARD_DROP = 0.12
+
 /** Thickness of the water-line slab. Its top is the channel base. */
 export const GROUND_THICKNESS = 0.05
 
@@ -108,7 +121,7 @@ function rotateYaw(point: { x: number; y: number; z: number }, yaw: number): { x
 /** Centre of the solid in the body's local frame, before the nested offset. */
 function localCenter(body: SceneBody): { x: number; y: number; z: number } {
   if (body.kind === 'beach-ridge') {
-    const stations = beachRidgeStations(body.id.includes('-r-') ? 'r' : 'l')
+    const stations = beachRidgeStations(body.id.includes('-r-') ? 'r' : 'l', ridgeIndex(body.id))
     const sum = stations.reduce(
       (total, station) => ({
         x: total.x + station.x,
@@ -155,8 +168,8 @@ const RIDGE_BASE_REF = 0.36
 const RIDGE_TIP_CLEARANCE = 0.03
 
 /**
- * Plan-view centreline. A landward sweep from the channel, then a sigmoid
- * so the tip turns slightly back toward the sea.
+ * Plan-view centreline before the per-ridge landward angle.
+ * A landward sweep from the channel, then a sigmoid so the tip turns slightly back toward the sea.
  */
 function ridgeCentreZ(t: number): number {
   const landward = RIDGE_BOW * (1 - t * t)
@@ -179,23 +192,42 @@ function ridgeHeights(): { thick: number; tip: number } {
   }
 }
 
+/** Index from `e-ridge-r-2`. Groups and other ids fall back to the landward ridge. */
+function ridgeIndex(id: string): number {
+  const index = Number(id.slice(id.lastIndexOf('-') + 1))
+  return Number.isFinite(index) ? index : 0
+}
+
+/**
+ * Added plan angle for one ridge. Index 0 is the most landward.
+ * The most seaward ridge is RIDGE_SEAWARD_ANGLE_DEG. Each step landward
+ * multiplies by (1 - RIDGE_ANGLE_LANDWARD_DROP).
+ */
+export function beachRidgePlanAngleDeg(index: number): number {
+  const stepsLandward = RIDGE_COUNT - 1 - index
+  return RIDGE_SEAWARD_ANGLE_DEG * (1 - RIDGE_ANGLE_LANDWARD_DROP) ** stepsLandward
+}
+
 /**
  * One beach-ridge centreline in ridge-local coordinates.
- * X is alongshore, away from the channel. The centreline is sigmoidal:
- * it swings landward, then the tip turns slightly seaward. The thick end
- * is still seaward of the tip. Height tapers toward the tip, and the whole
- * crest stays above the water line.
+ * X is alongshore, away from the channel. The channel end keeps the shared
+ * fore-aft spacing. Toward the tip the ridge swings landward by
+ * beachRidgePlanAngleDeg, so the stack closes up but the centrelines still
+ * keep a small Z gap. The channel end stays the seaward apex.
+ * Height tapers toward the tip, and the whole crest stays above the water line.
  */
-export function beachRidgeStations(side: 'l' | 'r'): RidgeStation[] {
+export function beachRidgeStations(side: 'l' | 'r', index: number): RidgeStation[] {
   const sign = side === 'r' ? 1 : -1
   const { thick, tip } = ridgeHeights()
+  const landward = Math.tan((beachRidgePlanAngleDeg(index) * Math.PI) / 180)
+  const span = RIDGE_OUTER - RIDGE_INNER
   const stations: RidgeStation[] = []
   for (let i = 0; i < RIDGE_STATIONS; i += 1) {
     const t = i / (RIDGE_STATIONS - 1)
     const taper = 1 - t
     stations.push({
-      x: sign * (RIDGE_INNER + t * (RIDGE_OUTER - RIDGE_INNER)),
-      z: ridgeCentreZ(t),
+      x: sign * (RIDGE_INNER + t * span),
+      z: ridgeCentreZ(t) - landward * t * span,
       halfWidth: RIDGE_HALF_WIDTH * taper + RIDGE_TIP_WIDTH,
       height: tip + (thick - tip) * taper,
     })
@@ -242,7 +274,7 @@ export function beachRidgeRing(station: RidgeStation): RidgeCorner[] {
 }
 
 function ridgeWorldZ(index: number): number {
-  return RIDGE_Z_BASE + index * RIDGE_Z_STEP + beachRidgeStations('r')[0].z
+  return RIDGE_Z_BASE + index * RIDGE_Z_STEP + beachRidgeStations('r', index)[0].z
 }
 
 /** Seaward tip of the channel meets the thick end of the most seaward ridge. */

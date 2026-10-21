@@ -51,8 +51,14 @@ export const MOUTH_BAR_STEP = 0.05
 /** Degrees added to the yaw for each step seaward of the channel bar. */
 export const MOUTH_BAR_YAW_STEP = 1
 
-/** How far the ridge base (lowest Y) sits seaward of the crest. */
+/** How far the ridge base (lowest Y) sits seaward of the crest before the face is flattened. */
 export const RIDGE_BASE_SEAWARD = 0.12
+
+/**
+ * Seaward-face rise/run as a fraction of the unsheared wedge.
+ * 0.25 is another halving of the previous 0.5 slope, so the whole section is 50% flatter again.
+ */
+export const RIDGE_FACE_SLOPE = 0.25
 
 /** Each landward beach ridge sits this fraction of the crest height above the next seaward ridge. */
 export const RIDGE_DOWNSTEP = 0.02
@@ -187,27 +193,34 @@ export function beachRidgeStations(side: 'l' | 'r'): RidgeStation[] {
 }
 
 /**
- * Cross-section at one station. The base sits seaward of the crest.
- * The seaward face is a sigmoid: it stays landward of the straight chord
- * through the upper half, then kicks out to the toe.
+ * Cross-section at one station. The crest stays put. The base is sheared seaward
+ * so the seaward-face slope is RIDGE_FACE_SLOPE times the unsheared wedge.
+ * The face reflects a logistic sigmoid across the chord: seaward of the chord in the
+ * upper half (convex toward the sea) and landward of it in the lower half, with the
+ * toe running out flat.
  */
 export function beachRidgeRing(station: RidgeStation): RidgeCorner[] {
   const crown = station.halfWidth * 0.28
-  const baseLandZ = station.z - station.halfWidth + RIDGE_BASE_SEAWARD
-  const baseSeaZ = station.z + station.halfWidth + RIDGE_BASE_SEAWARD
   const crestSeaZ = station.z + crown
   const crestLandZ = station.z - crown
+  const baseLand0 = station.z - station.halfWidth + RIDGE_BASE_SEAWARD
+  const baseSea0 = station.z + station.halfWidth + RIDGE_BASE_SEAWARD
+  const steepRun = baseSea0 - crestSeaZ
+  const run = steepRun / RIDGE_FACE_SLOPE
+  const shear = run - steepRun
+  const baseLandZ = baseLand0 + shear
+  const baseSeaZ = crestSeaZ + run
   const ring: RidgeCorner[] = [
     { x: station.x, y: 0, z: baseLandZ },
     { x: station.x, y: 0, z: baseSeaZ },
   ]
-  const steps = 4
+  const steps = 16
   for (let i = 1; i < steps; i += 1) {
-    const t = 1 - i / steps
+    const down = 1 - i / steps
     ring.push({
       x: station.x,
-      y: station.height * (1 - t),
-      z: crestSeaZ + (baseSeaZ - crestSeaZ) * sigmoid01(t),
+      y: station.height * (1 - down),
+      z: crestSeaZ + run * ridgeFaceFraction(down),
     })
   }
   ring.push(
@@ -242,6 +255,16 @@ function sigmoid01(t: number): number {
   const start = raw(0)
   const end = raw(1)
   return (raw(t) - start) / (end - start)
+}
+
+/** Logistic reflected across the chord. Steepness stays low enough that Z keeps increasing seaward. */
+function ridgeFaceFraction(down: number): number {
+  const k = 6
+  const raw = (u: number) => 1 / (1 + Math.exp(-k * (u - 0.5)))
+  const start = raw(0)
+  const end = raw(1)
+  const logistic = (raw(down) - start) / (end - start)
+  return 2 * down - logistic
 }
 
 /** Base of one mouth bar. The landward rim is 0. The seaward rim is the full dip. */

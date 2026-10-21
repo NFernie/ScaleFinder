@@ -4,21 +4,21 @@
 
 ## What shipped
 
-`threejs-geometry` only. Positions stay in `src/core/wfSchematic.ts`. Meshes stay in `src/ui/WfSchematicView.tsx`, and the half-cylinder builder is `src/ui/halfChannelGeometry.ts`. `three` is not imported from core.
+`threejs-geometry` only. Positions stay in `src/core/wfSchematic.ts`. Element meshes are `src/ui/mouthBarGeometry.ts`, `src/ui/beachRidgeGeometry.ts`, and `src/ui/halfChannelGeometry.ts`. `WfSchematicView.tsx` places them. `three` is not imported from core.
 
 | Body | Mesh | Frame |
 | --- | --- | --- |
 | Ground | Thin box, blue, opacity 0.3, `depthWrite` off | Water line. The top of the slab is the base of the channel. Mouth bars sit below it |
 | Channel | Custom half-cylinder `BufferGeometry` along **+Z**. Flat face at local y = 0, arc down to `−radius`. `computeVertexNormals()` | Radius is half the earlier full cylinder. The mesh origin is the middle of the flat face. The **+Z** tip meets the thick end of the most seaward beach ridge. Centred at X = 0 |
-| Beach ridge | Custom `BufferGeometry` from `beachRidgeRing`. Sigmoid seaward face, `computeVertexNormals()`, flat shading | Thick at the channel, thinner at the alongshore tip. Centreline swings landward, then the tip turns slightly seaward. Crest stays above the water line. The most seaward crest meets the channel top. Each landward ridge is 2% of the reference crest height above the next, and the bases stay at those elevations. Fore-aft width is half the previous thickness. The base is seaward of the crest. Left flank is the right flank mirrored in X |
+| Beach ridge | Custom loft in `beachRidgeGeometry`. Sigmoid seaward face, `computeVertexNormals()`, flat shading | Thick at the channel, thinner at the alongshore tip. Centreline swings landward, then the tip turns slightly seaward. Crest stays above the water line. The most seaward crest meets the channel top. Each landward ridge is 2% of the reference crest height above the next, and the bases stay at those elevations. Fore-aft width is half the previous thickness. The base is seaward of the crest. Left flank is the right flank mirrored in X |
 | Mouth bar | Custom half spheroid in `mouthBarGeometry`. Flat base, dome on top, `computeVertexNormals()` | Nine bars fill a V in front of the channel. Thickness is 50% greater and the long axis is 50% longer, extended seaward. The base follows an exaggerated sigmoid along **+Z**. The landward base of the channel bar matches the base of the most seaward beach ridge. Each bar farther seaward is 5% of the bar thickness lower and yaws outward by another 1°, toward +X on the right and −X on the left. The channel bar stays straight. A second fan uses the same steps under the channel. Its landward rim is where the channel meets the most landward beach ridge, its crown meets the channel base, and it progrades seaward onto the fan in front of the channel. The stack stays under the water line |
 | Swale, mouth-bar slab, lobe solid | Not drawn | Wf-Lobe and Wf-Mouth Bar remain labels |
 
 +X is alongshore to the right. +Y is up. +Z is seaward. Figure 10’s Wf-Lobe crescents are the ridge shape. Figures 7 and 8 are the stacking reference. The PNG is the plan arrangement, without its grey swales or blue body.
 
-**Architecture:** Positions, ranks, the mouth-bar fan, and the two flanks stay in `src/core/wfSchematic.ts`. Meshes stay in `src/ui/WfSchematicView.tsx`. `three` is not imported from `src/core/`. Explode still adds a Y gap by rank only. The slider still tracks the thumb.
+**Architecture:** Positions, ranks, the mouth-bar fan, and the two flanks stay in `src/core/wfSchematic.ts`. Element meshes are `mouthBarGeometry.ts`, `beachRidgeGeometry.ts`, and `halfChannelGeometry.ts`. `WfSchematicView.tsx` places those meshes. `three` is not imported from `src/core/`. Explode is radial from the origin (`sceneAt`); see `features/wfpaneldesignsummary.md`.
 
-**Tech stack:** Vite, React 18, TypeScript, Tailwind, Vitest, `three` `^0.186.1` (only the schematic view). MapLibre is unchanged.
+**Tech stack:** Vite, React 18, TypeScript, Tailwind, Vitest, `three` `^0.186.1` (schematic view and the three element meshes). MapLibre is unchanged.
 
 The earlier stand-in list (blue lobe sphere, green slab, grey swale boxes, square channel) is gone. Do not restore it. Diagram colours stay inside the canvas: gold ridges, green mouth bars, orange channel, blue water line. Do not paint the PNG onto a mesh.
 

@@ -10,6 +10,7 @@ import {
   MOUTH_BAR_SCALE,
   MOUTH_BAR_STEP,
   MOUTH_BAR_YAW_STEP,
+  MOUTH_FAN_X_SCALE,
   mouthBarCrownY,
   RIDGE_BASE_SEAWARD,
   RIDGE_DOWNSTEP,
@@ -61,13 +62,15 @@ describe('wfSchematic', () => {
     expect(centre?.position.z).toBe(Math.min(...mouths.map((body) => body.position.z)))
     expect(mouths.filter((body) => body.position.x < 0).length).toBeGreaterThan(2)
     expect(mouths.filter((body) => body.position.x > 0).length).toBeGreaterThan(2)
-    const inner = mouths.filter((body) => Math.abs(body.position.x) > 0.05 && Math.abs(body.position.x) < 0.25)
-    expect(inner.some((body) => body.position.x < 0)).toBe(true)
-    expect(inner.some((body) => body.position.x > 0)).toBe(true)
-    const innerLeft = inner.find((body) => body.position.x < 0)!
-    const innerRight = inner.find((body) => body.position.x > 0)!
-    expect(Math.abs(innerLeft.position.x - innerRight.position.x)).toBeLessThan(MOUTH_BAR_SCALE.x)
+    const innerX = 0.16 * MOUTH_FAN_X_SCALE
+    const crossAxis = mouths.filter((body) => Math.abs(Math.abs(body.position.x) - innerX) < 1e-5)
+    expect(crossAxis).toHaveLength(2)
+    expect(MOUTH_FAN_X_SCALE).toBeCloseTo(0.71875, 5)
+    const innerGap = Math.abs(crossAxis[0].position.x - crossAxis[1].position.x)
+    expect(innerGap).toBeCloseTo(MOUTH_BAR_SCALE.x - 1.5 * (MOUTH_BAR_SCALE.x - 0.32), 5)
+    expect(innerGap).toBeLessThan(MOUTH_BAR_SCALE.x)
     const widest = Math.max(...mouths.map((body) => Math.abs(body.position.x)))
+    expect(widest).toBeCloseTo(0.64 * MOUTH_FAN_X_SCALE, 5)
     expect(mouths.filter((body) => Math.abs(body.position.x) === widest).every((body) => body.position.z > (centre?.position.z ?? 0))).toBe(true)
     const seawardRidge = placed
       .filter((body) => body.id.startsWith('e-ridge-r-'))

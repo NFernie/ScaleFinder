@@ -263,9 +263,18 @@ export function mouthBarCrownY(): number {
   return crown
 }
 
-/** Base of the most seaward beach ridge. The landward mouth bar shares this Y. */
+/** Base of the most seaward beach ridge. */
 export function seawardRidgeBaseY(): number {
   return RIDGE_NEST_Y - (RIDGE_COUNT - 1) * RIDGE_BASE_REF * RIDGE_DOWNSTEP
+}
+
+/**
+ * Uniform Y lift for every mouth bar. The landward apex base meets the channel top.
+ * Seaward steps and the offset between the two fans stay the same.
+ */
+export function mouthBarComplexLift(): number {
+  const landwardBaseY = waterlineY() - mouthBarCrownY()
+  return channelSpan().flatY - landwardBaseY
 }
 
 /**
@@ -311,11 +320,11 @@ function layMouthFan(originZ: number, yLand: number): Array<{ x: number; y: numb
 function mouthFans(): { seaward: ReturnType<typeof layMouthFan>; proximal: ReturnType<typeof layMouthFan> } {
   const span = channelSpan()
   const halfZ = MOUTH_BAR_SCALE.z / 2
+  const lift = mouthBarComplexLift()
   return {
-    seaward: layMouthFan(span.zSea - 0.12 + halfZ, seawardRidgeBaseY()),
-    // Landward rim on the channel where the most landward ridge meets it.
-    // The crown touches the channel base from below, then the fan progrades seaward.
-    proximal: layMouthFan(ridgeWorldZ(0) + halfZ, waterlineY() - mouthBarCrownY()),
+    seaward: layMouthFan(span.zSea - 0.12 + halfZ, seawardRidgeBaseY() + lift),
+    // Landward rim on the channel where the most landward ridge meets it, then progrades seaward.
+    proximal: layMouthFan(ridgeWorldZ(0) + halfZ, waterlineY() - mouthBarCrownY() + lift),
   }
 }
 

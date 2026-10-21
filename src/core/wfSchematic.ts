@@ -78,7 +78,7 @@ export const RIDGE_DOWNSTEP = 0.02
  * Plan angle, in degrees, added at the channel end of the most seaward beach ridge.
  * Positive swings the alongshore tip landward so the channel stays the seaward apex.
  */
-export const RIDGE_SEAWARD_ANGLE_DEG = 30
+export const RIDGE_SEAWARD_ANGLE_DEG = 20
 
 /**
  * Each ridge landward of the next keeps this fraction less plan angle.

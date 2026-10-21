@@ -196,9 +196,9 @@ describe('wfSchematic', () => {
         centreGaps.push(channelGap)
         tipGaps.push(tipGap)
         expect(tipGap).toBeGreaterThan(0.02)
-        expect(tipGap).toBeLessThan(channelGap * 0.5)
+        expect(tipGap).toBeLessThan(channelGap)
       }
-      expect(Math.min(...tipGaps)).toBeLessThan(Math.min(...centreGaps) * 0.25)
+      expect(Math.min(...tipGaps)).toBeLessThan(Math.min(...centreGaps))
       const crown = crestSea.z - channelEnd.z
       const steepRun = channelEnd.halfWidth - crown + RIDGE_BASE_SEAWARD
       expect(RIDGE_FACE_SLOPE).toBe(0.25)

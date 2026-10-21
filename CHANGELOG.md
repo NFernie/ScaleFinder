@@ -56,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Wf beach ridges keep their fore-aft spacing at the channel and close up toward the alongshore tips. The most seaward ridge swings landward by 30°. Each ridge landward of that keeps 12% less plan angle, so the tips stay a small Z distance apart and the channel remains the seaward apex.
+- Wf beach ridges keep their fore-aft spacing at the channel and close up toward the alongshore tips. The most seaward ridge swings landward by 20°. Each ridge landward of that keeps 12% less plan angle, so the tips stay a small Z distance apart and the channel remains the seaward apex.
 - The Wf beach-ridge mesh lives in `src/ui/beachRidgeGeometry.ts`, beside the mouth-bar and channel meshes. The schematic view still places the right flank on +X and the mirrored left flank on −X.
 - Wf beach ridges are another 50% flatter (`RIDGE_FACE_SLOPE` 0.25). The logistic is reflected across the chord: the upper half is convex seaward, and the lower half is concave with the toe flattening seaward.
 - Wf mouth-bar plan centres are pulled toward X=0. The first pass increased alongshore overlap by 50%. The shipped scale doubles that overlap (centre gap 0.32 → 0.14). Z steps, downstep, and yaw stay the same.

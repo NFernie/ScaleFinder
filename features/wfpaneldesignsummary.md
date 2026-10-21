@@ -130,7 +130,7 @@ default     → 0.01 box (unused for current bodies)
 
 ### Beach ridge mesh (`beachRidgeGeometry.ts`)
 
-1. Core: `beachRidgeStations(side, index)` → stations along the centreline. Channel-end Z spacing stays on the nested Z step. `beachRidgePlanAngleDeg` is 30° on the most seaward ridge and 12% smaller on each ridge landward of it, shearing the tip landward so the stack tapers together and the channel stays the seaward apex. `beachRidgeRing(station)` is the cross-section. The seaward face slope is `RIDGE_FACE_SLOPE` (0.25) of the unsheared wedge. The logistic is reflected across the chord so the upper half is seaward of it and the toe flattens seaward.
+1. Core: `beachRidgeStations(side, index)` → stations along the centreline. Channel-end Z spacing stays on the nested Z step. `beachRidgePlanAngleDeg` is 20° on the most seaward ridge and 12% smaller on each ridge landward of it, shearing the tip landward so the stack tapers together and the channel stays the seaward apex. `beachRidgeRing(station)` is the cross-section. The seaward face slope is `RIDGE_FACE_SLOPE` (0.25) of the unsheared wedge. The logistic is reflected across the chord so the upper half is seaward of it and the toe flattens seaward.
 2. Mesh: one loft per ridge index. Stacks the **right** rings, quads between stations, caps at both ends. `'l'` negates X and flips winding. The view picks `'r'` when `body.id` contains `-r-`, otherwise `'l'`, and passes the trailing index.
 
 ### Channel mesh (`halfChannelGeometry.ts`)

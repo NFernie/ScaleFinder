@@ -56,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Wf beach-ridge seaward faces are half as steep. The base shears seaward so the rise/run is 50% of the previous wedge, and the face follows a logistic sigmoid: landward of the chord in the upper half, seaward of it in the lower half. Crest height and the 2% base steps stay.
+- Wf beach ridges are another 50% flatter (`RIDGE_FACE_SLOPE` 0.25). The logistic is reflected across the chord: the upper half is convex seaward, and the lower half is concave with the toe flattening seaward.
 - The Wf schematic panel title is Wf Schematic. The place name stays on the pin. The view resizes from the top-left with a locked ratio, and zoom and orbit stay inside the panel.
 - Explode pulls every Wf solid away from the origin along its own centre. The nested arrangement stays, and at the end of the slider each centre is five times farther out. The largest coordinate does most of the travel. Names still accumulate. One Beach ridge, one Mouth bar, and one Channel fill are labelled.
 - Holding Space and dragging the Wf schematic view pans it. Zoom and orbit then follow that look-at. Releasing Space returns the drag to orbit.

@@ -56,9 +56,9 @@ export const RIDGE_BASE_SEAWARD = 0.12
 
 /**
  * Seaward-face rise/run as a fraction of the unsheared wedge.
- * 0.5 doubles the horizontal run, so the face is half as steep and the angle from vertical opens out.
+ * 0.25 is another halving of the previous 0.5 slope, so the whole section is 50% flatter again.
  */
-export const RIDGE_FACE_SLOPE = 0.5
+export const RIDGE_FACE_SLOPE = 0.25
 
 /** Each landward beach ridge sits this fraction of the crest height above the next seaward ridge. */
 export const RIDGE_DOWNSTEP = 0.02
@@ -195,8 +195,9 @@ export function beachRidgeStations(side: 'l' | 'r'): RidgeStation[] {
 /**
  * Cross-section at one station. The crest stays put. The base is sheared seaward
  * so the seaward-face slope is RIDGE_FACE_SLOPE times the unsheared wedge.
- * The face is a standard logistic sigmoid of the fraction down from the crest:
- * landward of the straight chord in the upper half (concave), seaward of it in the lower half (convex).
+ * The face reflects a logistic sigmoid across the chord: seaward of the chord in the
+ * upper half (convex toward the sea) and landward of it in the lower half, with the
+ * toe running out flat.
  */
 export function beachRidgeRing(station: RidgeStation): RidgeCorner[] {
   const crown = station.halfWidth * 0.28
@@ -213,13 +214,13 @@ export function beachRidgeRing(station: RidgeStation): RidgeCorner[] {
     { x: station.x, y: 0, z: baseLandZ },
     { x: station.x, y: 0, z: baseSeaZ },
   ]
-  const steps = 8
+  const steps = 16
   for (let i = 1; i < steps; i += 1) {
     const down = 1 - i / steps
     ring.push({
       x: station.x,
       y: station.height * (1 - down),
-      z: crestSeaZ + run * sigmoid01(down),
+      z: crestSeaZ + run * ridgeFaceFraction(down),
     })
   }
   ring.push(
@@ -254,6 +255,16 @@ function sigmoid01(t: number): number {
   const start = raw(0)
   const end = raw(1)
   return (raw(t) - start) / (end - start)
+}
+
+/** Logistic reflected across the chord. Steepness stays low enough that Z keeps increasing seaward. */
+function ridgeFaceFraction(down: number): number {
+  const k = 6
+  const raw = (u: number) => 1 / (1 + Math.exp(-k * (u - 0.5)))
+  const start = raw(0)
+  const end = raw(1)
+  const logistic = (raw(down) - start) / (end - start)
+  return 2 * down - logistic
 }
 
 /** Base of one mouth bar. The landward rim is 0. The seaward rim is the full dip. */

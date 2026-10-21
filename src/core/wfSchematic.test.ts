@@ -177,21 +177,29 @@ describe('wfSchematic', () => {
       expect(stations[1].z).toBeLessThan(stations[0].z)
       const crown = crestSea.z - channelEnd.z
       const steepRun = channelEnd.halfWidth - crown + RIDGE_BASE_SEAWARD
-      expect(RIDGE_FACE_SLOPE).toBe(0.5)
+      expect(RIDGE_FACE_SLOPE).toBe(0.25)
       expect(baseSea.z - crestSea.z).toBeCloseTo(steepRun / RIDGE_FACE_SLOPE)
       expect(baseSea.z - base.reduce((land, corner) => (corner.z < land.z ? corner : land)).z).toBeCloseTo(channelEnd.halfWidth * 2)
-      expect(baseZ - crestZ).toBeCloseTo(RIDGE_BASE_SEAWARD + steepRun)
-      expect(upper && upper.z).toBeLessThan(chordAt(channelEnd.height * 0.75))
-      expect(lower && lower.z).toBeGreaterThan(chordAt(channelEnd.height * 0.25))
+      expect(baseZ - crestZ).toBeCloseTo(RIDGE_BASE_SEAWARD + steepRun * (1 / RIDGE_FACE_SLOPE - 1))
+      expect(upper && upper.z).toBeGreaterThan(chordAt(channelEnd.height * 0.75))
+      expect(lower && lower.z).toBeLessThan(chordAt(channelEnd.height * 0.25))
       const mid = ring.find((corner) => Math.abs(corner.y - channelEnd.height * 0.5) < 1e-6)
       expect(mid && mid.z).toBeCloseTo(chordAt(channelEnd.height * 0.5))
       for (const corner of ring) {
         if (corner.y <= 0 || corner.y >= channelEnd.height) continue
         const down = 1 - corner.y / channelEnd.height
         const chord = chordAt(corner.y)
-        if (down < 0.5) expect(corner.z).toBeLessThan(chord)
-        if (down > 0.5) expect(corner.z).toBeGreaterThan(chord)
+        if (down < 0.5) expect(corner.z).toBeGreaterThan(chord)
+        if (down > 0.5) expect(corner.z).toBeLessThan(chord)
       }
+      const face = [crestSea, ...ring.filter((corner) => corner.y > 0 && corner.y < channelEnd.height), baseSea].sort(
+        (a, b) => b.y - a.y,
+      )
+      const stepsZ = face.slice(1).map((corner, index) => corner.z - face[index].z)
+      const middleStep = stepsZ[Math.floor(stepsZ.length / 2)]
+      expect(stepsZ[0]).toBeGreaterThan(middleStep)
+      expect(stepsZ[stepsZ.length - 1]).toBeGreaterThan(middleStep)
+      expect(stepsZ.every((step) => step > 0)).toBe(true)
       expect(Math.abs(tip.x)).toBeGreaterThan(Math.abs(channelEnd.x))
       expect(Math.sign(channelEnd.x)).toBe(side === 'r' ? 1 : -1)
       const seaward = ridges[ridges.length - 1]

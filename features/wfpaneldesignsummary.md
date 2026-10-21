@@ -117,7 +117,7 @@ default     → 0.01 box (unused for current bodies)
 ### Beach ridge mesh (in view)
 
 1. Core: `beachRidgeStations(side)` → stations along sigmoid centreline; `beachRidgeRing(station)` → cross-section polygon (sigmoid seaward face).
-2. View: stacks rings along Z, quads between stations, caps at landward/seaward ends; **left** flank negates X and flips winding. The seaward face slope is `RIDGE_FACE_SLOPE` (0.5) of the unsheared wedge, and the face is a logistic sigmoid.
+2. View: stacks rings along Z, quads between stations, caps at landward/seaward ends; **left** flank negates X and flips winding. The seaward face slope is `RIDGE_FACE_SLOPE` (0.25) of the unsheared wedge. The logistic is reflected across the chord so the upper half is seaward of it and the toe flattens seaward.
 
 ### Channel mesh (`halfChannelGeometry.ts`)
 

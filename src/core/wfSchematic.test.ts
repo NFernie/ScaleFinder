@@ -10,8 +10,11 @@ import {
   MOUTH_BAR_SCALE,
   MOUTH_BAR_STEP,
   MOUTH_BAR_YAW_STEP,
-  MOUTH_FAN_X_SCALE,
+  channelCenterY,
+  mouthBarComplexLift,
   mouthBarCrownY,
+  MOUTH_FAN_X_SCALE,
+  seawardRidgeBaseY,
   RIDGE_BASE_SEAWARD,
   RIDGE_DOWNSTEP,
   RIDGE_FACE_SLOPE,
@@ -47,13 +50,12 @@ describe('wfSchematic', () => {
     ])
   })
 
-  it('fills a seaward mouth-bar V under the water line', () => {
+  it('fills a seaward mouth-bar V in front of the channel', () => {
     const placed = sceneAt(0)
     const mouths = placed
       .filter((body) => body.kind === 'mouth-bar' && !body.id.startsWith('e-mouth-prox-'))
       .sort((a, b) => a.position.z - b.position.z || a.position.x - b.position.x)
     const span = channelSpan()
-    const water = waterlineY()
     expect(mouths).toHaveLength(9)
     expect(MOUTH_BAR_SCALE.y).toBeCloseTo(0.056 * 1.5)
     expect(MOUTH_BAR_SCALE.z).toBeCloseTo(0.72 * 1.5)
@@ -65,9 +67,9 @@ describe('wfSchematic', () => {
     const innerX = 0.16 * MOUTH_FAN_X_SCALE
     const crossAxis = mouths.filter((body) => Math.abs(Math.abs(body.position.x) - innerX) < 1e-5)
     expect(crossAxis).toHaveLength(2)
-    expect(MOUTH_FAN_X_SCALE).toBeCloseTo(0.71875, 5)
+    expect(MOUTH_FAN_X_SCALE).toBeCloseTo(0.4375, 5)
     const innerGap = Math.abs(crossAxis[0].position.x - crossAxis[1].position.x)
-    expect(innerGap).toBeCloseTo(MOUTH_BAR_SCALE.x - 1.5 * (MOUTH_BAR_SCALE.x - 0.32), 5)
+    expect(innerGap).toBeCloseTo(MOUTH_BAR_SCALE.x - 2 * (MOUTH_BAR_SCALE.x - 0.32), 5)
     expect(innerGap).toBeLessThan(MOUTH_BAR_SCALE.x)
     const widest = Math.max(...mouths.map((body) => Math.abs(body.position.x)))
     expect(widest).toBeCloseTo(0.64 * MOUTH_FAN_X_SCALE, 5)
@@ -76,8 +78,8 @@ describe('wfSchematic', () => {
       .filter((body) => body.id.startsWith('e-ridge-r-'))
       .sort((a, b) => a.position.z - b.position.z)
     const outerRidge = seawardRidge[seawardRidge.length - 1]
-    expect(centre?.position.y).toBeCloseTo(outerRidge?.position.y ?? NaN)
-    expect((centre?.position.y ?? 0) + MOUTH_BAR_SCALE.y).toBeLessThan(water)
+    expect(centre?.position.y).toBeCloseTo(seawardRidgeBaseY() + mouthBarComplexLift())
+    expect(centre?.position.y).toBeGreaterThan(outerRidge?.position.y ?? 0)
     expect(centre && centre.position.z - MOUTH_BAR_SCALE.z / 2).toBeCloseTo(span.zSea - 0.12)
     expect(centre && centre.position.z + MOUTH_BAR_SCALE.z / 2).toBeGreaterThan(span.zSea)
     for (let i = 1; i < mouths.length; i += 1) {
@@ -122,10 +124,9 @@ describe('wfSchematic', () => {
     expect(proximal).toHaveLength(9)
     expect(apex?.position.z).toBe(Math.min(...proximal.map((body) => body.position.z)))
     expect(apex && apex.position.z - halfZ).toBeCloseTo(intersectZ)
-    expect((apex?.position.y ?? 0) + mouthBarCrownY()).toBeCloseTo(waterlineY())
+    expect((apex?.position.y ?? 0) + mouthBarCrownY()).toBeCloseTo(channelCenterY())
     expect(apex?.yaw ?? 0).toBe(0)
     for (const body of proximal) {
-      expect(body.position.y + mouthBarCrownY()).toBeLessThanOrEqual(waterlineY() + 1e-9)
       expect(body.parentId).toBe('es-mouth')
     }
     for (let i = 1; i < proximal.length; i += 1) {

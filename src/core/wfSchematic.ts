@@ -55,11 +55,12 @@ export const MOUTH_BAR_YAW_STEP = 1
 const MOUTH_FAN_INNER_X = 0.16
 
 /**
- * Scale on fan X centres. The inner ±0.16 pair gains 50% more alongshore overlap
- * (centre gap 0.32 → 0.23 for bar width 0.5).
+ * Scale on fan X centres. The first pass increased alongshore overlap by 50%
+ * (centre gap 0.32 → 0.23). The shipped scale doubles that overlap
+ * (centre gap 0.32 → 0.14 for bar width 0.5).
  */
 export const MOUTH_FAN_X_SCALE =
-  (MOUTH_BAR_SCALE.x - 1.5 * (MOUTH_BAR_SCALE.x - 2 * MOUTH_FAN_INNER_X)) / (2 * MOUTH_FAN_INNER_X)
+  (MOUTH_BAR_SCALE.x - 2 * (MOUTH_BAR_SCALE.x - 2 * MOUTH_FAN_INNER_X)) / (2 * MOUTH_FAN_INNER_X)
 
 /** How far the ridge base (lowest Y) sits seaward of the crest before the face is flattened. */
 export const RIDGE_BASE_SEAWARD = 0.12
@@ -296,9 +297,24 @@ export function mouthBarCrownY(): number {
   return crown
 }
 
-/** Base of the most seaward beach ridge. The landward mouth bar shares this Y. */
+/** Base of the most seaward beach ridge. */
 export function seawardRidgeBaseY(): number {
   return RIDGE_NEST_Y - (RIDGE_COUNT - 1) * RIDGE_BASE_REF * RIDGE_DOWNSTEP
+}
+
+/**
+ * Uniform Y offset for every mouth bar. The landward apex crown meets the channel centre.
+ * Seaward steps and the offset between the two fans stay the same.
+ */
+export function mouthBarComplexLift(): number {
+  const landwardBaseY = waterlineY() - mouthBarCrownY()
+  const targetBaseY = channelSpan().flatY - CHANNEL_RADIUS / 2 - mouthBarCrownY()
+  return targetBaseY - landwardBaseY
+}
+
+/** World Y of the channel half-cylinder centre (flat face at channelSpan().flatY). */
+export function channelCenterY(): number {
+  return channelSpan().flatY - CHANNEL_RADIUS / 2
 }
 
 /**
@@ -344,11 +360,11 @@ function layMouthFan(originZ: number, yLand: number): Array<{ x: number; y: numb
 function mouthFans(): { seaward: ReturnType<typeof layMouthFan>; proximal: ReturnType<typeof layMouthFan> } {
   const span = channelSpan()
   const halfZ = MOUTH_BAR_SCALE.z / 2
+  const lift = mouthBarComplexLift()
   return {
-    seaward: layMouthFan(span.zSea - 0.12 + halfZ, seawardRidgeBaseY()),
-    // Landward rim on the channel where the most landward ridge meets it.
-    // The crown touches the channel base from below, then the fan progrades seaward.
-    proximal: layMouthFan(ridgeWorldZ(0) + halfZ, waterlineY() - mouthBarCrownY()),
+    seaward: layMouthFan(span.zSea - 0.12 + halfZ, seawardRidgeBaseY() + lift),
+    // Landward rim on the channel where the most landward ridge meets it, then progrades seaward.
+    proximal: layMouthFan(ridgeWorldZ(0) + halfZ, waterlineY() - mouthBarCrownY() + lift),
   }
 }
 

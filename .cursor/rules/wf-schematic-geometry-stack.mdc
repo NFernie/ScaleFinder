@@ -1,0 +1,15 @@
+---
+description: Keep Wf schematic geometry on one integration branch
+alwaysApply: true
+---
+
+# Wf schematic geometry stack
+
+Beach-ridge and mouth-bar edits were lost when each prompt landed on its own branch from an older panel-design commit. The next geometry change must not do that again.
+
+Before editing `src/core/wfSchematic.ts`, `src/ui/beachRidgeGeometry.ts`, `src/ui/mouthBarGeometry.ts`, `src/ui/halfChannelGeometry.ts`, or `src/ui/WfSchematicView.tsx` geometry dispatch:
+
+1. Read `features/wfpaneldesignsummary.md` (Geometry integration) and `features/schematic_module.md`.
+2. Start from the latest `cursor/wf-schematic-panel-design-69e0`, or from a branch whose merge-base is that latest head.
+3. If another local or remote branch also changes those files and is not in this head, merge it in before editing. Keep both sides when the edits touch different behaviour. When two branches set the same number, keep the later request and say so in `CHANGELOG.md`.
+4. Do not open a fresh geometry branch from an older snapshot of the panel-design branch.

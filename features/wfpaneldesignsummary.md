@@ -1,11 +1,24 @@
 # Wf schematic panel branch summary
 
 **Branch:** `cursor/wf-schematic-panel-design-69e0` (PR [#18](https://github.com/NFernie/ScaleFinder/pull/18), base `main`)  
-**Head at time of writing:** radial explode from origin + Space-to-pan on the 3D view, on top of the panel chrome (resize, zoom, orbit, labels).
+**Head at time of writing:** panel chrome plus the geometry integration below (beach-ridge mesh file, flattened reflected ridge face, mouth-bar X scale, mouth-bar crown at the channel centre).
 
 This file is for a **follow-up agent working on schematic geometries** (meshes, silhouettes, core numbers). It records what this branch changed in the **UI module** and where every **Three.js** piece lives so you can edit meshes without rediscovering the tree.
 
-For mesh authoring workflow and skills, still read [`features/schematic_module.md`](schematic_module.md) — but treat its explode notes as **out of date** (it still mentions Y-only rank gaps). Current explode is documented below and in [`DESIGN.md`](../DESIGN.md) under `### Wf schematic pin`.
+## Geometry integration
+
+These branches are merged into `cursor/wf-schematic-panel-design-69e0`. Continue from this head. Do not cut the next geometry branch from an older commit of this branch, and do not leave a geometry edit only on a side branch.
+
+| Branch | What it keeps |
+| --- | --- |
+| `cursor/beach-ridge-mesh-2a5d` | Beach-ridge loft in `src/ui/beachRidgeGeometry.ts`. The view only places it. |
+| `cursor/beach-ridge-flatten-2a5d` | `RIDGE_FACE_SLOPE` 0.25. Logistic reflected across the chord: convex seaward in the upper half, toe flattening seaward. |
+| `cursor/mouth-bar-x-overlap-2a5d` | Fan centres scaled toward X = 0. First pass was 50% more overlap. |
+| `cursor/mouth-bar-y-raise-2a5d` | Landward apex crown at `channelCenterY()`. Shipped X scale doubles the first overlap (gap 0.32 → 0.14). |
+
+The 50% overlap coefficient is not the runtime scale. The later 100% scale replaces it and keeps the same `MOUTH_FAN_X_SCALE` mechanism.
+
+For mesh authoring workflow and skills, still read [`features/schematic_module.md`](schematic_module.md). Explode is radial from the origin; the panel notes below and [`DESIGN.md`](../DESIGN.md) under `### Wf schematic pin` match that.
 
 ---
 

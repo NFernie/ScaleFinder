@@ -13,6 +13,7 @@ import {
   mouthBarCrownY,
   RIDGE_BASE_SEAWARD,
   RIDGE_DOWNSTEP,
+  RIDGE_FACE_SLOPE,
   bodyCenter,
   EXPLODE_SPREAD,
   sceneAt,
@@ -174,9 +175,23 @@ describe('wfSchematic', () => {
       expect(tip.z).toBeGreaterThan(stations[stations.length - 2].z)
       expect(stations[stations.length - 2].z).toBeGreaterThan(stations[stations.length - 3].z)
       expect(stations[1].z).toBeLessThan(stations[0].z)
-      expect(baseZ - crestZ).toBeCloseTo(RIDGE_BASE_SEAWARD)
+      const crown = crestSea.z - channelEnd.z
+      const steepRun = channelEnd.halfWidth - crown + RIDGE_BASE_SEAWARD
+      expect(RIDGE_FACE_SLOPE).toBe(0.5)
+      expect(baseSea.z - crestSea.z).toBeCloseTo(steepRun / RIDGE_FACE_SLOPE)
+      expect(baseSea.z - base.reduce((land, corner) => (corner.z < land.z ? corner : land)).z).toBeCloseTo(channelEnd.halfWidth * 2)
+      expect(baseZ - crestZ).toBeCloseTo(RIDGE_BASE_SEAWARD + steepRun)
       expect(upper && upper.z).toBeLessThan(chordAt(channelEnd.height * 0.75))
       expect(lower && lower.z).toBeGreaterThan(chordAt(channelEnd.height * 0.25))
+      const mid = ring.find((corner) => Math.abs(corner.y - channelEnd.height * 0.5) < 1e-6)
+      expect(mid && mid.z).toBeCloseTo(chordAt(channelEnd.height * 0.5))
+      for (const corner of ring) {
+        if (corner.y <= 0 || corner.y >= channelEnd.height) continue
+        const down = 1 - corner.y / channelEnd.height
+        const chord = chordAt(corner.y)
+        if (down < 0.5) expect(corner.z).toBeLessThan(chord)
+        if (down > 0.5) expect(corner.z).toBeGreaterThan(chord)
+      }
       expect(Math.abs(tip.x)).toBeGreaterThan(Math.abs(channelEnd.x))
       expect(Math.sign(channelEnd.x)).toBe(side === 'r' ? 1 : -1)
       const seaward = ridges[ridges.length - 1]

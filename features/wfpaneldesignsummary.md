@@ -31,7 +31,7 @@ Geometry **meshes** (ridges, channel, mouth bars, ground box) were largely shipp
 | Layer | Path | May import `three`? |
 | --- | --- | --- |
 | **Scene data** | `src/core/wfSchematic.ts` | **No** — ranks, parents, nested poses, fan layout, ridge station math, `sceneAt`, `bodyCenter`, constants. |
-| **Meshes** | `src/ui/WfSchematicView.tsx`, `src/ui/halfChannelGeometry.ts`, `src/ui/mouthBarGeometry.ts` | **Yes** |
+| **Meshes** | `src/ui/beachRidgeGeometry.ts`, `src/ui/halfChannelGeometry.ts`, `src/ui/mouthBarGeometry.ts`. The view only places them. | **Yes** |
 | **Panel chrome** | `src/ui/WfSchematicPanel.tsx`, `src/ui/schematicFrame.ts` | No Three.js |
 
 **Contract:** The view calls `sceneAt(explode)` every frame and sets each `THREE.Group` from `PlacedBody.position` and `body.yaw`. If you change only mesh shape, keep `nested` and hierarchy in core unless you are deliberately moving bodies.
@@ -99,7 +99,8 @@ Explode is **uniform per body** (not staggered bands in time). Label visibility 
 | File | Role |
 | --- | --- |
 | [`src/core/wfSchematic.ts`](../src/core/wfSchematic.ts) | Silhouette numbers: `beachRidgeStations`, `beachRidgeRing`, `channelSpan`, `mouthFans`, `mouthBarBaseOffset`, `MOUTH_BAR_*`, `CHANNEL_*`, `RIDGE_*`, `BODIES`, `sceneAt`. |
-| [`src/ui/WfSchematicView.tsx`](../src/ui/WfSchematicView.tsx) | `geometryFor`, `beachRidgeGeometry`, materials, lights, labels, render loop, OrbitControls. |
+| [`src/ui/WfSchematicView.tsx`](../src/ui/WfSchematicView.tsx) | `geometryFor` dispatch, materials, lights, labels, render loop, OrbitControls. Placement only. |
+| [`src/ui/beachRidgeGeometry.ts`](../src/ui/beachRidgeGeometry.ts) | Beach-ridge loft. Right flank from core stations; left flank is that mesh mirrored in X. |
 | [`src/ui/halfChannelGeometry.ts`](../src/ui/halfChannelGeometry.ts) | Half-cylinder mesh; uses `CHANNEL_LENGTH`, `CHANNEL_RADIUS` from core. |
 | [`src/ui/mouthBarGeometry.ts`](../src/ui/mouthBarGeometry.ts) | Half-spheroid mesh; uses `MOUTH_BAR_SCALE`, `mouthBarBaseOffset` from core. |
 
@@ -114,10 +115,10 @@ group       → (no mesh)
 default     → 0.01 box (unused for current bodies)
 ```
 
-### Beach ridge mesh (in view)
+### Beach ridge mesh (`beachRidgeGeometry.ts`)
 
-1. Core: `beachRidgeStations(side)` → stations along sigmoid centreline; `beachRidgeRing(station)` → cross-section polygon (sigmoid seaward face).
-2. View: stacks rings along Z, quads between stations, caps at landward/seaward ends; **left** flank negates X and flips winding.
+1. Core: `beachRidgeStations` → stations along the sigmoid centreline; `beachRidgeRing(station)` → cross-section polygon (sigmoid seaward face).
+2. Mesh: stacks the **right** rings, quads between stations, caps at both ends. `'l'` negates X and flips winding. The view picks `'r'` when `body.id` contains `-r-`, otherwise `'l'`.
 
 ### Channel mesh (`halfChannelGeometry.ts`)
 
@@ -183,13 +184,14 @@ Lights: ambient + hemisphere + directional (fixed positions in view setup).
 | --- | --- |
 | [`src/core/wfSchematic.test.ts`](../src/core/wfSchematic.test.ts) | Hierarchy, channel trim, ridge stacking, **radial explode**, labels, `cssEaseOut`. |
 | [`src/ui/wfChannelGeometry.test.ts`](../src/ui/wfChannelGeometry.test.ts) | Half-cylinder bounds and face normals. |
+| [`src/ui/beachRidgeGeometry.test.ts`](../src/ui/beachRidgeGeometry.test.ts) | Right-flank loft matches core rings; left flank is the X mirror. |
 | [`src/ui/mouthBarGeometry.test.ts`](../src/ui/mouthBarGeometry.test.ts) | Spheroid bounds, seaward dip, crown height. |
 | [`src/ui/WfSchematicPanel.test.tsx`](../src/ui/WfSchematicPanel.test.tsx) | Panel DOM, resize, list fallback (jsdom has no WebGL). |
 
 Run:
 
 ```bash
-npm run test -- src/core/wfSchematic.test.ts src/ui/wfChannelGeometry.test.ts src/ui/mouthBarGeometry.test.ts
+npm run test -- src/core/wfSchematic.test.ts src/ui/wfChannelGeometry.test.ts src/ui/beachRidgeGeometry.test.ts src/ui/mouthBarGeometry.test.ts
 npm run lint && npm run typecheck && npm run build
 ```
 

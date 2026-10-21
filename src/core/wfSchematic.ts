@@ -51,6 +51,16 @@ export const MOUTH_BAR_STEP = 0.05
 /** Degrees added to the yaw for each step seaward of the channel bar. */
 export const MOUTH_BAR_YAW_STEP = 1
 
+/** Cross-axis centres in the fan template before alongshore compression. */
+const MOUTH_FAN_INNER_X = 0.16
+
+/**
+ * Scale on fan X centres. The inner ±0.16 pair gains 50% more alongshore overlap
+ * (centre gap 0.32 → 0.23 for bar width 0.5).
+ */
+export const MOUTH_FAN_X_SCALE =
+  (MOUTH_BAR_SCALE.x - 1.5 * (MOUTH_BAR_SCALE.x - 2 * MOUTH_FAN_INNER_X)) / (2 * MOUTH_FAN_INNER_X)
+
 /** How far the ridge base (lowest Y) sits seaward of the crest. */
 export const RIDGE_BASE_SEAWARD = 0.12
 
@@ -300,7 +310,7 @@ function layMouthFan(originZ: number, yLand: number): Array<{ x: number; y: numb
     const seaward = rank.get(point.z) ?? 0
     const degrees = point.x === 0 ? 0 : Math.sign(point.x) * seaward * MOUTH_BAR_YAW_STEP
     return {
-      x: point.x,
+      x: point.x * MOUTH_FAN_X_SCALE,
       y: yLand - seaward * step,
       z: originZ + point.z,
       yaw: (degrees * Math.PI) / 180,

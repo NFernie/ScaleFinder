@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `src/ui/asymmetricBeachRidgeGeometry.ts` lofts one asymmetric beach-ridge element with a convex seaward bow in plan (same taper and landward shear as the symmetric ridge). It is not wired into the Wf schematic. `asymmetricBeachRidgePlanSvg` renders a 2D plan comparison.
 - Wf schematic rank labels fade in over 120ms `ease-out` on opacity when a name first appears; hide stays instant, and `prefers-reduced-motion` snaps opacity on.
 - A pin at 44.878674, 29.515563 opens the Wf type schematic above Sfântu Gheorghe. The pin is in the snapshot. The panel is not.
 - Opening the Wf schematic draws the solids in a Three.js view and an Explode slider pulls the four ranks apart. The body list remains when WebGL cannot start.

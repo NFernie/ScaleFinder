@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The left-flank asymmetric beach ridge keeps its outer tip. From the channel-adjacent tip it runs 5° seaward for the first 15% of its alongshore length, then turns landward to that outer tip. The right flank stays the symmetric ridge.
+- The left-flank asymmetric beach ridge is a crescent. The seaward crest of the bow sits in the channel half, and the curve then flattens onto the symmetric centreline at the outer tip. The right flank stays the symmetric ridge.
 
 ### Added
 

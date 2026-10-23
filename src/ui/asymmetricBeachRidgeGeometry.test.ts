@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  ASYM_RIDGE_CHANNEL_SEAWARD_DEG,
-  ASYM_RIDGE_SEAWARD_RUN,
-} from '../core/asymmetricBeachRidgePlan'
+import { ASYM_RIDGE_BOW, ASYM_RIDGE_CREST } from '../core/asymmetricBeachRidgePlan'
 import { beachRidgeRing, beachRidgeStations } from '../core/wfSchematic'
 import {
   asymmetricBeachRidgeGeometry,
@@ -49,7 +46,7 @@ describe('asymmetricBeachRidgeGeometry', () => {
     expect(asymStandard[0].height).toBeCloseTo(symStandard[0].height)
   })
 
-  it('heads 5° seaward from the channel end, then turns landward to the same outer tip', () => {
+  it('bows seaward in the channel half, then eases onto the symmetric outer tip', () => {
     const index = 3
     const symmetric = beachRidgeStations('l', index)
     const stations = asymmetricBeachRidgeStations('l', index)
@@ -57,28 +54,34 @@ describe('asymmetricBeachRidgeGeometry', () => {
     const tip = stations[stations.length - 1]
     const symTip = symmetric[symmetric.length - 1]
     expect(channel.z).toBeCloseTo(symmetric[0].z)
+    expect(channel.x).toBeCloseTo(symmetric[0].x)
     expect(tip.x).toBeCloseTo(symTip.x)
     expect(tip.z).toBeCloseTo(symTip.z)
     expect(channel.x).toBeGreaterThan(tip.x)
 
-    const span = Math.abs(tip.x - channel.x)
-    const bendAlong = ASYM_RIDGE_SEAWARD_RUN * span
-    const bend = stations.find((station) => Math.abs(Math.abs(station.x - channel.x) - bendAlong) < 1e-8)
-    expect(bend).toBeDefined()
-    const seaward = Math.tan((ASYM_RIDGE_CHANNEL_SEAWARD_DEG * Math.PI) / 180)
-    expect(bend!.z).toBeCloseTo(channel.z + bendAlong * seaward)
-    expect(bend!.z).toBeGreaterThan(channel.z)
+    const span = channel.x - tip.x
+    const along = (station: { x: number }) => (channel.x - station.x) / span
+    const chordZ = (t: number) => channel.z + (tip.z - channel.z) * t
+    const offset = stations.map((station) => station.z - chordZ(along(station)))
+    let crest = 0
+    for (let i = 1; i < offset.length; i += 1) {
+      if (offset[i] > offset[crest]) crest = i
+    }
+    const crestT = along(stations[crest])
+    expect(crestT).toBeGreaterThan(0.2)
+    expect(crestT).toBeLessThan(0.5)
+    expect(Math.abs(crestT - ASYM_RIDGE_CREST)).toBeLessThan(0.04)
+    expect(offset[crest]).toBeGreaterThan(ASYM_RIDGE_BOW * 0.9)
+    expect(stations[crest].z).toBeGreaterThan(channel.z)
+    expect(Math.abs(stations[crest].x - channel.x)).toBeLessThan(Math.abs(stations[crest].x - tip.x))
 
-    const early = stations[1]
-    const earlyAlong = Math.abs(early.x - channel.x)
-    expect(earlyAlong).toBeLessThan(bendAlong)
-    const earlyDeg = (Math.atan2(early.z - channel.z, earlyAlong) * 180) / Math.PI
-    expect(earlyDeg).toBeCloseTo(ASYM_RIDGE_CHANNEL_SEAWARD_DEG, 5)
+    for (let i = 1; i <= crest; i += 1) expect(offset[i]).toBeGreaterThan(offset[i - 1] - 1e-6)
+    for (let i = crest + 1; i < stations.length; i += 1) expect(stations[i].z).toBeLessThan(stations[i - 1].z)
 
-    const after = stations[stations.indexOf(bend!) + 1]
-    const afterAlong = Math.abs(after.x - channel.x)
-    const landwardDeg = (Math.atan2(after.z - bend!.z, afterAlong - bendAlong) * 180) / Math.PI
-    expect(landwardDeg).toBeLessThan(0)
-    expect(tip.z).toBeLessThan(bend!.z)
+    const symAtTip = symmetric[symmetric.length - 2]
+    const nearTip = stations[stations.length - 2]
+    const symSlope = (symTip.z - symAtTip.z) / (symTip.x - symAtTip.x)
+    const asymSlope = (tip.z - nearTip.z) / (tip.x - nearTip.x)
+    expect(asymSlope).toBeCloseTo(symSlope, 1)
   })
 })

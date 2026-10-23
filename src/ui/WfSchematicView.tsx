@@ -1,17 +1,51 @@
-import { useEffect, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { sceneAt as asymSceneAt } from '../core/asymWfSchematic'
+import { beachRidgeMesh, type SchematicSceneId } from '../core/schematicScene'
 import {
-  beachRidgeRing,
-  beachRidgeStations,
   GROUND_THICKNESS,
-  sceneAt,
+  sceneAt as wfSceneAt,
   WATER_COLOUR,
   WATER_OPACITY,
   type PlacedBody,
   type SolidKind,
 } from '../core/wfSchematic'
+import { asymmetricBeachRidgeGeometry } from './asymmetricBeachRidgeGeometry'
+import { beachRidgeGeometry } from './beachRidgeGeometry'
 import { halfChannelGeometry } from './halfChannelGeometry'
 import { mouthBarGeometry } from './mouthBarGeometry'
+import { cssEaseOut } from '../core/cssEaseOut'
+import {
+  cameraPositionAtDistance,
+  schematicDrag,
+  ZOOM_MAX,
+  ZOOM_MIN,
+  wheelZoomStep,
+  zoomDistance,
+} from './schematicFrame'
+
+const TARGET = new THREE.Vector3(0, 0.4, 0.6)
+
+const LABEL_FADE_MS = 120
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+}
+
+function setCameraDistance(camera: THREE.PerspectiveCamera, target: THREE.Vector3, distance: number) {
+  const next = cameraPositionAtDistance(camera.position, target, distance)
+  camera.position.set(next.x, next.y, next.z)
+}
+
+function isTextEntry(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  if (target.isContentEditable) return true
+  if (target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return true
+  if (target.tagName !== 'INPUT') return false
+  const type = (target as HTMLInputElement).type
+  return type !== 'range' && type !== 'button' && type !== 'checkbox' && type !== 'radio'
+}
 
 const COLOUR: Record<SolidKind, number> = {
   ground: WATER_COLOUR,
@@ -21,51 +55,20 @@ const COLOUR: Record<SolidKind, number> = {
   group: 0xe2e8f0,
 }
 
-function beachRidgeGeometry(side: 'l' | 'r'): THREE.BufferGeometry {
-  const stations = beachRidgeStations('r')
-  const positions: number[] = []
-  const indices: number[] = []
-  for (const station of stations) {
-    for (const corner of beachRidgeRing(station)) {
-      positions.push(corner.x, corner.y, corner.z)
-    }
-  }
-  const quad = (a: number, b: number, c: number, d: number) => {
-    indices.push(a, b, c, a, c, d)
-  }
-  const corners = beachRidgeRing(stations[0]).length
-  for (let s = 0; s < stations.length - 1; s += 1) {
-    const a = s * corners
-    const b = (s + 1) * corners
-    for (let i = 0; i < corners; i += 1) {
-      const next = (i + 1) % corners
-      quad(a + i, b + i, b + next, a + next)
-    }
-  }
-  for (let i = 1; i < corners - 1; i += 1) indices.push(0, i, i + 1)
-  const tip = (stations.length - 1) * corners
-  for (let i = corners - 1; i >= 2; i -= 1) indices.push(tip, tip + i, tip + i - 1)
-  if (side === 'l') {
-    for (let i = 0; i < positions.length; i += 3) positions[i] = -positions[i]
-    for (let i = 0; i < indices.length; i += 3) {
-      const swap = indices[i + 1]
-      indices[i + 1] = indices[i + 2]
-      indices[i + 2] = swap
-    }
-  }
-  const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
-  geometry.setIndex(indices)
-  geometry.computeVertexNormals()
-  return geometry
+function layoutAt(scene: SchematicSceneId, explode: number): PlacedBody[] {
+  return (scene === 'asym' ? asymSceneAt : wfSceneAt)(explode)
 }
 
-function geometryFor(body: PlacedBody): THREE.BufferGeometry {
+function geometryFor(scene: SchematicSceneId, body: PlacedBody): THREE.BufferGeometry {
   if (body.kind === 'ground') return new THREE.BoxGeometry(8, GROUND_THICKNESS, 6)
   if (body.kind === 'channel') return halfChannelGeometry()
   if (body.kind === 'mouth-bar') return mouthBarGeometry()
   if (body.kind === 'beach-ridge') {
-    return beachRidgeGeometry(body.id.includes('-r-') ? 'r' : 'l')
+    const index = Number(body.id.slice(body.id.lastIndexOf('-') + 1))
+    const side = body.id.includes('-r-') ? 'r' : 'l'
+    const ridgeIndex = Number.isFinite(index) ? index : 0
+    if (beachRidgeMesh(scene, body.id) === 'asymmetric') return asymmetricBeachRidgeGeometry(side, ridgeIndex)
+    return beachRidgeGeometry(side, ridgeIndex)
   }
   return new THREE.BoxGeometry(0.01, 0.01, 0.01)
 }
@@ -106,38 +109,98 @@ function place(object: THREE.Object3D, body: PlacedBody) {
   object.rotation.y = body.yaw ?? 0
 }
 
-export default function WfSchematicView({ explode }: { explode: number }) {
+export type SchematicCameraHandle = {
+  zoomBy: (direction: 'in' | 'out') => void
+}
+
+/** NaN has no band. Every other value is clamped inside sceneAt, which still returns every body. */
+function explodeForScene(value: number): number {
+  return Number.isFinite(value) ? value : 0
+}
+
+const WfSchematicView = forwardRef<
+  SchematicCameraHandle,
+  { scene: SchematicSceneId; explode: number; width: number; height: number; onUnavailable?: () => void }
+>(function WfSchematicView({ scene, explode, width, height, onUnavailable }, ref) {
   const host = useRef<HTMLDivElement>(null)
   const explodeRef = useRef(explode)
   explodeRef.current = explode
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
+  const controlsRef = useRef<OrbitControls | null>(null)
+  const onUnavailableRef = useRef(onUnavailable)
+  onUnavailableRef.current = onUnavailable
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      zoomBy(direction: 'in' | 'out') {
+        const camera = cameraRef.current
+        const controls = controlsRef.current
+        if (!camera || !controls) return
+        const distance = camera.position.distanceTo(controls.target)
+        setCameraDistance(camera, controls.target, zoomDistance(distance, direction))
+        controls.update()
+      },
+    }),
+    [],
+  )
 
   useEffect(() => {
     const el = host.current
     if (!el) return
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    let created: THREE.WebGLRenderer | null = null
+    try {
+      created = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+      if (!created.getContext()) throw new Error('WebGL unavailable')
+    } catch {
+      created?.dispose()
+      onUnavailableRef.current?.()
+      return
+    }
+    const renderer = created
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
     renderer.domElement.style.display = 'block'
     renderer.domElement.style.width = '100%'
     renderer.domElement.style.height = '100%'
-    const scene = new THREE.Scene()
+    renderer.domElement.style.touchAction = 'none'
+    const world = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100)
     camera.position.set(6.5, 5.5, 7.5)
-    camera.lookAt(0, 0.4, 0.6)
-    scene.add(new THREE.AmbientLight(0xffffff, 0.35))
-    scene.add(new THREE.HemisphereLight(0xe2e8f0, 0x64748b, 0.65))
+    camera.lookAt(TARGET)
+    cameraRef.current = camera
+    const controls = new OrbitControls(camera, renderer.domElement)
+    controls.target.copy(TARGET)
+    controls.enablePan = false
+    controls.enableZoom = false
+    controls.enableDamping = false
+    controls.screenSpacePanning = true
+    controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE
+    controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE
+    controls.minDistance = ZOOM_MIN
+    controls.maxDistance = ZOOM_MAX
+    controls.update()
+    const applyDrag = (spaceHeld: boolean) => {
+      const mode = schematicDrag(spaceHeld)
+      controls.enablePan = mode === 'pan'
+      controls.mouseButtons.LEFT = mode === 'pan' ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE
+      renderer.domElement.style.cursor = mode === 'pan' ? 'grab' : ''
+    }
+    controlsRef.current = controls
+    world.add(new THREE.AmbientLight(0xffffff, 0.35))
+    world.add(new THREE.HemisphereLight(0xe2e8f0, 0x64748b, 0.65))
     const sun = new THREE.DirectionalLight(0xffffff, 1.15)
     sun.position.set(5, 7, -2)
-    scene.add(sun)
+    world.add(sun)
 
     const objects = new Map<string, THREE.Object3D>()
     const geometries: THREE.BufferGeometry[] = []
     const meshMaterials: THREE.Material[] = []
     const spriteMaterials: THREE.SpriteMaterial[] = []
     const labelTextures: THREE.Texture[] = []
-    for (const body of sceneAt(0)) {
+    for (const body of layoutAt(scene, 0)) {
       const group = new THREE.Group()
       if (body.kind !== 'group') {
-        const geometry = geometryFor(body)
+        const geometry = geometryFor(scene, body)
         geometries.push(geometry)
         const material = new THREE.MeshStandardMaterial({
           color: COLOUR[body.kind],
@@ -150,17 +213,25 @@ export default function WfSchematicView({ explode }: { explode: number }) {
         meshMaterials.push(material)
         group.add(new THREE.Mesh(geometry, material))
       }
-      group.add(makeLabel(body.name, spriteMaterials, labelTextures))
+      const label = makeLabel(body.name, spriteMaterials, labelTextures)
+      const showAtMount = body.showLabel
+      label.visible = showAtMount
+      const labelMaterial = label.material as THREE.SpriteMaterial
+      labelMaterial.opacity = showAtMount ? 1 : 0
+      label.userData.prevShowLabel = showAtMount
+      label.userData.fadeStart = null
+      group.userData.label = label
+      group.add(label)
       place(group, body)
-      scene.add(group)
+      world.add(group)
       objects.set(body.id, group)
     }
 
     const resize = () => {
-      const width = el.clientWidth || 320
-      const height = el.clientHeight || 224
-      renderer.setSize(width, height, false)
-      camera.aspect = width / Math.max(height, 1)
+      const w = el.clientWidth || 320
+      const h = el.clientHeight || 224
+      renderer.setSize(w, h, false)
+      camera.aspect = w / Math.max(h, 1)
       camera.updateProjectionMatrix()
     }
     resize()
@@ -168,13 +239,86 @@ export default function WfSchematicView({ explode }: { explode: number }) {
     observer.observe(el)
     el.appendChild(renderer.domElement)
 
+    let wheelAccum = 0
+    function onWheel(event: WheelEvent) {
+      event.preventDefault()
+      event.stopPropagation()
+      const step = wheelZoomStep(wheelAccum, event)
+      wheelAccum = step.accumulator
+      if (!step.direction) return
+      const distance = camera.position.distanceTo(controls.target)
+      setCameraDistance(camera, controls.target, zoomDistance(distance, step.direction))
+      controls.update()
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.code !== 'Space') return
+      if (isTextEntry(event.target)) return
+      event.preventDefault()
+      if (event.repeat) return
+      applyDrag(true)
+    }
+    function onKeyUp(event: KeyboardEvent) {
+      if (event.code !== 'Space') return
+      applyDrag(false)
+    }
+    function onWindowBlur() {
+      applyDrag(false)
+    }
+    function onPointerDown(event: PointerEvent) {
+      event.stopPropagation()
+    }
+    function onPointerLeave() {
+      wheelAccum = 0
+    }
+    renderer.domElement.addEventListener('wheel', onWheel, { passive: false })
+    renderer.domElement.addEventListener('pointerdown', onPointerDown)
+    renderer.domElement.addEventListener('pointerleave', onPointerLeave)
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', onWindowBlur)
+
     let frame = 0
     const tick = () => {
-      for (const body of sceneAt(explodeRef.current)) {
+      for (const body of layoutAt(scene, explodeForScene(explodeRef.current))) {
         const object = objects.get(body.id)
-        if (object) place(object, body)
+        if (!object) continue
+        place(object, body)
+        const sprite = object.userData.label as THREE.Sprite | undefined
+        if (sprite) {
+          const material = sprite.material as THREE.SpriteMaterial
+          const show = body.showLabel
+          const prevShow = sprite.userData.prevShowLabel === true
+          if (!show) {
+            sprite.visible = false
+            material.opacity = 0
+            sprite.userData.prevShowLabel = false
+            sprite.userData.fadeStart = null
+          } else {
+            sprite.visible = true
+            if (!prevShow) {
+              if (prefersReducedMotion()) {
+                material.opacity = 1
+                sprite.userData.fadeStart = null
+              } else {
+                material.opacity = 0
+                sprite.userData.fadeStart = performance.now()
+              }
+            }
+            const fadeStart = sprite.userData.fadeStart as number | null
+            if (fadeStart != null) {
+              const elapsed = performance.now() - fadeStart
+              const linear = Math.min(1, elapsed / LABEL_FADE_MS)
+              material.opacity = cssEaseOut(linear)
+              if (linear >= 1) sprite.userData.fadeStart = null
+            } else if (material.opacity < 1) {
+              material.opacity = 1
+            }
+            sprite.userData.prevShowLabel = true
+          }
+        }
       }
-      renderer.render(scene, camera)
+      controls.update()
+      renderer.render(world, camera)
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
@@ -182,15 +326,27 @@ export default function WfSchematicView({ explode }: { explode: number }) {
     return () => {
       cancelAnimationFrame(frame)
       observer.disconnect()
+      wheelAccum = 0
+      renderer.domElement.removeEventListener('wheel', onWheel)
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown)
+      renderer.domElement.removeEventListener('pointerleave', onPointerLeave)
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', onWindowBlur)
       geometries.forEach((geometry) => geometry.dispose())
       meshMaterials.forEach((material) => material.dispose())
       spriteMaterials.forEach((material) => material.dispose())
       labelTextures.forEach((texture) => texture.dispose())
+      controls.dispose()
+      controlsRef.current = null
+      cameraRef.current = null
       renderer.dispose()
       renderer.forceContextLoss()
       renderer.domElement.remove()
     }
-  }, [])
+  }, [scene])
 
-  return <div ref={host} className="h-56 w-full" data-wf-view="" />
-}
+  return <div ref={host} style={{ width, height }} data-wf-view="" />
+})
+
+export default WfSchematicView

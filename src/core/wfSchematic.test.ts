@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { cssEaseOut } from './cssEaseOut'
 import {
   beachRidgeRing,
   beachRidgeStations,
@@ -9,9 +10,19 @@ import {
   MOUTH_BAR_SCALE,
   MOUTH_BAR_STEP,
   MOUTH_BAR_YAW_STEP,
+  channelCenterY,
+  mouthBarComplexLift,
   mouthBarCrownY,
+  MOUTH_FAN_X_SCALE,
+  seawardRidgeBaseY,
+  beachRidgePlanAngleDeg,
+  RIDGE_ANGLE_LANDWARD_DROP,
   RIDGE_BASE_SEAWARD,
   RIDGE_DOWNSTEP,
+  RIDGE_FACE_SLOPE,
+  RIDGE_SEAWARD_ANGLE_DEG,
+  bodyCenter,
+  EXPLODE_SPREAD,
   sceneAt,
   WATER_OPACITY,
   waterlineY,
@@ -19,8 +30,8 @@ import {
 } from './wfSchematic'
 
 describe('wfSchematic', () => {
-  it('pins Sfântu Gheorghe', () => {
-    expect(WF_ANCHOR).toEqual({ lat: 44.878674, lng: 29.515563 })
+  it('pins the symmetric Wf scene at 18.601312, -92.674937', () => {
+    expect(WF_ANCHOR).toEqual({ lat: 18.601312, lng: -92.674937 })
   })
 
   it('links every body except the root', () => {
@@ -42,13 +53,12 @@ describe('wfSchematic', () => {
     ])
   })
 
-  it('fills a seaward mouth-bar V under the water line', () => {
+  it('fills a seaward mouth-bar V in front of the channel', () => {
     const placed = sceneAt(0)
     const mouths = placed
       .filter((body) => body.kind === 'mouth-bar' && !body.id.startsWith('e-mouth-prox-'))
       .sort((a, b) => a.position.z - b.position.z || a.position.x - b.position.x)
     const span = channelSpan()
-    const water = waterlineY()
     expect(mouths).toHaveLength(9)
     expect(MOUTH_BAR_SCALE.y).toBeCloseTo(0.056 * 1.5)
     expect(MOUTH_BAR_SCALE.z).toBeCloseTo(0.72 * 1.5)
@@ -57,20 +67,22 @@ describe('wfSchematic', () => {
     expect(centre?.position.z).toBe(Math.min(...mouths.map((body) => body.position.z)))
     expect(mouths.filter((body) => body.position.x < 0).length).toBeGreaterThan(2)
     expect(mouths.filter((body) => body.position.x > 0).length).toBeGreaterThan(2)
-    const inner = mouths.filter((body) => Math.abs(body.position.x) > 0.05 && Math.abs(body.position.x) < 0.25)
-    expect(inner.some((body) => body.position.x < 0)).toBe(true)
-    expect(inner.some((body) => body.position.x > 0)).toBe(true)
-    const innerLeft = inner.find((body) => body.position.x < 0)!
-    const innerRight = inner.find((body) => body.position.x > 0)!
-    expect(Math.abs(innerLeft.position.x - innerRight.position.x)).toBeLessThan(MOUTH_BAR_SCALE.x)
+    const innerX = 0.16 * MOUTH_FAN_X_SCALE
+    const crossAxis = mouths.filter((body) => Math.abs(Math.abs(body.position.x) - innerX) < 1e-5)
+    expect(crossAxis).toHaveLength(2)
+    expect(MOUTH_FAN_X_SCALE).toBeCloseTo(0.4375, 5)
+    const innerGap = Math.abs(crossAxis[0].position.x - crossAxis[1].position.x)
+    expect(innerGap).toBeCloseTo(MOUTH_BAR_SCALE.x - 2 * (MOUTH_BAR_SCALE.x - 0.32), 5)
+    expect(innerGap).toBeLessThan(MOUTH_BAR_SCALE.x)
     const widest = Math.max(...mouths.map((body) => Math.abs(body.position.x)))
+    expect(widest).toBeCloseTo(0.64 * MOUTH_FAN_X_SCALE, 5)
     expect(mouths.filter((body) => Math.abs(body.position.x) === widest).every((body) => body.position.z > (centre?.position.z ?? 0))).toBe(true)
     const seawardRidge = placed
       .filter((body) => body.id.startsWith('e-ridge-r-'))
       .sort((a, b) => a.position.z - b.position.z)
     const outerRidge = seawardRidge[seawardRidge.length - 1]
-    expect(centre?.position.y).toBeCloseTo(outerRidge?.position.y ?? NaN)
-    expect((centre?.position.y ?? 0) + MOUTH_BAR_SCALE.y).toBeLessThan(water)
+    expect(centre?.position.y).toBeCloseTo(seawardRidgeBaseY() + mouthBarComplexLift())
+    expect(centre?.position.y).toBeGreaterThan(outerRidge?.position.y ?? 0)
     expect(centre && centre.position.z - MOUTH_BAR_SCALE.z / 2).toBeCloseTo(span.zSea - 0.12)
     expect(centre && centre.position.z + MOUTH_BAR_SCALE.z / 2).toBeGreaterThan(span.zSea)
     for (let i = 1; i < mouths.length; i += 1) {
@@ -111,14 +123,13 @@ describe('wfSchematic', () => {
       .sort((a, b) => a.position.z - b.position.z)[0]
     const halfZ = MOUTH_BAR_SCALE.z / 2
     const apex = proximal.find((body) => body.position.x === 0)
-    const intersectZ = (landwardRidge?.position.z ?? 0) + beachRidgeStations('r')[0].z
+    const intersectZ = (landwardRidge?.position.z ?? 0) + beachRidgeStations('r', 0)[0].z
     expect(proximal).toHaveLength(9)
     expect(apex?.position.z).toBe(Math.min(...proximal.map((body) => body.position.z)))
     expect(apex && apex.position.z - halfZ).toBeCloseTo(intersectZ)
-    expect((apex?.position.y ?? 0) + mouthBarCrownY()).toBeCloseTo(waterlineY())
+    expect((apex?.position.y ?? 0) + mouthBarCrownY()).toBeCloseTo(channelCenterY())
     expect(apex?.yaw ?? 0).toBe(0)
     for (const body of proximal) {
-      expect(body.position.y + mouthBarCrownY()).toBeLessThanOrEqual(waterlineY() + 1e-9)
       expect(body.parentId).toBe('es-mouth')
     }
     for (let i = 1; i < proximal.length; i += 1) {
@@ -145,7 +156,8 @@ describe('wfSchematic', () => {
         .sort((a, b) => a.position.z - b.position.z)
       expect(ridges).toHaveLength(4)
       expect(new Set(ridges.map((body) => body.parentId))).toEqual(new Set([`es-ridge-${side}`]))
-      const stations = beachRidgeStations(side)
+      const seawardIndex = ridges.length - 1
+      const stations = beachRidgeStations(side, seawardIndex)
       const channelEnd = stations[0]
       const tip = stations[stations.length - 1]
       const ring = beachRidgeRing(channelEnd)
@@ -161,19 +173,57 @@ describe('wfSchematic', () => {
       }
       const baseZ = base.reduce((sum, corner) => sum + corner.z, 0) / base.length
       const crestZ = crest.reduce((sum, corner) => sum + corner.z, 0) / crest.length
-      const lowest = stations.reduce((best, station) => (station.z < best.z ? station : best))
       const water = waterlineY()
       expect(channelEnd.halfWidth).toBeCloseTo(0.145)
       expect(channelEnd.halfWidth).toBeGreaterThan(tip.halfWidth * 4)
       expect(channelEnd.height).toBeGreaterThan(tip.height)
       expect(tip.z).toBeLessThan(channelEnd.z)
-      expect(tip.z).toBeGreaterThan(lowest.z)
-      expect(tip.z).toBeGreaterThan(stations[stations.length - 2].z)
-      expect(stations[stations.length - 2].z).toBeGreaterThan(stations[stations.length - 3].z)
-      expect(stations[1].z).toBeLessThan(stations[0].z)
-      expect(baseZ - crestZ).toBeCloseTo(RIDGE_BASE_SEAWARD)
-      expect(upper && upper.z).toBeLessThan(chordAt(channelEnd.height * 0.75))
-      expect(lower && lower.z).toBeGreaterThan(chordAt(channelEnd.height * 0.25))
+      expect(stations.every((station, index) => index === 0 || station.z < stations[index - 1].z)).toBe(true)
+      expect(beachRidgePlanAngleDeg(seawardIndex)).toBe(RIDGE_SEAWARD_ANGLE_DEG)
+      const centreGaps: number[] = []
+      const tipGaps: number[] = []
+      for (let index = 0; index < seawardIndex; index += 1) {
+        expect(beachRidgePlanAngleDeg(index)).toBeCloseTo(
+          beachRidgePlanAngleDeg(index + 1) * (1 - RIDGE_ANGLE_LANDWARD_DROP),
+        )
+        const landwardStations = beachRidgeStations(side, index)
+        const seawardStations = beachRidgeStations(side, index + 1)
+        expect(landwardStations[0].z).toBeCloseTo(seawardStations[0].z)
+        const channelGap = ridges[index + 1].position.z - ridges[index].position.z
+        const landwardTip = landwardStations[landwardStations.length - 1]
+        const seawardTip = seawardStations[seawardStations.length - 1]
+        const tipGap = channelGap + seawardTip.z - landwardTip.z
+        centreGaps.push(channelGap)
+        tipGaps.push(tipGap)
+        expect(tipGap).toBeGreaterThan(0.02)
+        expect(tipGap).toBeLessThan(channelGap)
+      }
+      expect(Math.min(...tipGaps)).toBeLessThan(Math.min(...centreGaps))
+      const crown = crestSea.z - channelEnd.z
+      const steepRun = channelEnd.halfWidth - crown + RIDGE_BASE_SEAWARD
+      expect(RIDGE_FACE_SLOPE).toBe(0.25)
+      expect(baseSea.z - crestSea.z).toBeCloseTo(steepRun / RIDGE_FACE_SLOPE)
+      expect(baseSea.z - base.reduce((land, corner) => (corner.z < land.z ? corner : land)).z).toBeCloseTo(channelEnd.halfWidth * 2)
+      expect(baseZ - crestZ).toBeCloseTo(RIDGE_BASE_SEAWARD + steepRun * (1 / RIDGE_FACE_SLOPE - 1))
+      expect(upper && upper.z).toBeGreaterThan(chordAt(channelEnd.height * 0.75))
+      expect(lower && lower.z).toBeLessThan(chordAt(channelEnd.height * 0.25))
+      const mid = ring.find((corner) => Math.abs(corner.y - channelEnd.height * 0.5) < 1e-6)
+      expect(mid && mid.z).toBeCloseTo(chordAt(channelEnd.height * 0.5))
+      for (const corner of ring) {
+        if (corner.y <= 0 || corner.y >= channelEnd.height) continue
+        const down = 1 - corner.y / channelEnd.height
+        const chord = chordAt(corner.y)
+        if (down < 0.5) expect(corner.z).toBeGreaterThan(chord)
+        if (down > 0.5) expect(corner.z).toBeLessThan(chord)
+      }
+      const face = [crestSea, ...ring.filter((corner) => corner.y > 0 && corner.y < channelEnd.height), baseSea].sort(
+        (a, b) => b.y - a.y,
+      )
+      const stepsZ = face.slice(1).map((corner, index) => corner.z - face[index].z)
+      const middleStep = stepsZ[Math.floor(stepsZ.length / 2)]
+      expect(stepsZ[0]).toBeGreaterThan(middleStep)
+      expect(stepsZ[stepsZ.length - 1]).toBeGreaterThan(middleStep)
+      expect(stepsZ.every((step) => step > 0)).toBe(true)
       expect(Math.abs(tip.x)).toBeGreaterThan(Math.abs(channelEnd.x))
       expect(Math.sign(channelEnd.x)).toBe(side === 'r' ? 1 : -1)
       const seaward = ridges[ridges.length - 1]
@@ -200,7 +250,7 @@ describe('wfSchematic', () => {
       .filter((body) => body.id.startsWith('e-ridge-r-'))
       .sort((a, b) => a.position.z - b.position.z)
     const seaward = rightRidges[rightRidges.length - 1]
-    const thickZ = (seaward?.position.z ?? 0) + beachRidgeStations('r')[0].z
+    const thickZ = (seaward?.position.z ?? 0) + beachRidgeStations('r', rightRidges.length - 1)[0].z
     expect(channel?.position.x).toBe(0)
     expect(channel?.position.y).toBe(span.flatY)
     expect(channel?.position.z).toBeCloseTo(span.centerZ)
@@ -219,21 +269,106 @@ describe('wfSchematic', () => {
     expect(waterlineY()).toBeCloseTo(span.flatY - CHANNEL_RADIUS)
   })
 
-  it('separates ranks along Y and clamps explode', () => {
-    const nested = sceneAt(0)
-    const apart = sceneAt(1)
-    expect(apart.map((body) => body.id)).toEqual(nested.map((body) => body.id))
-    expect(apart.map((body) => body.parentId)).toEqual(nested.map((body) => body.parentId))
-    const gap = (rank: string) => {
-      const at0 = nested.find((body) => body.rank === rank)!
-      const at1 = apart.find((body) => body.id === at0.id)!
-      return at1.position.y - at0.position.y
+  it('spreads every centre from the origin and keeps one label per element kind', () => {
+    const at = (t: number) => sceneAt(t)
+    const byId = (bodies: ReturnType<typeof sceneAt>, id: string) => bodies.find((body) => body.id === id)!
+    const length = (point: { x: number; y: number; z: number }) => Math.hypot(point.x, point.y, point.z)
+    const spreadAt = (t: number) => 1 + (EXPLODE_SPREAD - 1) * t
+
+    const expectOnRay = (t: number) => {
+      const spread = spreadAt(t)
+      for (const body of at(t)) {
+        const center = bodyCenter(body)
+        const travel = spread - 1
+        expect(body.position.x).toBeCloseTo(body.nested.x + travel * center.x, 6)
+        expect(body.position.y).toBeCloseTo(body.nested.y + travel * center.y, 6)
+        expect(body.position.z).toBeCloseTo(body.nested.z + travel * center.z, 6)
+        const delta = {
+          x: body.position.x - body.nested.x,
+          y: body.position.y - body.nested.y,
+          z: body.position.z - body.nested.z,
+        }
+        if (length(center) < 1e-6 || length(delta) < 1e-6) continue
+        const cross = length({
+          x: delta.y * center.z - delta.z * center.y,
+          y: delta.z * center.x - delta.x * center.z,
+          z: delta.x * center.y - delta.y * center.x,
+        })
+        expect(cross).toBeCloseTo(0, 6)
+        const dominant = (['x', 'y', 'z'] as const).reduce((best, axis) =>
+          Math.abs(center[axis]) > Math.abs(center[best]) ? axis : best,
+        )
+        expect(Math.sign(delta[dominant])).toBe(Math.sign(center[dominant]))
+        for (const axis of ['x', 'y', 'z'] as const) {
+          expect(Math.abs(delta[dominant])).toBeGreaterThanOrEqual(Math.abs(delta[axis]) - 1e-9)
+        }
+      }
     }
-    expect(gap('element-complex-set')).toBe(0)
-    expect(gap('element')).toBeGreaterThan(gap('element-set'))
-    expect(gap('element-set')).toBeGreaterThan(gap('element-complex'))
-    expect(gap('element-complex')).toBeGreaterThan(0)
-    expect(sceneAt(-1)).toEqual(sceneAt(0))
-    expect(sceneAt(2)).toEqual(sceneAt(1))
+
+    const nested = at(0)
+    for (const body of nested) expect(body.position).toEqual(body.nested)
+    expect(nested.filter((body) => body.showLabel).map((body) => body.id)).toEqual(['ecs'])
+    expectOnRay(0)
+
+    const third = at(1 / 3)
+    expectOnRay(1 / 3)
+    expect(third.filter((body) => body.rank === 'element-set' && body.showLabel)).toHaveLength(0)
+    expect(third.filter((body) => body.rank === 'element-complex' && body.showLabel).map((body) => body.id).sort()).toEqual([
+      'ec-lobe',
+      'ec-mouth',
+    ])
+
+    const twoThirds = at(2 / 3)
+    expectOnRay(2 / 3)
+    expect(twoThirds.filter((body) => body.rank === 'element' && body.showLabel)).toHaveLength(0)
+    expect(twoThirds.filter((body) => body.showLabel && body.rank === 'element-set')).toHaveLength(3)
+
+    const full = at(1)
+    expectOnRay(1)
+    const centerDistance = (idA: string, idB: string) =>
+      length({
+        x: bodyCenter(byId(nested, idA)).x - bodyCenter(byId(nested, idB)).x,
+        y: bodyCenter(byId(nested, idA)).y - bodyCenter(byId(nested, idB)).y,
+        z: bodyCenter(byId(nested, idA)).z - bodyCenter(byId(nested, idB)).z,
+      })
+    const left = bodyCenter(byId(nested, 'e-ridge-l-0'))
+    const right = bodyCenter(byId(nested, 'e-ridge-r-0'))
+    expect(left.x).toBeLessThan(0)
+    expect(right.x).toBeGreaterThan(0)
+    expect(Math.abs(left.x)).toBeGreaterThan(Math.abs(left.y))
+    expect(Math.abs(left.x)).toBeGreaterThan(Math.abs(left.z))
+    expect(Math.abs(right.x)).toBeGreaterThan(Math.abs(right.y))
+    expect(Math.abs(right.x)).toBeGreaterThan(Math.abs(right.z))
+    const ridgeGap = centerDistance('e-ridge-l-0', 'e-ridge-r-0')
+    const mouthGap = centerDistance('e-mouth-0', 'e-mouth-1')
+    const sameSideGap = centerDistance('e-ridge-r-0', 'e-ridge-r-1')
+    expect(ridgeGap * EXPLODE_SPREAD).toBeGreaterThan(ridgeGap)
+    expect(mouthGap * EXPLODE_SPREAD).toBeGreaterThan(mouthGap + 0.5)
+    expect(sameSideGap * EXPLODE_SPREAD).toBeGreaterThan(sameSideGap)
+    expect(full.filter((body) => body.rank === 'element' && body.showLabel).map((body) => body.id).sort()).toEqual([
+      'e-channel',
+      'e-mouth-0',
+      'e-ridge-r-0',
+    ])
+    expect(full.map((body) => body.id)).toEqual(nested.map((body) => body.id))
+    expect(full.map((body) => body.parentId)).toEqual(nested.map((body) => body.parentId))
+    expect(at(-1)).toEqual(at(0))
+    expect(at(2)).toEqual(at(1))
+    expect(spreadAt(1)).toBe(EXPLODE_SPREAD)
+  })
+})
+
+describe('cssEaseOut', () => {
+  it('matches CSS ease-out endpoints and midpoint', () => {
+    expect(cssEaseOut(0)).toBe(0)
+    expect(cssEaseOut(1)).toBe(1)
+    expect(cssEaseOut(0.5)).toBeCloseTo(0.68, 1)
+  })
+
+  it('never exceeds 1 for sample times', () => {
+    for (const t of [0, 0.25, 0.5, 0.8, 1]) {
+      expect(cssEaseOut(t)).toBeLessThanOrEqual(1)
+      expect(cssEaseOut(t)).toBeGreaterThanOrEqual(0)
+    }
   })
 })

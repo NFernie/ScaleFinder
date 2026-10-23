@@ -1,4 +1,9 @@
-export const WF_ANCHOR = { lat: 44.878674, lng: 29.515563 } as const
+/**
+ * Map pin for the symmetric Wf scene.
+ * Stored as latitude 18.601312, longitude −92.674937. A latitude of −92.67
+ * cannot be plotted; 18.6°N, 92.67°W is the pair that sits on the map.
+ */
+export const WF_ANCHOR = { lat: 18.601312, lng: -92.674937 } as const
 
 export type Rank = 'element' | 'element-set' | 'element-complex' | 'element-complex-set'
 
@@ -17,6 +22,7 @@ export interface SceneBody {
 
 export interface PlacedBody extends SceneBody {
   position: { x: number; y: number; z: number }
+  showLabel: boolean
 }
 
 export interface RidgeStation {
@@ -50,11 +56,41 @@ export const MOUTH_BAR_STEP = 0.05
 /** Degrees added to the yaw for each step seaward of the channel bar. */
 export const MOUTH_BAR_YAW_STEP = 1
 
-/** How far the ridge base (lowest Y) sits seaward of the crest. */
+/** Cross-axis centres in the fan template before alongshore compression. */
+const MOUTH_FAN_INNER_X = 0.16
+
+/**
+ * Scale on fan X centres. The first pass increased alongshore overlap by 50%
+ * (centre gap 0.32 → 0.23). The shipped scale doubles that overlap
+ * (centre gap 0.32 → 0.14 for bar width 0.5).
+ */
+export const MOUTH_FAN_X_SCALE =
+  (MOUTH_BAR_SCALE.x - 2 * (MOUTH_BAR_SCALE.x - 2 * MOUTH_FAN_INNER_X)) / (2 * MOUTH_FAN_INNER_X)
+
+/** How far the ridge base (lowest Y) sits seaward of the crest before the face is flattened. */
 export const RIDGE_BASE_SEAWARD = 0.12
+
+/**
+ * Seaward-face rise/run as a fraction of the unsheared wedge.
+ * 0.25 is another halving of the previous 0.5 slope, so the whole section is 50% flatter again.
+ */
+export const RIDGE_FACE_SLOPE = 0.25
 
 /** Each landward beach ridge sits this fraction of the crest height above the next seaward ridge. */
 export const RIDGE_DOWNSTEP = 0.02
+
+/**
+ * Plan angle, in degrees, added at the channel end of the most seaward beach ridge.
+ * Positive swings the alongshore tip landward so the channel stays the seaward apex.
+ */
+export const RIDGE_SEAWARD_ANGLE_DEG = 20
+
+/**
+ * Each ridge landward of the next keeps this fraction less plan angle.
+ * 12% leaves a small positive centreline gap at the tips (about 0.07 on the
+ * seaward pair) while the channel-end gap stays on RIDGE_Z_STEP.
+ */
+export const RIDGE_ANGLE_LANDWARD_DROP = 0.12
 
 /** Thickness of the water-line slab. Its top is the channel base. */
 export const GROUND_THICKNESS = 0.05
@@ -63,11 +99,57 @@ export const GROUND_THICKNESS = 0.05
 export const WATER_COLOUR = 0x38bdf8
 export const WATER_OPACITY = 0.3
 
-const RANK_LIFT: Record<Rank, number> = {
-  'element-complex-set': 0,
-  'element-complex': 1.2,
-  'element-set': 2.4,
-  element: 3.6,
+/**
+ * At full explode, each body's centre is this many times farther from the origin.
+ * The direction is the centre itself, so the largest coordinate does most of the travel
+ * and the smaller ones keep the same proportion.
+ */
+export const EXPLODE_SPREAD = 5
+
+function labelVisible(body: SceneBody, t: number): boolean {
+  if (body.rank === 'element-complex-set') return true
+  if (body.rank === 'element-complex') return t > 0
+  if (body.rank === 'element-set') return t > 1 / 3
+  return t > 2 / 3 && (body.id === 'e-ridge-r-0' || body.id === 'e-mouth-0' || body.id === 'e-channel')
+}
+
+function rotateYaw(point: { x: number; y: number; z: number }, yaw: number): { x: number; y: number; z: number } {
+  const cos = Math.cos(yaw)
+  const sin = Math.sin(yaw)
+  return {
+    x: point.x * cos + point.z * sin,
+    y: point.y,
+    z: -point.x * sin + point.z * cos,
+  }
+}
+
+/** Centre of the solid in the body's local frame, before the nested offset. */
+function localCenter(body: SceneBody): { x: number; y: number; z: number } {
+  if (body.kind === 'beach-ridge') {
+    const stations = beachRidgeStations(body.id.includes('-r-') ? 'r' : 'l', ridgeIndex(body.id))
+    const sum = stations.reduce(
+      (total, station) => ({
+        x: total.x + station.x,
+        y: total.y + station.height / 2,
+        z: total.z + station.z,
+      }),
+      { x: 0, y: 0, z: 0 },
+    )
+    return { x: sum.x / stations.length, y: sum.y / stations.length, z: sum.z / stations.length }
+  }
+  if (body.kind === 'mouth-bar') return { x: 0, y: MOUTH_BAR_SCALE.y / 2, z: 0 }
+  if (body.kind === 'channel') return { x: 0, y: -CHANNEL_RADIUS / 2, z: 0 }
+  return { x: 0, y: 0, z: 0 }
+}
+
+/** Where the solid sits in the nested pose, measured from the origin. */
+export function bodyCenter(body: SceneBody): { x: number; y: number; z: number } {
+  const local = rotateYaw(localCenter(body), body.yaw ?? 0)
+  return {
+    x: body.nested.x + local.x,
+    y: body.nested.y + local.y,
+    z: body.nested.z + local.z,
+  }
 }
 
 const RIDGE_COUNT = 4
@@ -91,8 +173,8 @@ const RIDGE_BASE_REF = 0.36
 const RIDGE_TIP_CLEARANCE = 0.03
 
 /**
- * Plan-view centreline. A landward sweep from the channel, then a sigmoid
- * so the tip turns slightly back toward the sea.
+ * Plan-view centreline before the per-ridge landward angle.
+ * A landward sweep from the channel, then a sigmoid so the tip turns slightly back toward the sea.
  */
 function ridgeCentreZ(t: number): number {
   const landward = RIDGE_BOW * (1 - t * t)
@@ -115,23 +197,42 @@ function ridgeHeights(): { thick: number; tip: number } {
   }
 }
 
+/** Index from `e-ridge-r-2`. Groups and other ids fall back to the landward ridge. */
+function ridgeIndex(id: string): number {
+  const index = Number(id.slice(id.lastIndexOf('-') + 1))
+  return Number.isFinite(index) ? index : 0
+}
+
+/**
+ * Added plan angle for one ridge. Index 0 is the most landward.
+ * The most seaward ridge is RIDGE_SEAWARD_ANGLE_DEG. Each step landward
+ * multiplies by (1 - RIDGE_ANGLE_LANDWARD_DROP).
+ */
+export function beachRidgePlanAngleDeg(index: number): number {
+  const stepsLandward = RIDGE_COUNT - 1 - index
+  return RIDGE_SEAWARD_ANGLE_DEG * (1 - RIDGE_ANGLE_LANDWARD_DROP) ** stepsLandward
+}
+
 /**
  * One beach-ridge centreline in ridge-local coordinates.
- * X is alongshore, away from the channel. The centreline is sigmoidal:
- * it swings landward, then the tip turns slightly seaward. The thick end
- * is still seaward of the tip. Height tapers toward the tip, and the whole
- * crest stays above the water line.
+ * X is alongshore, away from the channel. The channel end keeps the shared
+ * fore-aft spacing. Toward the tip the ridge swings landward by
+ * beachRidgePlanAngleDeg, so the stack closes up but the centrelines still
+ * keep a small Z gap. The channel end stays the seaward apex.
+ * Height tapers toward the tip, and the whole crest stays above the water line.
  */
-export function beachRidgeStations(side: 'l' | 'r'): RidgeStation[] {
+export function beachRidgeStations(side: 'l' | 'r', index: number): RidgeStation[] {
   const sign = side === 'r' ? 1 : -1
   const { thick, tip } = ridgeHeights()
+  const landward = Math.tan((beachRidgePlanAngleDeg(index) * Math.PI) / 180)
+  const span = RIDGE_OUTER - RIDGE_INNER
   const stations: RidgeStation[] = []
   for (let i = 0; i < RIDGE_STATIONS; i += 1) {
     const t = i / (RIDGE_STATIONS - 1)
     const taper = 1 - t
     stations.push({
-      x: sign * (RIDGE_INNER + t * (RIDGE_OUTER - RIDGE_INNER)),
-      z: ridgeCentreZ(t),
+      x: sign * (RIDGE_INNER + t * span),
+      z: ridgeCentreZ(t) - landward * t * span,
       halfWidth: RIDGE_HALF_WIDTH * taper + RIDGE_TIP_WIDTH,
       height: tip + (thick - tip) * taper,
     })
@@ -140,27 +241,34 @@ export function beachRidgeStations(side: 'l' | 'r'): RidgeStation[] {
 }
 
 /**
- * Cross-section at one station. The base sits seaward of the crest.
- * The seaward face is a sigmoid: it stays landward of the straight chord
- * through the upper half, then kicks out to the toe.
+ * Cross-section at one station. The crest stays put. The base is sheared seaward
+ * so the seaward-face slope is RIDGE_FACE_SLOPE times the unsheared wedge.
+ * The face reflects a logistic sigmoid across the chord: seaward of the chord in the
+ * upper half (convex toward the sea) and landward of it in the lower half, with the
+ * toe running out flat.
  */
 export function beachRidgeRing(station: RidgeStation): RidgeCorner[] {
   const crown = station.halfWidth * 0.28
-  const baseLandZ = station.z - station.halfWidth + RIDGE_BASE_SEAWARD
-  const baseSeaZ = station.z + station.halfWidth + RIDGE_BASE_SEAWARD
   const crestSeaZ = station.z + crown
   const crestLandZ = station.z - crown
+  const baseLand0 = station.z - station.halfWidth + RIDGE_BASE_SEAWARD
+  const baseSea0 = station.z + station.halfWidth + RIDGE_BASE_SEAWARD
+  const steepRun = baseSea0 - crestSeaZ
+  const run = steepRun / RIDGE_FACE_SLOPE
+  const shear = run - steepRun
+  const baseLandZ = baseLand0 + shear
+  const baseSeaZ = crestSeaZ + run
   const ring: RidgeCorner[] = [
     { x: station.x, y: 0, z: baseLandZ },
     { x: station.x, y: 0, z: baseSeaZ },
   ]
-  const steps = 4
+  const steps = 16
   for (let i = 1; i < steps; i += 1) {
-    const t = 1 - i / steps
+    const down = 1 - i / steps
     ring.push({
       x: station.x,
-      y: station.height * (1 - t),
-      z: crestSeaZ + (baseSeaZ - crestSeaZ) * sigmoid01(t),
+      y: station.height * (1 - down),
+      z: crestSeaZ + run * ridgeFaceFraction(down),
     })
   }
   ring.push(
@@ -171,7 +279,7 @@ export function beachRidgeRing(station: RidgeStation): RidgeCorner[] {
 }
 
 function ridgeWorldZ(index: number): number {
-  return RIDGE_Z_BASE + index * RIDGE_Z_STEP + beachRidgeStations('r')[0].z
+  return RIDGE_Z_BASE + index * RIDGE_Z_STEP + beachRidgeStations('r', index)[0].z
 }
 
 /** Seaward tip of the channel meets the thick end of the most seaward ridge. */
@@ -197,6 +305,16 @@ function sigmoid01(t: number): number {
   return (raw(t) - start) / (end - start)
 }
 
+/** Logistic reflected across the chord. Steepness stays low enough that Z keeps increasing seaward. */
+function ridgeFaceFraction(down: number): number {
+  const k = 6
+  const raw = (u: number) => 1 / (1 + Math.exp(-k * (u - 0.5)))
+  const start = raw(0)
+  const end = raw(1)
+  const logistic = (raw(down) - start) / (end - start)
+  return 2 * down - logistic
+}
+
 /** Base of one mouth bar. The landward rim is 0. The seaward rim is the full dip. */
 export function mouthBarBaseOffset(z: number, halfZ: number): number {
   const t = halfZ === 0 ? 0 : (z / halfZ + 1) / 2
@@ -216,9 +334,24 @@ export function mouthBarCrownY(): number {
   return crown
 }
 
-/** Base of the most seaward beach ridge. The landward mouth bar shares this Y. */
+/** Base of the most seaward beach ridge. */
 export function seawardRidgeBaseY(): number {
   return RIDGE_NEST_Y - (RIDGE_COUNT - 1) * RIDGE_BASE_REF * RIDGE_DOWNSTEP
+}
+
+/**
+ * Uniform Y offset for every mouth bar. The landward apex crown meets the channel centre.
+ * Seaward steps and the offset between the two fans stay the same.
+ */
+export function mouthBarComplexLift(): number {
+  const landwardBaseY = waterlineY() - mouthBarCrownY()
+  const targetBaseY = channelSpan().flatY - CHANNEL_RADIUS / 2 - mouthBarCrownY()
+  return targetBaseY - landwardBaseY
+}
+
+/** World Y of the channel half-cylinder centre (flat face at channelSpan().flatY). */
+export function channelCenterY(): number {
+  return channelSpan().flatY - CHANNEL_RADIUS / 2
 }
 
 /**
@@ -253,7 +386,7 @@ function layMouthFan(originZ: number, yLand: number): Array<{ x: number; y: numb
     const seaward = rank.get(point.z) ?? 0
     const degrees = point.x === 0 ? 0 : Math.sign(point.x) * seaward * MOUTH_BAR_YAW_STEP
     return {
-      x: point.x,
+      x: point.x * MOUTH_FAN_X_SCALE,
       y: yLand - seaward * step,
       z: originZ + point.z,
       yaw: (degrees * Math.PI) / 180,
@@ -264,11 +397,11 @@ function layMouthFan(originZ: number, yLand: number): Array<{ x: number; y: numb
 function mouthFans(): { seaward: ReturnType<typeof layMouthFan>; proximal: ReturnType<typeof layMouthFan> } {
   const span = channelSpan()
   const halfZ = MOUTH_BAR_SCALE.z / 2
+  const lift = mouthBarComplexLift()
   return {
-    seaward: layMouthFan(span.zSea - 0.12 + halfZ, seawardRidgeBaseY()),
-    // Landward rim on the channel where the most landward ridge meets it.
-    // The crown touches the channel base from below, then the fan progrades seaward.
-    proximal: layMouthFan(ridgeWorldZ(0) + halfZ, waterlineY() - mouthBarCrownY()),
+    seaward: layMouthFan(span.zSea - 0.12 + halfZ, seawardRidgeBaseY() + lift),
+    // Landward rim on the channel where the most landward ridge meets it, then progrades seaward.
+    proximal: layMouthFan(ridgeWorldZ(0) + halfZ, waterlineY() - mouthBarCrownY() + lift),
   }
 }
 
@@ -373,12 +506,19 @@ const BODIES: SceneBody[] = [
 
 export function sceneAt(explode: number): PlacedBody[] {
   const t = Math.min(1, Math.max(0, explode))
-  return BODIES.map((body) => ({
-    ...body,
-    position: {
-      x: body.nested.x,
-      y: body.nested.y + RANK_LIFT[body.rank] * t,
-      z: body.nested.z,
-    },
-  }))
+  const spread = 1 + (EXPLODE_SPREAD - 1) * t
+  return BODIES.map((body) => {
+    if (spread === 1) return { ...body, position: body.nested, showLabel: labelVisible(body, t) }
+    const local = rotateYaw(localCenter(body), body.yaw ?? 0)
+    const center = bodyCenter(body)
+    return {
+      ...body,
+      position: {
+        x: center.x * spread - local.x,
+        y: center.y * spread - local.y,
+        z: center.z * spread - local.z,
+      },
+      showLabel: labelVisible(body, t),
+    }
+  })
 }

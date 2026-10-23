@@ -26,7 +26,7 @@ For mesh authoring workflow and skills, still read [`features/schematic_module.m
 
 | Area | Behaviour |
 | --- | --- |
-| **Pin** | Teal 44px control at `WF_ANCHOR` (Sfântu Gheorghe). Opens the panel. Place name only on the pin. |
+| **Pins** | Two teal 44px controls. Symmetric scene at `WF_ANCHOR` (latitude 18.601312, longitude -92.674937). Asymmetric scene at `ASYM_WF_ANCHOR` (Sfântu Gheorghe). Same panel. Place name only on the pin that has one. |
 | **Panel** | Title **Wf Schematic**; fixed caption; bottom-right on map; safe-area inset; session-persisted frame size. |
 | **3D view** | WebGL when available; fallback text list from `sceneAt(0)` (explode slider does not change the list). |
 | **Resize** | Top-left 44px handle; aspect ratio **328∶224**; bottom-right of panel fixed; keyboard ±16px. |

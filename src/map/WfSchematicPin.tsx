@@ -1,18 +1,20 @@
 import { Marker } from 'react-map-gl/maplibre'
-import { WF_ANCHOR } from '../core/wfSchematic'
 
 interface Props {
+  anchor: { lat: number; lng: number }
+  id: string
+  label: string
   onOpen: () => void
 }
 
-export default function WfSchematicPin({ onOpen }: Props) {
+export default function WfSchematicPin({ anchor, id, label, onOpen }: Props) {
   return (
-    <Marker longitude={WF_ANCHOR.lng} latitude={WF_ANCHOR.lat} anchor="center">
+    <Marker longitude={anchor.lng} latitude={anchor.lat} anchor="center">
       <button
         type="button"
-        id="wf-schematic-pin"
-        aria-label="Wf schematic, Sfântu Gheorghe"
-        title="Wf schematic, Sfântu Gheorghe"
+        id={id}
+        aria-label={label}
+        title={label}
         onClick={(event) => {
           event.stopPropagation()
           onOpen()

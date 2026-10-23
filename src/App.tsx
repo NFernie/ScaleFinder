@@ -82,7 +82,10 @@ import {
   turnedParts,
   wrapBearing,
 } from './core/rotation'
+import { ASYM_WF_ANCHOR } from './core/asymWfSchematic'
+import { type SchematicSceneId } from './core/schematicScene'
 import { LengthUnit, LngLat } from './core/types'
+import { WF_ANCHOR } from './core/wfSchematic'
 import { getBasemaps, hasMapTilerKey } from './map/basemap'
 import { bufferPixel, bufferToCss, radiusInBuffer, readBasemap, sampleBasemap } from './map/sampleCanvas'
 import MapToolCursor from './map/MapToolCursor'
@@ -166,7 +169,7 @@ export default function App() {
   const [vertexDragging, setVertexDragging] = useState(false)
   const [mapReady, setMapReady] = useState(false)
   const [mapTick, setMapTick] = useState(0)
-  const [wfOpen, setWfOpen] = useState(false)
+  const [schematic, setSchematic] = useState<SchematicSceneId | null>(null)
   const [wfFrame, setWfFrame] = useState<{ width: number; height: number } | null>(null)
 
   const basemaps = useMemo(() => getBasemaps(MAPTILER_KEY), [])
@@ -1131,7 +1134,18 @@ export default function App() {
               dragPan={session.lasso?.status !== 'drawing'}
               hideNativeCursor={session.tool !== null}
             >
-              <WfSchematicPin onOpen={() => setWfOpen(true)} />
+              <WfSchematicPin
+                anchor={WF_ANCHOR}
+                id="wf-schematic-pin"
+                label="Wf schematic"
+                onOpen={() => setSchematic('wf')}
+              />
+              <WfSchematicPin
+                anchor={ASYM_WF_ANCHOR}
+                id="asym-wf-schematic-pin"
+                label="Asymmetric Wf schematic, Sfântu Gheorghe"
+                onOpen={() => setSchematic('asym')}
+              />
               {items.map((item) =>
                 item.selected ? (
                   <PlacedPolygon
@@ -1233,13 +1247,15 @@ export default function App() {
             )}
           </div>
 
-          {wfOpen && (
+          {schematic && (
             <div className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-10">
               <WfSchematicPanel
-                open={wfOpen}
+                open
+                scene={schematic}
+                pinId={schematic === 'asym' ? 'asym-wf-schematic-pin' : 'wf-schematic-pin'}
                 frame={wfFrame}
                 onFrame={setWfFrame}
-                onClose={() => setWfOpen(false)}
+                onClose={() => setSchematic(null)}
               />
             </div>
           )}

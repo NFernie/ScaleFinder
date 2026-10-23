@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { sceneAt, type Rank } from '../core/wfSchematic'
+import { sceneAt as asymSceneAt } from '../core/asymWfSchematic'
+import { type SchematicSceneId } from '../core/schematicScene'
+import { sceneAt as wfSceneAt, type Rank } from '../core/wfSchematic'
 import {
   fitSchematicFrame,
   FRAME_KEY_STEP_PX,
@@ -56,13 +58,15 @@ function clampExplode(value: number): number {
 
 interface Props {
   open: boolean
+  scene: SchematicSceneId
+  pinId: string
   frame: { width: number; height: number } | null
   onFrame: (frame: { width: number; height: number }) => void
   onClose: () => void
 }
 
-function sortedBodies() {
-  const bodies = sceneAt(0)
+function sortedBodies(scene: SchematicSceneId) {
+  const bodies = (scene === 'asym' ? asymSceneAt : wfSceneAt)(0)
   const byId = new Map(bodies.map((body) => [body.id, body]))
   return [...bodies].sort((a, b) => {
     const rankDelta = RANK_ORDER[a.rank] - RANK_ORDER[b.rank]
@@ -92,7 +96,7 @@ function maxFrameDimensions(section: HTMLElement | null): { maxWidth: number; ma
   return { maxWidth, maxHeight: limits.maxHeight }
 }
 
-export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Props) {
+export default function WfSchematicPanel({ open, scene, pinId, frame, onFrame, onClose }: Props) {
   const [explode, setExplode] = useState(0)
   const [viewFailed, setViewFailed] = useState(false)
   const [minWidth, setMinWidth] = useState(FRAME_START.width)
@@ -106,18 +110,18 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
   useEffect(() => {
     if (open) setExplode(0)
     else setViewFailed(false)
-  }, [open])
+  }, [open, scene])
 
   useEffect(() => {
     if (!open) return
     function onKey(event: KeyboardEvent) {
       if (event.key !== 'Escape') return
-      document.getElementById('wf-schematic-pin')?.focus()
+      document.getElementById(pinId)?.focus()
       onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  }, [open, onClose, pinId])
 
   useLayoutEffect(() => {
     if (!open) return
@@ -202,7 +206,7 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
   const showText = !webglAvailable() || viewFailed
   const width = frame?.width ?? FRAME_START.width
   const height = frame?.height ?? FRAME_START.height
-  const rows = sortedBodies()
+  const rows = sortedBodies(scene)
 
   return (
     <section
@@ -217,7 +221,7 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
         <button
           type="button"
           onClick={() => {
-            document.getElementById('wf-schematic-pin')?.focus()
+            document.getElementById(pinId)?.focus()
             onClose()
           }}
           className={`pressable min-h-11 rounded-lg px-3 text-sm text-slate-100 ${FOCUS_RING}`}
@@ -270,7 +274,9 @@ export default function WfSchematicPanel({ open, frame, onFrame, onClose }: Prop
           </ul>
         ) : (
           <WfSchematicView
+            key={scene}
             ref={cameraRef}
+            scene={scene}
             explode={explode}
             width={width}
             height={height}

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import * as THREE from 'three'
 import { beachRidgeRing, beachRidgeStations } from '../core/wfSchematic'
 import {
   asymmetricBeachRidgeGeometry,
@@ -33,7 +32,7 @@ describe('asymmetricBeachRidgeGeometry', () => {
     const symmetric = symmetricBeachRidgePlanSamples('r', index)
     const asymmetric = asymmetricBeachRidgePlanSamples('r', index)
     expect(asymmetric[0].zCentre).toBeCloseTo(symmetric[0].zCentre)
-    expect(asymmetric.at(-1)!.zCentre).toBeCloseTo(symmetric.at(-1)!.zCentre)
+    expect(asymmetric[asymmetric.length - 1].zCentre).toBeCloseTo(symmetric[symmetric.length - 1].zCentre)
     const mid = Math.floor(symmetric.length / 2)
     expect(asymmetric[mid].zSea).toBeGreaterThan(symmetric[mid].zSea)
     const symStandard = beachRidgeStations('r', index)

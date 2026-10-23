@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { forwardRef, ReactNode, useLayoutEffect, useState } from 'react'
-import { sceneAt } from '../core/wfSchematic'
+import { sceneAt, WF_ANCHOR } from '../core/wfSchematic'
 import WfSchematicPin from '../map/WfSchematicPin'
 import WfSchematicPanel from './WfSchematicPanel'
 
@@ -17,8 +17,15 @@ function Harness() {
   const [frame, setFrame] = useState<{ width: number; height: number } | null>(null)
   return (
     <>
-      <WfSchematicPin onOpen={() => setOpen(true)} />
-      <WfSchematicPanel open={open} frame={frame} onFrame={setFrame} onClose={() => setOpen(false)} />
+      <WfSchematicPin anchor={WF_ANCHOR} id="wf-schematic-pin" label="Wf schematic" onOpen={() => setOpen(true)} />
+      <WfSchematicPanel
+        open={open}
+        scene="wf"
+        pinId="wf-schematic-pin"
+        frame={frame}
+        onFrame={setFrame}
+        onClose={() => setOpen(false)}
+      />
     </>
   )
 }
@@ -27,7 +34,7 @@ it('lists the Wf bodies when the panel is open', async () => {
   const user = userEvent.setup()
   render(<Harness />)
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: 'Wf schematic, Sfântu Gheorghe' }))
+  await user.click(screen.getByRole('button', { name: 'Wf schematic' }))
   const dialog = screen.getByRole('dialog', { name: 'Wf Schematic' })
   expect(within(dialog).queryByText('Sfântu Gheorghe')).not.toBeInTheDocument()
   expect(within(dialog).queryByText('Wf schematic')).not.toBeInTheDocument()
@@ -78,15 +85,15 @@ it('lists the Wf bodies when the panel is open', async () => {
   expect(within(dialog).getAllByText('Mouth bar').length).toBeGreaterThan(1)
   await user.click(within(dialog).getByRole('button', { name: 'Close' }))
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Wf schematic, Sfântu Gheorghe' })).toHaveFocus()
-  await user.click(screen.getByRole('button', { name: 'Wf schematic, Sfântu Gheorghe' }))
+  expect(screen.getByRole('button', { name: 'Wf schematic' })).toHaveFocus()
+  await user.click(screen.getByRole('button', { name: 'Wf schematic' }))
   expect(screen.getByTestId('wf-schematic-frame')).toHaveStyle({ width: '344px' })
 })
 
 it('returns focus to the pin on Escape', async () => {
   const user = userEvent.setup()
   render(<Harness />)
-  const pin = screen.getByRole('button', { name: 'Wf schematic, Sfântu Gheorghe' })
+  const pin = screen.getByRole('button', { name: 'Wf schematic' })
   await user.click(pin)
   expect(screen.getByRole('dialog', { name: 'Wf Schematic' })).toBeInTheDocument()
   await user.keyboard('{Escape}')
@@ -97,7 +104,7 @@ it('returns focus to the pin on Escape', async () => {
 it('stops the frame at the map inset', async () => {
   const user = userEvent.setup()
   render(<Harness />)
-  await user.click(screen.getByRole('button', { name: 'Wf schematic, Sfântu Gheorghe' }))
+  await user.click(screen.getByRole('button', { name: 'Wf schematic' }))
   const dialog = screen.getByRole('dialog', { name: 'Wf Schematic' })
   const wrapper = document.createElement('div')
   const map = document.createElement('div')
@@ -144,7 +151,9 @@ it('keeps the caption, slider, and full list when the view cannot start', async 
   function Local() {
     const [open, setOpen] = useState(true)
     const [frame, setFrame] = useState<{ width: number; height: number } | null>(null)
-    return <Panel open={open} frame={frame} onFrame={setFrame} onClose={() => setOpen(false)} />
+    return (
+      <Panel open={open} scene="wf" pinId="wf-schematic-pin" frame={frame} onFrame={setFrame} onClose={() => setOpen(false)} />
+    )
   }
   render(<Local />)
   const dialog = await screen.findByRole('dialog', { name: 'Wf Schematic' })

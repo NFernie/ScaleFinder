@@ -18,7 +18,7 @@ export function asymmetricBeachRidgeStations(side: 'l' | 'r', index: number): Ri
   })
 }
 
-/** Loft one asymmetric element. Not wired into the Wf schematic view. */
+/** Loft one asymmetric element. The asymmetric scene uses this for the left flank only. */
 export function asymmetricBeachRidgeGeometry(side: 'l' | 'r', index: number): THREE.BufferGeometry {
   const stations = asymmetricBeachRidgeStations('r', index)
   const positions: number[] = []

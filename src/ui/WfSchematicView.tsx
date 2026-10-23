@@ -1,14 +1,17 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { sceneAt as asymSceneAt } from '../core/asymWfSchematic'
+import { beachRidgeMesh, type SchematicSceneId } from '../core/schematicScene'
 import {
   GROUND_THICKNESS,
-  sceneAt,
+  sceneAt as wfSceneAt,
   WATER_COLOUR,
   WATER_OPACITY,
   type PlacedBody,
   type SolidKind,
 } from '../core/wfSchematic'
+import { asymmetricBeachRidgeGeometry } from './asymmetricBeachRidgeGeometry'
 import { beachRidgeGeometry } from './beachRidgeGeometry'
 import { halfChannelGeometry } from './halfChannelGeometry'
 import { mouthBarGeometry } from './mouthBarGeometry'
@@ -52,13 +55,20 @@ const COLOUR: Record<SolidKind, number> = {
   group: 0xe2e8f0,
 }
 
-function geometryFor(body: PlacedBody): THREE.BufferGeometry {
+function layoutAt(scene: SchematicSceneId, explode: number): PlacedBody[] {
+  return (scene === 'asym' ? asymSceneAt : wfSceneAt)(explode)
+}
+
+function geometryFor(scene: SchematicSceneId, body: PlacedBody): THREE.BufferGeometry {
   if (body.kind === 'ground') return new THREE.BoxGeometry(8, GROUND_THICKNESS, 6)
   if (body.kind === 'channel') return halfChannelGeometry()
   if (body.kind === 'mouth-bar') return mouthBarGeometry()
   if (body.kind === 'beach-ridge') {
     const index = Number(body.id.slice(body.id.lastIndexOf('-') + 1))
-    return beachRidgeGeometry(body.id.includes('-r-') ? 'r' : 'l', Number.isFinite(index) ? index : 0)
+    const side = body.id.includes('-r-') ? 'r' : 'l'
+    const ridgeIndex = Number.isFinite(index) ? index : 0
+    if (beachRidgeMesh(scene, body.id) === 'asymmetric') return asymmetricBeachRidgeGeometry(side, ridgeIndex)
+    return beachRidgeGeometry(side, ridgeIndex)
   }
   return new THREE.BoxGeometry(0.01, 0.01, 0.01)
 }
@@ -110,8 +120,8 @@ function explodeForScene(value: number): number {
 
 const WfSchematicView = forwardRef<
   SchematicCameraHandle,
-  { explode: number; width: number; height: number; onUnavailable?: () => void }
->(function WfSchematicView({ explode, width, height, onUnavailable }, ref) {
+  { scene: SchematicSceneId; explode: number; width: number; height: number; onUnavailable?: () => void }
+>(function WfSchematicView({ scene, explode, width, height, onUnavailable }, ref) {
   const host = useRef<HTMLDivElement>(null)
   const explodeRef = useRef(explode)
   explodeRef.current = explode
@@ -153,7 +163,7 @@ const WfSchematicView = forwardRef<
     renderer.domElement.style.width = '100%'
     renderer.domElement.style.height = '100%'
     renderer.domElement.style.touchAction = 'none'
-    const scene = new THREE.Scene()
+    const world = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100)
     camera.position.set(6.5, 5.5, 7.5)
     camera.lookAt(TARGET)
@@ -176,21 +186,21 @@ const WfSchematicView = forwardRef<
       renderer.domElement.style.cursor = mode === 'pan' ? 'grab' : ''
     }
     controlsRef.current = controls
-    scene.add(new THREE.AmbientLight(0xffffff, 0.35))
-    scene.add(new THREE.HemisphereLight(0xe2e8f0, 0x64748b, 0.65))
+    world.add(new THREE.AmbientLight(0xffffff, 0.35))
+    world.add(new THREE.HemisphereLight(0xe2e8f0, 0x64748b, 0.65))
     const sun = new THREE.DirectionalLight(0xffffff, 1.15)
     sun.position.set(5, 7, -2)
-    scene.add(sun)
+    world.add(sun)
 
     const objects = new Map<string, THREE.Object3D>()
     const geometries: THREE.BufferGeometry[] = []
     const meshMaterials: THREE.Material[] = []
     const spriteMaterials: THREE.SpriteMaterial[] = []
     const labelTextures: THREE.Texture[] = []
-    for (const body of sceneAt(0)) {
+    for (const body of layoutAt(scene, 0)) {
       const group = new THREE.Group()
       if (body.kind !== 'group') {
-        const geometry = geometryFor(body)
+        const geometry = geometryFor(scene, body)
         geometries.push(geometry)
         const material = new THREE.MeshStandardMaterial({
           color: COLOUR[body.kind],
@@ -213,7 +223,7 @@ const WfSchematicView = forwardRef<
       group.userData.label = label
       group.add(label)
       place(group, body)
-      scene.add(group)
+      world.add(group)
       objects.set(body.id, group)
     }
 
@@ -269,7 +279,7 @@ const WfSchematicView = forwardRef<
 
     let frame = 0
     const tick = () => {
-      for (const body of sceneAt(explodeForScene(explodeRef.current))) {
+      for (const body of layoutAt(scene, explodeForScene(explodeRef.current))) {
         const object = objects.get(body.id)
         if (!object) continue
         place(object, body)
@@ -308,7 +318,7 @@ const WfSchematicView = forwardRef<
         }
       }
       controls.update()
-      renderer.render(scene, camera)
+      renderer.render(world, camera)
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
@@ -334,7 +344,7 @@ const WfSchematicView = forwardRef<
       renderer.forceContextLoss()
       renderer.domElement.remove()
     }
-  }, [])
+  }, [scene])
 
   return <div ref={host} style={{ width, height }} data-wf-view="" />
 })

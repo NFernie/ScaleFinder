@@ -30,8 +30,8 @@ import {
 } from './wfSchematic'
 
 describe('wfSchematic', () => {
-  it('pins Sfântu Gheorghe', () => {
-    expect(WF_ANCHOR).toEqual({ lat: 44.878674, lng: 29.515563 })
+  it('pins the symmetric Wf scene at 18.601312, -92.674937', () => {
+    expect(WF_ANCHOR).toEqual({ lat: 18.601312, lng: -92.674937 })
   })
 
   it('links every body except the root', () => {

@@ -75,7 +75,7 @@ Already in the repo. Do not add another paper. Do not ask for a new drawing.
 
 ## Leave these alone
 
-- Pin at `44.878674, 29.515563`, inside the snapshot. Panel outside the snapshot, bottom-right. On a phone-width Danube framing the open panel may cover the pin. Close and Escape return focus to `#wf-schematic-pin` synchronously.
+- Symmetric Wf pin at latitude 18.601312, longitude -92.674937 (`#wf-schematic-pin`). Asymmetric Wf pin at `44.878674, 29.515563` (`#asym-wf-schematic-pin`). Both are inside the snapshot. The panel is outside the snapshot, bottom-right. Close and Escape return focus to the pin that opened the panel.
 - Caption: “Type schematic for a wave-dominated, fluvial-influenced shoreline. Size and direction are not a measured map of this coast.”
 - Diagram colours stay inside the canvas. Panel chrome stays the locked toolbox classes. No second accent, no light theme, no shadcn.
 - Schematic units are not metres and are not georeferenced.

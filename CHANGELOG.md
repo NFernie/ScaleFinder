@@ -23,7 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `src/ui/asymmetricBeachRidgeGeometry.ts` lofts one asymmetric beach-ridge element with a convex seaward bow in plan (same taper and landward shear as the symmetric ridge). It is not wired into the Wf schematic. `asymmetricBeachRidgePlanSvg` renders a 2D plan comparison.
+- A second Wf pin at 44.878674, 29.515563 opens `asymWfSchematic`. The panel behaviour matches the symmetric pin. The left beach ridges use the asymmetric mesh. The right flank, mouth bars, channel, poses, yaw, and seaward dip stay with the copied scene.
+- `src/ui/asymmetricBeachRidgeGeometry.ts` lofts one asymmetric beach-ridge element with a convex seaward bow in plan (same taper and landward shear as the symmetric ridge). The asymmetric scene uses it for the left flank. `asymmetricBeachRidgePlanSvg` renders a 2D plan comparison.
 - Wf schematic rank labels fade in over 120ms `ease-out` on opacity when a name first appears; hide stays instant, and `prefers-reduced-motion` snaps opacity on.
 - A pin at 44.878674, 29.515563 opens the Wf type schematic above Sfântu Gheorghe. The pin is in the snapshot. The panel is not.
 - Opening the Wf schematic draws the solids in a Three.js view and an Explode slider pulls the four ranks apart. The body list remains when WebGL cannot start.
@@ -57,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The symmetric Wf pin moves to latitude 18.601312, longitude -92.674937. The scene in `wfSchematic.ts` is unchanged.
 - Wf beach ridges keep their fore-aft spacing at the channel and close up toward the alongshore tips. The most seaward ridge swings landward by 20°. Each ridge landward of that keeps 12% less plan angle, so the tips stay a small Z distance apart and the channel remains the seaward apex.
 - The Wf beach-ridge mesh lives in `src/ui/beachRidgeGeometry.ts`, beside the mouth-bar and channel meshes. The schematic view still places the right flank on +X and the mirrored left flank on −X.
 - Wf beach ridges are another 50% flatter (`RIDGE_FACE_SLOPE` 0.25). The logistic is reflected across the chord: the upper half is convex seaward, and the lower half is concave with the toe flattening seaward.

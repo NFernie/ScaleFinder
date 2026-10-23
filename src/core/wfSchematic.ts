@@ -1,4 +1,9 @@
-export const WF_ANCHOR = { lat: 44.878674, lng: 29.515563 } as const
+/**
+ * Map pin for the symmetric Wf scene.
+ * Stored as latitude 18.601312, longitude −92.674937. A latitude of −92.67
+ * cannot be plotted; 18.6°N, 92.67°W is the pair that sits on the map.
+ */
+export const WF_ANCHOR = { lat: 18.601312, lng: -92.674937 } as const
 
 export type Rank = 'element' | 'element-set' | 'element-complex' | 'element-complex-set'
 

@@ -42,7 +42,8 @@ describe('App polygon list', () => {
   it('starts with export disabled until a Polygon is imported', () => {
     render(<App />)
     expect(screen.getByRole('button', { name: /export snapshot/i })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Wf schematic, Sfântu Gheorghe' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Wf schematic' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Asymmetric Wf schematic, Sfântu Gheorghe' })).toBeInTheDocument()
     expect(screen.getByText('Import a Polygon to export')).toBeInTheDocument()
     expect(screen.getByText('Import a Polygon to place it here at true ground scale.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Re-centre' })).not.toBeInTheDocument()

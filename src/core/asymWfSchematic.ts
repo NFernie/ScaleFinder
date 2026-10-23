@@ -4,6 +4,8 @@
  * loft; the right flank stays the symmetric loft. The map pin for this scene
  * stays at Sfântu Gheorghe.
  */
+import { asymmetricBeachRidgeStations } from './asymmetricBeachRidgePlan'
+
 export const ASYM_WF_ANCHOR = { lat: 44.878674, lng: 29.515563 } as const
 
 export type Rank = 'element' | 'element-set' | 'element-complex' | 'element-complex-set'
@@ -131,15 +133,9 @@ export function asymLeftBeachRidge(bodyId: string): boolean {
 
 function stationsForRidge(bodyId: string): RidgeStation[] {
   const side = bodyId.includes('-r-') ? 'r' : 'l'
-  const stations = beachRidgeStations(side, ridgeIndex(bodyId))
-  if (!asymLeftBeachRidge(bodyId)) return stations
-  const zChannel = stations[0].z
-  const zTip = stations[stations.length - 1].z
-  return stations.map((station, i) => {
-    const t = stations.length === 1 ? 0 : i / (stations.length - 1)
-    const chord = zChannel + (zTip - zChannel) * t
-    return { ...station, z: 2 * chord - station.z }
-  })
+  const index = ridgeIndex(bodyId)
+  if (asymLeftBeachRidge(bodyId)) return asymmetricBeachRidgeStations(side, index)
+  return beachRidgeStations(side, index)
 }
 
 /** Centre of the solid in the body's local frame, before the nested offset. */

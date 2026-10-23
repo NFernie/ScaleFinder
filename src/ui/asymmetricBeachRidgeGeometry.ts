@@ -1,22 +1,8 @@
 import * as THREE from 'three'
-import { beachRidgeRing, beachRidgeStations, type RidgeStation } from '../core/wfSchematic'
+import { asymmetricBeachRidgeStations } from '../core/asymmetricBeachRidgePlan'
+import { beachRidgeRing, beachRidgeStations } from '../core/wfSchematic'
 
-/**
- * Plan centreline for one asymmetric beach ridge. Taper, cross-section, and
- * landward shear match `beachRidgeStations`, but the alongshore bow is reflected
- * across the channel-to-tip chord so the seaward side is convex toward +Z
- * instead of concave.
- */
-export function asymmetricBeachRidgeStations(side: 'l' | 'r', index: number): RidgeStation[] {
-  const standard = beachRidgeStations(side, index)
-  const zChannel = standard[0].z
-  const zTip = standard[standard.length - 1].z
-  return standard.map((station, i) => {
-    const t = i / (standard.length - 1)
-    const chord = zChannel + (zTip - zChannel) * t
-    return { ...station, z: 2 * chord - station.z }
-  })
-}
+export { asymmetricBeachRidgeStations }
 
 /** Loft one asymmetric element. The asymmetric scene uses this for the left flank only. */
 export function asymmetricBeachRidgeGeometry(side: 'l' | 'r', index: number): THREE.BufferGeometry {

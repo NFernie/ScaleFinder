@@ -21,11 +21,18 @@ Inventory of **Three.js element meshes** already built for the Wf type schematic
 | **Rank groups** (`ec-lobe`, `ec-mouth`, `es-ridge-l/r`, `es-mouth`, …) | Labels only; no geometry (`kind: 'group'`). |
 | **Swale, mouth-bar slab, lobe solid** | Intentionally omitted (see [`features/schematic_module.md`](schematic_module.md)). |
 
+## Built, not yet in a scene view
+
+| Name | File | Geometry (size, shape) | Where used | Scene arrangement (position / taper / angles) |
+| --- | --- | --- | --- | --- |
+| **Tidal channel (funnel half cylinder)** | [`src/ui/tidalChannelGeometry.ts`](../src/ui/tidalChannelGeometry.ts) | Custom `BufferGeometry`. Half-circle cross-section (flat **y = 0**, arc downward). Length **CHANNEL_LENGTH** (~2.57), same as half channel. Landward width **2 × CHANNEL_RADIUS** (0.2); seaward width **5×** landward (`TIDAL_CHANNEL_SEAWARD_WIDTH_RATIO`). **20** length rings × **24** arc segments. | **None yet** — plan preview only (`tidalChannelPlanSvg`). Not in `geometryFor()`. | When wired: expect same axis as channel (**+Z** seaward, flat top **y = 0**). No nested pose defined. |
+
 ## Helpers (not scene meshes)
 
 | Name | File | Purpose |
 | --- | --- | --- |
 | **Asymmetric plan SVG** | `asymmetricBeachRidgePlanSvg()` in `asymmetricBeachRidgeGeometry.ts` | 2D plan comparison (symmetric dashed vs asymmetric solid). Not wired into `WfSchematicView`. |
+| **Tidal channel plan SVG** | `tidalChannelPlanSvg()` in `tidalChannelGeometry.ts` | Plan view of funnel vs constant half channel. Not wired into `WfSchematicView`. |
 
 ## Core silhouette (no Three.js)
 
@@ -40,6 +47,7 @@ Inventory of **Three.js element meshes** already built for the Wf type schematic
 | Mesh | Test file |
 | --- | --- |
 | Half channel | [`src/ui/wfChannelGeometry.test.ts`](../src/ui/wfChannelGeometry.test.ts) (imports `halfChannelGeometry`) |
+| Tidal channel (funnel) | [`src/ui/tidalChannelGeometry.test.ts`](../src/ui/tidalChannelGeometry.test.ts) |
 | Mouth bar | [`src/ui/mouthBarGeometry.test.ts`](../src/ui/mouthBarGeometry.test.ts) |
 | Symmetric ridge | [`src/ui/beachRidgeGeometry.test.ts`](../src/ui/beachRidgeGeometry.test.ts) |
 | Asymmetric ridge | [`src/ui/asymmetricBeachRidgeGeometry.test.ts`](../src/ui/asymmetricBeachRidgeGeometry.test.ts) |

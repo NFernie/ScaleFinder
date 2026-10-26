@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Wf schematic panel open size uses `initialSchematicFrame` so a short map caps height (and minimum width) to the largest 328∶224 box that fits the 12px inset, not only when width is below 328.
 - Wf schematic resize limits use the map column’s size (not the shrink-wrapped panel wrapper) and subtract title, caption, Explode, and padding from the height budget so the panel stays inset inside the map.
 
+### Changed
+
+- The tidal channel is 1.5× the half-channel length, with the extra length landward. Width stays at the half-channel width until mid-length, then flares on a curve concave toward the centre to 5× width at the seaward tip.
+
 ### Added
 
 - `src/ui/tidalChannelGeometry.ts` builds a funnel tidal channel: half-cylinder cross-section (flat top, curved base), same length as the half channel, seaward opening **5×** the landward width. `tidalChannelPlanSvg` renders a plan comparison. Not wired into a schematic scene yet.

@@ -25,7 +25,7 @@ Inventory of **Three.js element meshes** already built for the Wf type schematic
 
 | Name | File | Geometry (size, shape) | Where used | Scene arrangement (position / taper / angles) |
 | --- | --- | --- | --- | --- |
-| **Tidal channel (funnel half cylinder)** | [`src/ui/tidalChannelGeometry.ts`](../src/ui/tidalChannelGeometry.ts) | Custom `BufferGeometry`. Half-circle cross-section (flat **y = 0**, arc downward). Length **CHANNEL_LENGTH** (~2.57), same as half channel. Landward width **2 × CHANNEL_RADIUS** (0.2); seaward width **5×** landward (`TIDAL_CHANNEL_SEAWARD_WIDTH_RATIO`). **20** length rings × **24** arc segments. | **None yet** — plan preview only (`tidalChannelPlanSvg`). Not in `geometryFor()`. | When wired: expect same axis as channel (**+Z** seaward, flat top **y = 0**). No nested pose defined. |
+| **Tidal channel (funnel half cylinder)** | [`src/ui/tidalChannelGeometry.ts`](../src/ui/tidalChannelGeometry.ts) | Custom `BufferGeometry`. Half-circle cross-section (flat **y = 0**, arc downward). Length **1.5× CHANNEL_LENGTH**, extra length landward; seaward tip stays with the half channel. Landward width **2 × CHANNEL_RADIUS**. Constant width until mid-length, then a **u²** flare concave toward the centre to **5×** width (`TIDAL_CHANNEL_SEAWARD_WIDTH_RATIO`). | **None yet** — plan preview only (`tidalChannelPlanSvg`). Not in `geometryFor()`. | When wired: **+Z** seaward, flat top **y = 0**. No nested pose defined. |
 
 ## Helpers (not scene meshes)
 

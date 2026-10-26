@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Docs
 
 - `features/elementmeshlist.md` tables the Wf schematic element meshes (geometry, scenes, and arrangement).
+- `.cursor/rules/elementmeshlist-sync.mdc` requires updating that file when new Wf schematic meshes or scene views are added or materially changed.
 
 ### Changed
 

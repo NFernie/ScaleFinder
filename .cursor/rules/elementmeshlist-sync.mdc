@@ -1,0 +1,37 @@
+---
+description: Keep features/elementmeshlist.md in sync when Wf schematic meshes or scene views change
+alwaysApply: true
+---
+
+# Element mesh list
+
+[`features/elementmeshlist.md`](../../features/elementmeshlist.md) is the inventory of Wf schematic **Three.js element meshes** and which **scene views** use them. Treat it like `CHANGELOG.md`: update it in the same change set, before you commit.
+
+## When you must update it
+
+Update `features/elementmeshlist.md` when you **add** or **materially change** any of the following:
+
+1. **A new element mesh** — a new or renamed file under `src/ui/*Geometry*.ts`, or a new inline `BufferGeometry` / `BoxGeometry` path in `geometryFor()` inside [`src/ui/WfSchematicView.tsx`](../../src/ui/WfSchematicView.tsx).
+2. **A new schematic scene view** — a new `SchematicSceneId` in [`src/core/schematicScene.ts`](../../src/core/schematicScene.ts), a new core scene module (e.g. another `*WfSchematic.ts` beside `wfSchematic` / `asymWfSchematic`), a new map pin + panel `scene=` wiring, or dispatch rules that assign a different mesh to a body per scene.
+3. **Mesh dispatch or scene-only usage** — e.g. `beachRidgeMesh()`, switching which flank or body ids use symmetric vs asymmetric lofts, or removing a mesh from a scene.
+4. **Layout numbers that define the table** — sizes, station counts, taper, angles, fan layout, or nested arrangement summaries when they change how a mesh reads in the schematic (even if the mesh file itself is unchanged).
+
+## What to write
+
+Keep the **main table** columns: **Name**, **File**, **Geometry (size, shape)**, **Where used**, **Scene arrangement (position / taper / angles)**.
+
+- Add a row for each new drawable element kind or mesh variant wired into a scene.
+- Edit the row when geometry or which scene uses it changes.
+- Update the intro **Scenes** line when pins, scene ids, or core scene files change.
+- Put 2D-only helpers under **Helpers (not scene meshes)**; label-only ranks under **Not drawn as meshes**.
+- List new core scene modules under **Core silhouette (no Three.js)** and new tests under **Tests**.
+
+Do **not** skip the doc because the change is “small”. Do **not** defer it to a follow-up commit.
+
+## When you can skip it
+
+- Panel chrome only (resize, zoom, labels, colours) with no mesh or scene-id change.
+- Explode slider behaviour with no change to body list, meshes, or nested layout constants documented in the table.
+- Map polygon / toolbox work outside the Wf schematic module.
+
+If unsure, update the mesh list.

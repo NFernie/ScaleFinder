@@ -10,7 +10,7 @@ import {
 } from './tidalChannelGeometry'
 
 describe('tidalChannelGeometry', () => {
-  it('holds landward width until mid-length, then flares concave to five times the width', () => {
+  it('holds landward width until the half channel landward end, then flares concave to five times the width', () => {
     const { landZ, seaZ, taperZ, length } = tidalChannelSpan()
     const landRadius = CHANNEL_RADIUS
     const seaRadius = landRadius * TIDAL_CHANNEL_SEAWARD_WIDTH_RATIO
@@ -18,7 +18,7 @@ describe('tidalChannelGeometry', () => {
     expect(length).toBeCloseTo(CHANNEL_LENGTH * TIDAL_CHANNEL_LENGTH_SCALE)
     expect(seaZ).toBeCloseTo(CHANNEL_LENGTH / 2)
     expect(landZ).toBeLessThan(-CHANNEL_LENGTH / 2)
-    expect(taperZ).toBeCloseTo(landZ + length / 2)
+    expect(taperZ).toBeCloseTo(-CHANNEL_LENGTH / 2)
 
     expect(tidalChannelRadiusAt(landZ)).toBeCloseTo(landRadius)
     expect(tidalChannelRadiusAt(taperZ)).toBeCloseTo(landRadius)

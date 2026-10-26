@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The tidal channel is 1.5× the half-channel length, with the extra length landward. Width stays at the half-channel width until mid-length, then flares on a curve concave toward the centre to 5× width at the seaward tip.
+- The tidal channel is 1.5× the half-channel length, with the extra length landward. Width stays at the half-channel width until the half channel's landward end, then flares on a curve concave toward the centre to 5× width at the seaward tip.
 
 ### Added
 

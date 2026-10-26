@@ -1,4 +1,4 @@
-# Wf element mesh list
+# Element Mesh List
 
 Inventory of **Three.js element meshes** already built for the Wf type schematic, on branch `cursor/wf-schematic-panel-design-69e0`.
 

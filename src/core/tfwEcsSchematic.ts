@@ -1,5 +1,6 @@
 import { tidalChannelRadiusAt, tidalChannelSpan } from './tidalChannel'
 import {
+  beachRidgeRing,
   beachRidgeStations,
   bodyCenter,
   EXPLODE_SPREAD,
@@ -16,6 +17,21 @@ export const TFW_CHANNEL_YAW_RAD = (15 * Math.PI) / 180
 
 /** Mouth-bar complex bodies get an extra yaw toward −X. */
 export const TFW_MOUTH_COMPLEX_YAW_RAD = (-10 * Math.PI) / 180
+
+/** How many beach-ridge Z thicknesses the +X stack shifts landward. */
+export const TFW_RIGHT_FLANK_LANDWARD_ELEMENTS = 1.5
+
+/** Fore-aft Z extent of one beach ridge at the channel end. */
+export function beachRidgeChannelEndZThickness(): number {
+  const ring = beachRidgeRing(beachRidgeStations('r', 0)[0])
+  let min = Infinity
+  let max = -Infinity
+  for (const corner of ring) {
+    if (corner.z < min) min = corner.z
+    if (corner.z > max) max = corner.z
+  }
+  return max - min
+}
 
 const NAMES: Record<string, string> = {
   ecs: 'Tfw element complex set',
@@ -92,13 +108,6 @@ export function tfwRidgeShift(bodyId: string, bodies?: SceneBody[]): number {
   return targetNestedX - base.nested.x
 }
 
-function channelSeawardOuterEdge(body: SceneBody): { x: number; z: number } {
-  const { seaZ } = tidalChannelSpan()
-  const r = tidalChannelRadiusAt(seaZ)
-  const world = worldFromNested(body, { x: r, y: 0, z: seaZ })
-  return { x: world.x, z: world.z }
-}
-
 function ridgeChannelEndWorld(ridge: SceneBody): { x: number; z: number } {
   const side = ridge.id.includes('-r-') ? 'r' : 'l'
   const index = Number(ridge.id.slice(ridge.id.lastIndexOf('-') + 1))
@@ -107,13 +116,9 @@ function ridgeChannelEndWorld(ridge: SceneBody): { x: number; z: number } {
   return { x: world.x, z: world.z }
 }
 
-function tfwRightFlankLandwardDeltaZ(bodies: SceneBody[]): number {
-  const channel = bodies.find((body) => body.id === 'e-channel')
-  const ridge = bodies.find((body) => body.id === 'e-ridge-r-3')
-  if (!channel || !ridge) return 0
-  const edge = channelSeawardOuterEdge(channel)
-  const end = ridgeChannelEndWorld(ridge)
-  return edge.z - end.z
+/** Landward Z offset for the whole +X ridge stack. Negative is landward. */
+export function tfwRightFlankLandwardDeltaZ(): number {
+  return -TFW_RIGHT_FLANK_LANDWARD_ELEMENTS * beachRidgeChannelEndZThickness()
 }
 
 function applyTfwYaw(body: SceneBody): SceneBody {
@@ -154,8 +159,7 @@ function shiftedBody(body: SceneBody, bodiesForShift: SceneBody[]): SceneBody {
 function sceneBodiesAtRest(): SceneBody[] {
   const wf = wfSceneAt(0)
   const yawed = wf.map((body) => applyTfwYaw({ ...body, yaw: body.yaw }))
-  const landwardDelta = tfwRightFlankLandwardDeltaZ(yawed)
-  const withLandward = yawed.map((body) => applyRightFlankLandwardZ(body, landwardDelta))
+  const withLandward = yawed.map((body) => applyRightFlankLandwardZ(body, tfwRightFlankLandwardDeltaZ()))
   return withLandward.map((body) => shiftedBody(body, withLandward))
 }
 
@@ -173,9 +177,8 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * Tfw element complex set. Same ranks, mouth-bar fans, and ridge stack as the
  * symmetric Wf scene. The channel is the tidal funnel. Both beach-ridge flanks
  * use the asymmetric loft. The channel and left flank yaw +15° toward +X.
- * The right flank keeps its stack spacing, shifts landward so the seaward
- * ridge meets the channel's seaward +X corner, and each channel end sits
- * on the right wall.
+ * The right flank keeps its stack spacing and shifts landward by 1.5
+ * channel-end Z thicknesses. Each channel end sits on the right wall.
  */
 export function sceneAt(explode: number): PlacedBody[] {
   const t = Math.min(1, Math.max(0, explode))

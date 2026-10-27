@@ -5,8 +5,11 @@ import {
   TFW_CHANNEL_YAW_RAD,
   TFW_ECS_ANCHOR,
   TFW_MOUTH_COMPLEX_YAW_RAD,
+  TFW_RIGHT_FLANK_LANDWARD_ELEMENTS,
+  beachRidgeChannelEndZThickness,
   sceneAt as tfwSceneAt,
   tfwRidgeShift,
+  tfwRightFlankLandwardDeltaZ,
 } from './tfwEcsSchematic'
 import { beachRidgeStations, sceneAt as wfSceneAt } from './wfSchematic'
 
@@ -41,21 +44,20 @@ describe('tfwEcsSchematic', () => {
     }
 
     const { seaZ } = tidalChannelSpan()
-    const edgeR = tidalChannelRadiusAt(seaZ)
-    const cos = Math.cos(TFW_CHANNEL_YAW_RAD)
-    const sin = Math.sin(TFW_CHANNEL_YAW_RAD)
-    const channelEdgeZ = channel.nested.z + (-edgeR * sin + seaZ * cos)
     const rightSea = tfw.find((body) => body.id === 'e-ridge-r-3')!
-    const stationSea = beachRidgeStations('r', 3)[0]
-    expect(rightSea.nested.z + stationSea.z).toBeCloseTo(channelEdgeZ)
-
     const rightLand = tfw.find((body) => body.id === 'e-ridge-r-0')!
     const wfLand = wf.find((body) => body.id === 'e-ridge-r-0')!
     const wfSea = wf.find((body) => body.id === 'e-ridge-r-3')!
     const landSeaGap = wfSea.nested.z - wfLand.nested.z
+    const landward = tfwRightFlankLandwardDeltaZ()
+    expect(TFW_RIGHT_FLANK_LANDWARD_ELEMENTS).toBe(1.5)
+    expect(beachRidgeChannelEndZThickness()).toBeGreaterThan(0)
+    expect(landward).toBeCloseTo(-1.5 * beachRidgeChannelEndZThickness())
     expect(rightSea.nested.z - rightLand.nested.z).toBeCloseTo(landSeaGap)
-    expect(rightSea.nested.z).toBeLessThan(wfSea.nested.z)
-    expect(rightLand.nested.z).toBeLessThan(wfLand.nested.z)
+    expect(rightSea.nested.z - wfSea.nested.z).toBeCloseTo(landward)
+    expect(rightLand.nested.z - wfLand.nested.z).toBeCloseTo(landward)
+    expect(tfw.find((body) => body.id === 'e-ridge-r-1')!.nested.z - wf.find((body) => body.id === 'e-ridge-r-1')!.nested.z).toBeCloseTo(landward)
+    expect(tfw.find((body) => body.id === 'e-ridge-r-2')!.nested.z - wf.find((body) => body.id === 'e-ridge-r-2')!.nested.z).toBeCloseTo(landward)
     expect(TFW_CHANNEL_YAW_RAD).toBeGreaterThan(0)
 
     const channelEnd = (id: string) => {
@@ -69,11 +71,6 @@ describe('tfwEcsSchematic', () => {
         z: ridge.nested.z - station.x * Math.sin(yaw) + station.z * Math.cos(yaw),
       }
     }
-    const seaEnd = channelEnd('e-ridge-r-3')
-    const cornerX = channel.nested.x + edgeR * cos + seaZ * sin
-    expect(seaEnd.x).toBeCloseTo(cornerX)
-    expect(seaEnd.z).toBeCloseTo(channelEdgeZ)
-
     const { landZ } = tidalChannelSpan()
     const wallAt = (side: 'l' | 'r', worldZ: number) => {
       const sign = side === 'r' ? 1 : -1

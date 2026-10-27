@@ -11,8 +11,8 @@ import {
 /** Map pin for the Tfw element-complex set. Latitude −19.984295231442236, longitude 119.165775381814. */
 export const TFW_ECS_ANCHOR = { lat: -19.984295231442236, lng: 119.165775381814 } as const
 
-/** Channel and −X (left) beach ridges swing toward −X. */
-export const TFW_CHANNEL_YAW_RAD = (-15 * Math.PI) / 180
+/** Channel and −X (left) beach ridges swing toward +X. */
+export const TFW_CHANNEL_YAW_RAD = (15 * Math.PI) / 180
 
 /** Mouth-bar complex bodies get an extra yaw toward −X. */
 export const TFW_MOUTH_COMPLEX_YAW_RAD = (-10 * Math.PI) / 180
@@ -53,8 +53,28 @@ function funnelWallPointWorld(
 }
 
 /**
+ * Channel-local Z whose wall has this world Z. World Z increases along the
+ * funnel, so the search is a binary chop. Targets outside the span clamp to
+ * the nearer tip.
+ */
+function wallLocalZAtWorldZ(channel: SceneBody, side: 'l' | 'r', worldZ: number): number {
+  const { landZ, seaZ } = tidalChannelSpan()
+  const zAt = (localZ: number) => funnelWallPointWorld(channel, localZ, side).z
+  if (worldZ <= zAt(landZ)) return landZ
+  if (worldZ >= zAt(seaZ)) return seaZ
+  let lo = landZ
+  let hi = seaZ
+  for (let i = 0; i < 48; i += 1) {
+    const mid = (lo + hi) / 2
+    if (zAt(mid) < worldZ) lo = mid
+    else hi = mid
+  }
+  return (lo + hi) / 2
+}
+
+/**
  * Nested X delta for one beach ridge so its channel-end centreline sits on the
- * tidal-channel wall at that ridge's channel-end Z (includes channel yaw).
+ * tidal-channel wall at the same world Z (channel yaw included).
  */
 export function tfwRidgeShift(bodyId: string, bodies?: SceneBody[]): number {
   const rested = bodies ?? sceneBodiesAtRest()
@@ -63,14 +83,11 @@ export function tfwRidgeShift(bodyId: string, bodies?: SceneBody[]): number {
   if (!ridge || ridge.kind !== 'beach-ridge' || !channel) return 0
   const side = bodyId.includes('-r-') ? 'r' : 'l'
   const index = Number(bodyId.slice(bodyId.lastIndexOf('-') + 1))
-  const stations = beachRidgeStations(side, Number.isFinite(index) ? index : 0)
-  const station = stations[0]
-  const localZ = ridge.nested.z + station.z - channel.nested.z
-  const wall = funnelWallPointWorld(channel, localZ, side)
+  const station = beachRidgeStations(side, Number.isFinite(index) ? index : 0)[0]
+  const end = ridgeChannelEndWorld(ridge)
+  const wall = funnelWallPointWorld(channel, wallLocalZAtWorldZ(channel, side, end.z), side)
   const yaw = ridge.yaw ?? 0
-  const cos = Math.cos(yaw)
-  const sin = Math.sin(yaw)
-  const targetNestedX = wall.x - station.x * cos - station.z * sin
+  const targetNestedX = wall.x - (station.x * Math.cos(yaw) + station.z * Math.sin(yaw))
   const base = wfSceneAt(0).find((body) => body.id === bodyId)!
   return targetNestedX - base.nested.x
 }
@@ -155,8 +172,10 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
 /**
  * Tfw element complex set. Same ranks, mouth-bar fans, and ridge stack as the
  * symmetric Wf scene. The channel is the tidal funnel. Both beach-ridge flanks
- * use the asymmetric loft, and each ridge is shifted in X so its channel end
- * follows the funnel wall.
+ * use the asymmetric loft. The channel and left flank yaw +15° toward +X.
+ * The right flank keeps its stack spacing, shifts landward so the seaward
+ * ridge meets the channel's seaward +X corner, and each channel end sits
+ * on the right wall.
  */
 export function sceneAt(explode: number): PlacedBody[] {
   const t = Math.min(1, Math.max(0, explode))

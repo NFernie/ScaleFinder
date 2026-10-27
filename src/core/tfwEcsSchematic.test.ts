@@ -54,27 +54,62 @@ describe('tfwEcsSchematic', () => {
     const wfSea = wf.find((body) => body.id === 'e-ridge-r-3')!
     const landSeaGap = wfSea.nested.z - wfLand.nested.z
     expect(rightSea.nested.z - rightLand.nested.z).toBeCloseTo(landSeaGap)
-    expect(tfw.find((body) => body.id === 'e-ridge-l-3')!.position.x).toBeLessThan(
-      tfw.find((body) => body.id === 'e-ridge-l-0')!.position.x,
-    )
+    expect(rightSea.nested.z).toBeLessThan(wfSea.nested.z)
+    expect(rightLand.nested.z).toBeLessThan(wfLand.nested.z)
+    expect(TFW_CHANNEL_YAW_RAD).toBeGreaterThan(0)
 
-    for (const id of ['e-ridge-r-0', 'e-ridge-r-3', 'e-ridge-l-3']) {
+    const channelEnd = (id: string) => {
       const ridge = tfw.find((body) => body.id === id)!
       const side = id.includes('-r-') ? 'r' : 'l'
       const index = Number(id.slice(id.lastIndexOf('-') + 1))
       const station = beachRidgeStations(side, index)[0]
-      const localZ = ridge.nested.z + station.z - channel.nested.z
-      const sign = side === 'r' ? 1 : -1
-      const ridgeYaw = ridge.yaw ?? 0
-      const worldX = ridge.nested.x + station.x * Math.cos(ridgeYaw) + station.z * Math.sin(ridgeYaw)
-      const wallR = tidalChannelRadiusAt(localZ)
-      const channelYaw = channel.yaw ?? 0
-      const wallX =
-        channel.nested.x +
-        sign * wallR * Math.cos(channelYaw) +
-        localZ * Math.sin(channelYaw)
-      expect(worldX).toBeCloseTo(wallX)
+      const yaw = ridge.yaw ?? 0
+      return {
+        x: ridge.nested.x + station.x * Math.cos(yaw) + station.z * Math.sin(yaw),
+        z: ridge.nested.z - station.x * Math.sin(yaw) + station.z * Math.cos(yaw),
+      }
     }
+    const seaEnd = channelEnd('e-ridge-r-3')
+    const cornerX = channel.nested.x + edgeR * cos + seaZ * sin
+    expect(seaEnd.x).toBeCloseTo(cornerX)
+    expect(seaEnd.z).toBeCloseTo(channelEdgeZ)
+
+    const { landZ } = tidalChannelSpan()
+    const wallAt = (side: 'l' | 'r', worldZ: number) => {
+      const sign = side === 'r' ? 1 : -1
+      const yaw = channel.yaw ?? 0
+      const zOf = (localZ: number) => {
+        const radius = tidalChannelRadiusAt(localZ)
+        return channel.nested.z + (-sign * radius * Math.sin(yaw) + localZ * Math.cos(yaw))
+      }
+      let lo = landZ
+      let hi = seaZ
+      if (worldZ <= zOf(landZ)) lo = hi = landZ
+      else if (worldZ >= zOf(seaZ)) lo = hi = seaZ
+      else {
+        for (let i = 0; i < 48; i += 1) {
+          const mid = (lo + hi) / 2
+          if (zOf(mid) < worldZ) lo = mid
+          else hi = mid
+        }
+      }
+      const localZ = (lo + hi) / 2
+      const radius = tidalChannelRadiusAt(localZ)
+      return {
+        x: channel.nested.x + sign * radius * Math.cos(yaw) + localZ * Math.sin(yaw),
+        z: channel.nested.z + (-sign * radius * Math.sin(yaw) + localZ * Math.cos(yaw)),
+      }
+    }
+    for (const id of ['e-ridge-r-0', 'e-ridge-r-1', 'e-ridge-r-2', 'e-ridge-r-3']) {
+      const end = channelEnd(id)
+      const wall = wallAt('r', end.z)
+      expect(end.x).toBeCloseTo(wall.x)
+      expect(end.z).toBeCloseTo(wall.z)
+    }
+    const leftSea = channelEnd('e-ridge-l-3')
+    const leftWall = wallAt('l', leftSea.z)
+    expect(leftSea.x).toBeCloseTo(leftWall.x)
+    expect(leftSea.z).toBeCloseTo(leftWall.z)
 
     expect(tfwRidgeShift('e-ridge-r-3')).not.toBeCloseTo(tfwRidgeShift('e-ridge-r-0'))
 

@@ -27,15 +27,19 @@ describe('tfwEcsSchematic', () => {
 
     const wfMouth0 = wf.find((body) => body.id === 'e-mouth-0')!
     const tfwMouth0 = tfw.find((body) => body.id === 'e-mouth-0')!
-    expect(TFW_MOUTH_COMPLEX_YAW_RAD).toBeCloseTo((-5 * Math.PI) / 180)
+    expect(TFW_MOUTH_COMPLEX_YAW_RAD).toBeCloseTo((-10 * Math.PI) / 180)
     expect(tfwMouth0.yaw).toBeCloseTo((wfMouth0.yaw ?? 0) + TFW_MOUTH_COMPLEX_YAW_RAD)
     const spread = tfwMouthBarXSpread()
     const referenceGap = mouthFanReferenceGap() * MOUTH_FAN_X_SCALE
-    expect(MOUTH_BAR_SCALE.x - referenceGap * spread).toBeCloseTo((MOUTH_BAR_SCALE.x - referenceGap) * 0.5)
+    expect(MOUTH_BAR_SCALE.x - referenceGap).toBeCloseTo(0.36)
+    expect(MOUTH_BAR_SCALE.x - referenceGap * spread).toBeCloseTo(0.18)
     const wfOffAxis = wf.find((body) => body.id === 'e-mouth-1')!
     const tfwOffAxis = tfw.find((body) => body.id === 'e-mouth-1')!
     expect(tfwOffAxis.nested.x).toBeCloseTo(wfOffAxis.nested.x * spread)
-    expect(Math.abs(tfwOffAxis.nested.x)).toBeGreaterThan(Math.abs(wfOffAxis.nested.x))
+    const wfLandward = wf.find((body) => body.id === 'e-mouth-prox-1')!
+    const tfwLandward = tfw.find((body) => body.id === 'e-mouth-prox-1')!
+    expect(tfwLandward.nested.x).toBeCloseTo(wfLandward.nested.x)
+    expect(tfwLandward.yaw).toBeCloseTo((wfLandward.yaw ?? 0) + TFW_MOUTH_COMPLEX_YAW_RAD)
 
     for (const id of ['e-ridge-l-0', 'e-ridge-l-3']) {
       expect(tfw.find((body) => body.id === id)!.yaw).toBeCloseTo(TFW_CHANNEL_YAW_RAD)

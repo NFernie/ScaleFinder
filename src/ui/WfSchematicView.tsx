@@ -2,7 +2,8 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { sceneAt as asymSceneAt } from '../core/asymWfSchematic'
-import { beachRidgeMesh, type SchematicSceneId } from '../core/schematicScene'
+import { beachRidgeMesh, channelMesh, type SchematicSceneId } from '../core/schematicScene'
+import { sceneAt as tfwSceneAt } from '../core/tfwEcsSchematic'
 import {
   GROUND_THICKNESS,
   sceneAt as wfSceneAt,
@@ -15,6 +16,7 @@ import { asymmetricBeachRidgeGeometry } from './asymmetricBeachRidgeGeometry'
 import { beachRidgeGeometry } from './beachRidgeGeometry'
 import { halfChannelGeometry } from './halfChannelGeometry'
 import { mouthBarGeometry } from './mouthBarGeometry'
+import { tidalChannelGeometry } from './tidalChannelGeometry'
 import { cssEaseOut } from '../core/cssEaseOut'
 import {
   cameraPositionAtDistance,
@@ -56,12 +58,14 @@ const COLOUR: Record<SolidKind, number> = {
 }
 
 function layoutAt(scene: SchematicSceneId, explode: number): PlacedBody[] {
-  return (scene === 'asym' ? asymSceneAt : wfSceneAt)(explode)
+  if (scene === 'asym') return asymSceneAt(explode)
+  if (scene === 'tfw') return tfwSceneAt(explode)
+  return wfSceneAt(explode)
 }
 
 function geometryFor(scene: SchematicSceneId, body: PlacedBody): THREE.BufferGeometry {
   if (body.kind === 'ground') return new THREE.BoxGeometry(8, GROUND_THICKNESS, 6)
-  if (body.kind === 'channel') return halfChannelGeometry()
+  if (body.kind === 'channel') return channelMesh(scene) === 'tidal' ? tidalChannelGeometry() : halfChannelGeometry()
   if (body.kind === 'mouth-bar') return mouthBarGeometry()
   if (body.kind === 'beach-ridge') {
     const index = Number(body.id.slice(body.id.lastIndexOf('-') + 1))

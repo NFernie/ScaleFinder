@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { sceneAt as asymSceneAt } from '../core/asymWfSchematic'
 import { type SchematicSceneId } from '../core/schematicScene'
+import { sceneAt as tfwSceneAt } from '../core/tfwEcsSchematic'
 import { sceneAt as wfSceneAt, type Rank } from '../core/wfSchematic'
 import {
   fitSchematicFrame,
@@ -63,10 +64,18 @@ interface Props {
   frame: { width: number; height: number } | null
   onFrame: (frame: { width: number; height: number }) => void
   onClose: () => void
+  title?: string
+  caption?: string
+}
+
+function bodiesAt(scene: SchematicSceneId) {
+  if (scene === 'asym') return asymSceneAt(0)
+  if (scene === 'tfw') return tfwSceneAt(0)
+  return wfSceneAt(0)
 }
 
 function sortedBodies(scene: SchematicSceneId) {
-  const bodies = (scene === 'asym' ? asymSceneAt : wfSceneAt)(0)
+  const bodies = bodiesAt(scene)
   const byId = new Map(bodies.map((body) => [body.id, body]))
   return [...bodies].sort((a, b) => {
     const rankDelta = RANK_ORDER[a.rank] - RANK_ORDER[b.rank]
@@ -96,7 +105,16 @@ function maxFrameDimensions(section: HTMLElement | null): { maxWidth: number; ma
   return { maxWidth, maxHeight: limits.maxHeight }
 }
 
-export default function WfSchematicPanel({ open, scene, pinId, frame, onFrame, onClose }: Props) {
+export default function WfSchematicPanel({
+  open,
+  scene,
+  pinId,
+  frame,
+  onFrame,
+  onClose,
+  title = 'Wf Schematic',
+  caption = CAPTION,
+}: Props) {
   const [explode, setExplode] = useState(0)
   const [viewFailed, setViewFailed] = useState(false)
   const [minWidth, setMinWidth] = useState(FRAME_START.width)
@@ -212,12 +230,12 @@ export default function WfSchematicPanel({ open, scene, pinId, frame, onFrame, o
     <section
       ref={sectionRef}
       role="dialog"
-      aria-label="Wf Schematic"
+      aria-label={title}
       style={{ width: width + PANEL_HORIZONTAL_PAD_PX + PANEL_BORDER_X_PX }}
       className="toolbox-pop pointer-events-auto box-border rounded-xl border border-white/15 bg-surface-raised/95 p-3 text-sm text-slate-100 shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
     >
       <div className="mb-2 flex items-start justify-between gap-2">
-        <h2 className="text-sm font-semibold text-slate-100">Wf Schematic</h2>
+        <h2 className="text-sm font-semibold text-slate-100">{title}</h2>
         <button
           type="button"
           onClick={() => {
@@ -229,7 +247,7 @@ export default function WfSchematicPanel({ open, scene, pinId, frame, onFrame, o
           Close
         </button>
       </div>
-      <p className="mb-3 text-xs leading-relaxed text-slate-300">{CAPTION}</p>
+      <p className="mb-3 text-xs leading-relaxed text-slate-300">{caption}</p>
       <div
         data-testid="wf-schematic-frame"
         className="relative"

@@ -1,7 +1,13 @@
-export type SchematicSceneId = 'wf' | 'asym'
+export type SchematicSceneId = 'wf' | 'asym' | 'tfw'
 
-/** Which beach-ridge loft a scene draws. Only the asymmetric scene swaps the left flank. */
+/** Which beach-ridge loft a scene draws. */
 export function beachRidgeMesh(scene: SchematicSceneId, bodyId: string): 'symmetric' | 'asymmetric' {
+  if (scene === 'tfw' && bodyId.startsWith('e-ridge-')) return 'asymmetric'
   if (scene === 'asym' && bodyId.startsWith('e-ridge-') && !bodyId.includes('-r-')) return 'asymmetric'
   return 'symmetric'
+}
+
+/** Which channel loft a scene draws. */
+export function channelMesh(scene: SchematicSceneId): 'half' | 'tidal' {
+  return scene === 'tfw' ? 'tidal' : 'half'
 }

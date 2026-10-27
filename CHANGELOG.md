@@ -27,7 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `src/ui/tidalChannelGeometry.ts` builds a funnel tidal channel: half-cylinder cross-section (flat top, curved base), same length as the half channel, seaward opening **5×** the landward width. `tidalChannelPlanSvg` renders a plan comparison. Not wired into a schematic scene yet.
+- A pin at latitude -19.984295231442236, longitude 119.165775381814 opens `TfwECSschematic`. The scene keeps the Wf element-complex stack. The channel is the tidal funnel. Both beach-ridge flanks use the asymmetric mesh, shifted so each channel end follows the funnel wall. Mouth bars keep the Wf arrangement.
+- `src/ui/tidalChannelGeometry.ts` builds a funnel tidal channel: half-cylinder cross-section (flat top, curved base), 1.5× the half-channel length, seaward opening **5×** the landward width. The Tfw scene uses it for the channel.
 
 ### Docs
 

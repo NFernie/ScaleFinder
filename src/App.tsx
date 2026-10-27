@@ -84,6 +84,7 @@ import {
 } from './core/rotation'
 import { ASYM_WF_ANCHOR } from './core/asymWfSchematic'
 import { type SchematicSceneId } from './core/schematicScene'
+import { TFW_ECS_ANCHOR } from './core/tfwEcsSchematic'
 import { LengthUnit, LngLat } from './core/types'
 import { WF_ANCHOR } from './core/wfSchematic'
 import { getBasemaps, hasMapTilerKey } from './map/basemap'
@@ -106,6 +107,7 @@ import ShapeMenu from './ui/ShapeMenu'
 import PolygonList from './ui/PolygonList'
 import Toolbox from './ui/Toolbox'
 import WfSchematicPanel from './ui/WfSchematicPanel'
+import TfwECSschematic from './ui/TfwECSschematic'
 import VertexMenu from './ui/VertexMenu'
 import RegionSearch from './ui/RegionSearch'
 import { SAMPLES } from './data/samples'
@@ -1146,6 +1148,12 @@ export default function App() {
                 label="Asymmetric Wf schematic, Sfântu Gheorghe"
                 onOpen={() => setSchematic('asym')}
               />
+              <WfSchematicPin
+                anchor={TFW_ECS_ANCHOR}
+                id="tfw-ecs-schematic-pin"
+                label="Tfw schematic"
+                onOpen={() => setSchematic('tfw')}
+              />
               {items.map((item) =>
                 item.selected ? (
                   <PlacedPolygon
@@ -1247,7 +1255,16 @@ export default function App() {
             )}
           </div>
 
-          {schematic && (
+          {schematic === 'tfw' ? (
+            <div className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-10">
+              <TfwECSschematic
+                open
+                frame={wfFrame}
+                onFrame={setWfFrame}
+                onClose={() => setSchematic(null)}
+              />
+            </div>
+          ) : schematic ? (
             <div className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-10">
               <WfSchematicPanel
                 open
@@ -1258,7 +1275,7 @@ export default function App() {
                 onClose={() => setSchematic(null)}
               />
             </div>
-          )}
+          ) : null}
 
           <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-h-[calc(100%-1.5rem)] w-[min(18rem,calc(100%-5.5rem))] flex-col items-start gap-2">
             <Toolbox

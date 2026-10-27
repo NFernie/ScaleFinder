@@ -109,7 +109,7 @@ export function brConcaveSwPlanSvg(index = 3): string {
   return planFrame(
     brConcaveSwPlanSamples('r', index),
     `BRconcaveSW plan — index ${index}`,
-    `Symmetrical bow, concave toward +Z (middle ${BR_CONCAVE_SW_BOW} landward of the chord). Slight taper at both tips.`,
+    `Symmetrical semicircular U, concave toward +Z. The section is the same from tip to tip.`,
   )
 }
 

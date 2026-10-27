@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { BR_CONCAVE_SW_BOW } from '../core/brConcaveSwPlan'
+import { BR_CONVEX_SW_BOW } from '../core/brConvexSwPlan'
 import { beachRidgeRing, beachRidgeStations } from '../core/wfSchematic'
-import { brConcaveSwGeometry, brConcaveSwPlanSamples, brConcaveSwStations } from './brConcaveSwgeometry'
+import { brConvexSwGeometry, brConvexSwPlanSamples, brConvexSwStations } from './brConvexSwgeometry'
 
-describe('brConcaveSwGeometry', () => {
+describe('brConvexSwGeometry', () => {
   it('lofts the right-flank bow and mirrors it onto the left flank', () => {
-    const stations = brConcaveSwStations('r', 3)
+    const stations = brConvexSwStations('r', 3)
     const corners = beachRidgeRing(stations[0]).length
-    const right = brConcaveSwGeometry('r', 3)
-    const left = brConcaveSwGeometry('l', 3)
+    const right = brConvexSwGeometry('r', 3)
+    const left = brConvexSwGeometry('l', 3)
     const rightPos = right.getAttribute('position')
     const leftPos = left.getAttribute('position')
     expect(rightPos.count).toBe(stations.length * corners)
@@ -27,14 +27,15 @@ describe('brConcaveSwGeometry', () => {
     left.dispose()
   })
 
-  it('is a uniform semicircular U, concave toward seaward', () => {
+  it('is a uniform half-height bow, convex toward seaward', () => {
     const index = 3
     const standard = beachRidgeStations('r', index)
-    const stations = brConcaveSwStations('r', index)
+    const stations = brConvexSwStations('r', index)
     const channel = stations[0]
     const tip = stations[stations.length - 1]
     const mid = stations[Math.floor(stations.length / 2)]
     const radius = Math.abs(tip.x - channel.x) / 2
+    const bow = radius / 2
     const midX = (channel.x + tip.x) / 2
 
     expect(channel.x).toBeCloseTo(standard[0].x)
@@ -42,33 +43,33 @@ describe('brConcaveSwGeometry', () => {
     expect(tip.x).toBeCloseTo(standard[standard.length - 1].x)
     expect(tip.z).toBeCloseTo(channel.z)
     expect(mid.x).toBeCloseTo(midX)
-    expect(mid.z).toBeCloseTo(channel.z - radius)
-    expect(radius).toBeCloseTo(BR_CONCAVE_SW_BOW)
-    expect(mid.z).toBeLessThan(channel.z)
+    expect(mid.z).toBeCloseTo(channel.z + bow)
+    expect(bow).toBeCloseTo(BR_CONVEX_SW_BOW)
+    expect(mid.z).toBeGreaterThan(channel.z)
 
     for (const station of stations) {
       const dx = station.x - midX
-      const dz = channel.z - station.z
-      expect(dx * dx + dz * dz).toBeCloseTo(radius * radius, 4)
-      expect(station.z).toBeLessThanOrEqual(channel.z + 1e-9)
+      const dz = station.z - channel.z
+      expect((dx * dx) / (radius * radius) + (dz * dz) / (bow * bow)).toBeCloseTo(1, 4)
+      expect(station.z).toBeGreaterThanOrEqual(channel.z - 1e-9)
       expect(station.halfWidth).toBeCloseTo(channel.halfWidth)
       expect(station.height).toBeCloseTo(channel.height)
     }
 
     const quarter = stations[Math.floor(stations.length / 4)]
     const threeQuarter = stations[Math.floor((stations.length * 3) / 4)]
-    expect(channel.z - quarter.z).toBeCloseTo(channel.z - threeQuarter.z)
+    expect(quarter.z - channel.z).toBeCloseTo(threeQuarter.z - channel.z)
     expect(midX - quarter.x).toBeCloseTo(threeQuarter.x - midX)
-    expect(brConcaveSwStations('r', 0)[Math.floor(stations.length / 2)].z).toBeCloseTo(mid.z)
+    expect(brConvexSwStations('r', 0)[Math.floor(stations.length / 2)].z).toBeCloseTo(mid.z)
   })
 
-  it('keeps the seaward outline landward of the straight chord through the middle', () => {
-    const samples = brConcaveSwPlanSamples('r', 2)
+  it('keeps the seaward outline seaward of the straight chord through the middle', () => {
+    const samples = brConvexSwPlanSamples('r', 2)
     const channel = samples[0]
     const tip = samples[samples.length - 1]
     const mid = samples[Math.floor(samples.length / 2)]
     const chord = (channel.zSea + tip.zSea) / 2
-    expect(mid.zSea).toBeLessThan(chord)
-    expect(mid.zCentre).toBeLessThan(channel.zCentre)
+    expect(mid.zSea).toBeGreaterThan(chord)
+    expect(mid.zCentre).toBeGreaterThan(channel.zCentre)
   })
 })

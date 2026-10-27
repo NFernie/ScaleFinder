@@ -1,17 +1,17 @@
 import * as THREE from 'three'
-import { BR_CONCAVE_SW_BOW, brConcaveSwStations } from '../core/brConcaveSwPlan'
+import { BR_CONVEX_SW_BOW, brConvexSwStations } from '../core/brConvexSwPlan'
 import { beachRidgeRing } from '../core/wfSchematic'
 
-export { BR_CONCAVE_SW_BOW, brConcaveSwStations }
+export { BR_CONVEX_SW_BOW, brConvexSwStations }
 
 /**
- * Loft one concave-seaward beach ridge. The right flank follows the core
+ * Loft one convex-seaward beach ridge. The right flank follows the core
  * stations in +X. The left flank is that mesh mirrored in X, with winding
  * flipped. The Tfw scene draws the left flank with this loft. The nested
  * pose stays with the scene.
  */
-export function brConcaveSwGeometry(side: 'l' | 'r', index: number): THREE.BufferGeometry {
-  const stations = brConcaveSwStations('r', index)
+export function brConvexSwGeometry(side: 'l' | 'r', index: number): THREE.BufferGeometry {
+  const stations = brConvexSwStations('r', index)
   const positions: number[] = []
   const indices: number[] = []
   for (const station of stations) {
@@ -57,8 +57,8 @@ export interface PlanEdgeSample {
 }
 
 /** Samples for a 2D plan plot (+X alongshore, +Z seaward). */
-export function brConcaveSwPlanSamples(side: 'l' | 'r', index: number): PlanEdgeSample[] {
-  const stations = brConcaveSwStations(side, index)
+export function brConvexSwPlanSamples(side: 'l' | 'r', index: number): PlanEdgeSample[] {
+  const stations = brConvexSwStations(side, index)
   return stations.map((station) => {
     const ring = beachRidgeRing(station)
     const zLand = ring.reduce((best, corner) => (corner.z < best ? corner.z : best), ring[0].z)
@@ -105,11 +105,11 @@ function planFrame(samples: PlanEdgeSample[], title: string, caption: string): s
 }
 
 /** Plan of one right-flank element. +Z is up. */
-export function brConcaveSwPlanSvg(index = 3): string {
+export function brConvexSwPlanSvg(index = 3): string {
   return planFrame(
-    brConcaveSwPlanSamples('r', index),
-    `BRconcaveSW plan — index ${index}`,
-    `Symmetrical semicircular U, concave toward +Z. The section is the same from tip to tip.`,
+    brConvexSwPlanSamples('r', index),
+    `BRconvexSW plan — index ${index}`,
+    `Symmetrical bow, convex toward +Z, half the previous semicircle height. The section is the same from tip to tip.`,
   )
 }
 
@@ -117,10 +117,10 @@ export function brConcaveSwPlanSvg(index = 3): string {
  * Plan of four right-flank elements with the Wf channel-end Z step (0.34).
  * Index 0 is landward. This is a preview, not a placed scene.
  */
-export function brConcaveSwStackPlanSvg(): string {
+export function brConvexSwStackPlanSvg(): string {
   const ridges = Array.from({ length: 4 }, (_, index) => {
     const shift = index * STACK_PREVIEW_STEP
-    return brConcaveSwPlanSamples('r', index).map((sample) => ({
+    return brConvexSwPlanSamples('r', index).map((sample) => ({
       x: sample.x,
       zCentre: sample.zCentre + shift,
       zLand: sample.zLand + shift,
@@ -154,7 +154,7 @@ export function brConcaveSwStackPlanSvg(): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <rect width="100%" height="100%" fill="#0f172a"/>
-  <text x="40" y="28" fill="#e2e8f0" font-family="system-ui,sans-serif" font-size="18">BRconcaveSW stack preview — indices 0–3</text>
+  <text x="40" y="28" fill="#e2e8f0" font-family="system-ui,sans-serif" font-size="18">BRconvexSW stack preview — indices 0–3</text>
   <text x="40" y="50" fill="#94a3b8" font-family="system-ui,sans-serif" font-size="13">Same channel-end Z step as the symmetric and asymmetric ridge stacks (0.34). Not placed in a scene. +Z up.</text>
   ${paths}
   <text x="40" y="${H - 16}" fill="#94a3b8" font-size="12">+X right · +Z up = seaward · channel end at low |X| · index 3 is the seaward ridge</text>

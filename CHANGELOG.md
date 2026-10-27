@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `BRconcaveSW` (`src/ui/brConcaveSwgeometry.ts`) is a semicircular beach-ridge U, concave toward seaward, with the same cross-section from tip to tip. The Tfw left flank (`e-ridge-l-*`) draws it in the same nested poses as before. The right flank stays asymmetric.
+- `BRconvexSW` (`src/ui/brConvexSwgeometry.ts`) is a beach-ridge bow, convex toward seaward, with half the height of the earlier semicircular U and the same cross-section from tip to tip. The Tfw left flank (`e-ridge-l-*`) draws it in the same nested poses as before. The right flank stays asymmetric.
 - A pin at latitude -19.984295231442236, longitude 119.165775381814 opens `TfwECSschematic`. The scene keeps the Wf element-complex stack. The channel is the tidal funnel. Both beach-ridge flanks use the asymmetric mesh, shifted so each channel end follows the funnel wall. Mouth bars keep the Wf arrangement.
 - `src/ui/tidalChannelGeometry.ts` builds a funnel tidal channel: half-cylinder cross-section (flat top, curved base), 1.5× the half-channel length, seaward opening **5×** the landward width. The Tfw scene uses it for the channel.
 

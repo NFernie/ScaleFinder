@@ -250,7 +250,7 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
 /**
  * Tfw element complex set. Same ranks, mouth-bar fans, and ridge stack as the
  * symmetric Wf scene. The channel is the tidal funnel. The right flank uses
- * the asymmetric loft. The left flank uses the concave-seaward bow, in the
+ * the asymmetric loft. The left flank uses the convex-seaward bow, in the
  * same nested poses. The channel and left flank yaw +15° toward +X.
  * The left flank keeps its stack spacing and shifts landward by 0.5
  * channel-end Z thicknesses. The right flank stays on the Wf Z stack.

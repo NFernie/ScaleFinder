@@ -160,7 +160,7 @@ describe('tfwEcsSchematic', () => {
 
     expect(channelMesh('tfw')).toBe('tidal')
     expect(channelMesh('wf')).toBe('half')
-    expect(beachRidgeMesh('tfw', 'e-ridge-l-2')).toBe('concave-sw')
+    expect(beachRidgeMesh('tfw', 'e-ridge-l-2')).toBe('convex-sw')
     expect(beachRidgeMesh('tfw', 'e-ridge-r-2')).toBe('asymmetric')
     expect(beachRidgeMesh('wf', 'e-ridge-r-2')).toBe('symmetric')
     expect(beachRidgeMesh('asym', 'e-ridge-r-2')).toBe('symmetric')

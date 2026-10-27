@@ -4,8 +4,8 @@ export type SchematicSceneId = 'wf' | 'asym' | 'tfw'
 export function beachRidgeMesh(
   scene: SchematicSceneId,
   bodyId: string,
-): 'symmetric' | 'asymmetric' | 'concave-sw' {
-  if (scene === 'tfw' && bodyId.startsWith('e-ridge-l-')) return 'concave-sw'
+): 'symmetric' | 'asymmetric' | 'convex-sw' {
+  if (scene === 'tfw' && bodyId.startsWith('e-ridge-l-')) return 'convex-sw'
   if (scene === 'tfw' && bodyId.startsWith('e-ridge-')) return 'asymmetric'
   if (scene === 'asym' && bodyId.startsWith('e-ridge-') && !bodyId.includes('-r-')) return 'asymmetric'
   return 'symmetric'

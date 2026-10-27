@@ -14,7 +14,7 @@ import {
 } from '../core/wfSchematic'
 import { asymmetricBeachRidgeGeometry } from './asymmetricBeachRidgeGeometry'
 import { beachRidgeGeometry } from './beachRidgeGeometry'
-import { brConcaveSwGeometry } from './brConcaveSwgeometry'
+import { brConvexSwGeometry } from './brConvexSwgeometry'
 import { halfChannelGeometry } from './halfChannelGeometry'
 import { mouthBarGeometry } from './mouthBarGeometry'
 import { tidalChannelGeometry } from './tidalChannelGeometry'
@@ -73,7 +73,7 @@ function geometryFor(scene: SchematicSceneId, body: PlacedBody): THREE.BufferGeo
     const side = body.id.includes('-r-') ? 'r' : 'l'
     const ridgeIndex = Number.isFinite(index) ? index : 0
     const loft = beachRidgeMesh(scene, body.id)
-    if (loft === 'concave-sw') return brConcaveSwGeometry(side, ridgeIndex)
+    if (loft === 'convex-sw') return brConvexSwGeometry(side, ridgeIndex)
     if (loft === 'asymmetric') return asymmetricBeachRidgeGeometry(side, ridgeIndex)
     return beachRidgeGeometry(side, ridgeIndex)
   }

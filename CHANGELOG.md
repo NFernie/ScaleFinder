@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The tidal channel is 1.5× the half-channel length, with the extra length landward. Width stays at the half-channel width until the half channel's landward end, then flares on a curve concave toward the centre to 5× width at the seaward tip.
-- The Tfw schematic (`tfwEcsSchematic`) yaws the tidal channel and left beach ridges **+15°** toward **+X**. The **−X** ridge stack shifts landward by **0.5** channel-end Z thicknesses while keeping the Wf stack spacing. The **+X** stack stays on the Wf **Z** positions. Each channel end sits on the yawed funnel wall. Mouth-bar yaws are parallel to the channel (**+15°** plus each fan’s Wf offset). The seaward mouth-bar fan is spread to half the Wf alongshore overlap; the landward fan keeps the Wf overlap of **0.36**.
+- The Tfw schematic (`tfwEcsSchematic`) yaws the tidal channel and left beach ridges **+15°** toward **+X**. The **−X** ridge stack shifts landward by **0.5** channel-end Z thicknesses while keeping the Wf stack spacing. The **+X** stack stays on the Wf **Z** positions. Each channel end sits on the yawed funnel wall. The mouth-bar complex is swung onto the channel centreline. Mouth-bar yaws follow that axis, plus each fan’s Wf offset, plus an outward yaw from **0°** on the axis to **5°** on the outer bars. The seaward mouth-bar fan is spread to half the Wf alongshore overlap; the landward fan keeps the Wf overlap of **0.36**.
 
 ### Added
 

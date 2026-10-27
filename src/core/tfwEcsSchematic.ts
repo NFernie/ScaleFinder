@@ -18,9 +18,36 @@ export const TFW_ECS_ANCHOR = { lat: -19.984295231442236, lng: 119.165775381814 
 /** Channel and −X (left) beach ridges swing toward +X. */
 export const TFW_CHANNEL_YAW_RAD = (15 * Math.PI) / 180
 
-/** Wf fan offset added on top of {@link TFW_CHANNEL_YAW_RAD} for each mouth bar. */
-export function tfwMouthBarYaw(wfFanYaw: number): number {
-  return TFW_CHANNEL_YAW_RAD + wfFanYaw
+/** Template |X| at or inside this stays on the channel axis: no extra side yaw. */
+const MOUTH_BAR_PROXIMAL_TEMPLATE_X = 0.16
+
+/** First fan station outside that band, and the outermost station. */
+const MOUTH_BAR_SIDE_YAW_INNER_X = 0.32
+const MOUTH_BAR_SIDE_YAW_OUTER_X = 0.64
+
+/** Extra yaw, in degrees, from the inner off-axis bars out to the outer bars. */
+const MOUTH_BAR_SIDE_YAW_INNER_DEG = 2
+const MOUTH_BAR_SIDE_YAW_OUTER_DEG = 5
+
+/**
+ * Extra yaw for one mouth bar from how far it sits off the channel.
+ * Centre and proximal bars stay at 0. Left bars yaw toward −X and right bars
+ * toward +X, from {@link MOUTH_BAR_SIDE_YAW_INNER_DEG} to
+ * {@link MOUTH_BAR_SIDE_YAW_OUTER_DEG} at the outer tips.
+ */
+export function tfwMouthBarSideYawRad(templateX: number): number {
+  const abs = Math.abs(templateX)
+  if (abs < (MOUTH_BAR_PROXIMAL_TEMPLATE_X + MOUTH_BAR_SIDE_YAW_INNER_X) / 2) return 0
+  const span = MOUTH_BAR_SIDE_YAW_OUTER_X - MOUTH_BAR_SIDE_YAW_INNER_X
+  const t = span === 0 ? 1 : Math.min(1, Math.max(0, (abs - MOUTH_BAR_SIDE_YAW_INNER_X) / span))
+  const degrees = MOUTH_BAR_SIDE_YAW_INNER_DEG + (MOUTH_BAR_SIDE_YAW_OUTER_DEG - MOUTH_BAR_SIDE_YAW_INNER_DEG) * t
+  const sign = templateX < 0 ? -1 : 1
+  return (sign * degrees * Math.PI) / 180
+}
+
+/** Channel yaw, plus the Wf fan offset, plus the side yaw from `templateX`. */
+export function tfwMouthBarYaw(wfFanYaw: number, templateX = 0): number {
+  return TFW_CHANNEL_YAW_RAD + wfFanYaw + tfwMouthBarSideYawRad(templateX)
 }
 
 /** How many beach-ridge Z thicknesses the −X stack shifts landward. */
@@ -151,12 +178,35 @@ function applyTfwYaw(body: SceneBody): SceneBody {
     body.kind === 'mouth-bar' ||
     body.id.startsWith('e-mouth')
   ) {
-    return { ...body, name: NAMES[body.id] ?? body.name, yaw: tfwMouthBarYaw(yaw) }
+    const templateX = body.kind === 'mouth-bar' ? body.nested.x / MOUTH_FAN_X_SCALE : 0
+    return { ...body, name: NAMES[body.id] ?? body.name, yaw: tfwMouthBarYaw(yaw, templateX) }
   }
   if (body.id in NAMES) {
     return { ...body, name: NAMES[body.id] ?? body.name }
   }
   return body
+}
+
+/** Swing mouth-bar positions about the channel origin so the fan centreline is the channel centreline. */
+function alignMouthBarsToChannel(bodies: SceneBody[]): SceneBody[] {
+  const channel = bodies.find((body) => body.id === 'e-channel')
+  if (!channel) return bodies
+  return bodies.map((body) => {
+    const onFan = body.kind === 'mouth-bar' || body.id === 'ec-mouth' || body.id === 'es-mouth'
+    if (!onFan) return body
+    const rotated = rotateYaw(
+      { x: body.nested.x - channel.nested.x, y: 0, z: body.nested.z - channel.nested.z },
+      TFW_CHANNEL_YAW_RAD,
+    )
+    return {
+      ...body,
+      nested: {
+        ...body.nested,
+        x: channel.nested.x + rotated.x,
+        z: channel.nested.z + rotated.z,
+      },
+    }
+  })
 }
 
 function applyMouthBarXSpread(body: SceneBody): SceneBody {
@@ -180,7 +230,9 @@ function shiftedBody(body: SceneBody, bodiesForShift: SceneBody[]): SceneBody {
 
 function sceneBodiesAtRest(): SceneBody[] {
   const wf = wfSceneAt(0)
-  const yawed = wf.map((body) => applyMouthBarXSpread(applyTfwYaw({ ...body, yaw: body.yaw })))
+  const yawed = alignMouthBarsToChannel(
+    wf.map((body) => applyMouthBarXSpread(applyTfwYaw({ ...body, yaw: body.yaw }))),
+  )
   const withLandward = yawed.map((body) => applyLeftFlankLandwardZ(body, tfwLeftFlankLandwardDeltaZ()))
   return withLandward.map((body) => shiftedBody(body, withLandward))
 }
@@ -201,9 +253,11 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * use the asymmetric loft. The channel and left flank yaw +15° toward +X.
  * The left flank keeps its stack spacing and shifts landward by 0.5
  * channel-end Z thicknesses. The right flank stays on the Wf Z stack.
- * Mouth-bar yaws follow the channel axis plus each fan’s Wf offset. The
- * seaward fan is spread to half the Wf alongshore overlap; the landward
- * fan keeps the Wf overlap.
+ * Mouth-bar positions are swung about the channel so the fan centreline
+ * lies on the channel centreline. Yaws follow that axis, plus each fan’s
+ * Wf offset, plus up to 5° outward (0 on the axis and proximal bars).
+ * The seaward fan is spread to half the Wf alongshore overlap; the
+ * landward fan keeps the Wf overlap.
  * Each channel end sits on its wall.
  */
 export function sceneAt(explode: number): PlacedBody[] {

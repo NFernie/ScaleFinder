@@ -4,6 +4,7 @@ import { tidalChannelRadiusAt, tidalChannelSpan } from './tidalChannel'
 import {
   TFW_CHANNEL_YAW_RAD,
   TFW_ECS_ANCHOR,
+  tfwMouthBarSideYawRad,
   tfwMouthBarYaw,
   TFW_LEFT_FLANK_LANDWARD_ELEMENTS,
   beachRidgeChannelEndZThickness,
@@ -25,21 +26,45 @@ describe('tfwEcsSchematic', () => {
     const channel = tfw.find((body) => body.id === 'e-channel')!
     expect(channel.yaw).toBeCloseTo(TFW_CHANNEL_YAW_RAD)
 
-    const wfMouth0 = wf.find((body) => body.id === 'e-mouth-0')!
     const tfwMouth0 = tfw.find((body) => body.id === 'e-mouth-0')!
-    expect(tfwMouth0.yaw).toBeCloseTo(tfwMouthBarYaw(wfMouth0.yaw ?? 0))
     expect(tfwMouth0.yaw).toBeCloseTo(TFW_CHANNEL_YAW_RAD)
+    expect(tfwMouthBarSideYawRad(0)).toBe(0)
+    expect(tfwMouthBarSideYawRad(0.16)).toBe(0)
+    expect(tfwMouthBarSideYawRad(-0.16)).toBe(0)
+    expect(tfwMouthBarSideYawRad(0.32) * (180 / Math.PI)).toBeCloseTo(2)
+    expect(tfwMouthBarSideYawRad(-0.32) * (180 / Math.PI)).toBeCloseTo(-2)
+    expect(tfwMouthBarSideYawRad(0.64) * (180 / Math.PI)).toBeCloseTo(5)
+    expect(tfwMouthBarSideYawRad(-0.64) * (180 / Math.PI)).toBeCloseTo(-5)
     const spread = tfwMouthBarXSpread()
     const referenceGap = mouthFanReferenceGap() * MOUTH_FAN_X_SCALE
     expect(MOUTH_BAR_SCALE.x - referenceGap).toBeCloseTo(0.36)
     expect(MOUTH_BAR_SCALE.x - referenceGap * spread).toBeCloseTo(0.18)
+    const onChannel = (wfBody: (typeof wf)[number], tfwBody: (typeof tfw)[number], localX: number) => {
+      const yaw = TFW_CHANNEL_YAW_RAD
+      const dz = wfBody.nested.z - channel.nested.z
+      const cos = Math.cos(yaw)
+      const sin = Math.sin(yaw)
+      expect(tfwBody.nested.x).toBeCloseTo(channel.nested.x + localX * cos + dz * sin)
+      expect(tfwBody.nested.z).toBeCloseTo(channel.nested.z - localX * sin + dz * cos)
+      const templateX = wfBody.nested.x / MOUTH_FAN_X_SCALE
+      expect(tfwBody.yaw).toBeCloseTo(tfwMouthBarYaw(wfBody.yaw ?? 0, templateX))
+    }
     const wfOffAxis = wf.find((body) => body.id === 'e-mouth-1')!
     const tfwOffAxis = tfw.find((body) => body.id === 'e-mouth-1')!
-    expect(tfwOffAxis.nested.x).toBeCloseTo(wfOffAxis.nested.x * spread)
+    onChannel(wfOffAxis, tfwOffAxis, wfOffAxis.nested.x * spread)
     const wfLandward = wf.find((body) => body.id === 'e-mouth-prox-1')!
     const tfwLandward = tfw.find((body) => body.id === 'e-mouth-prox-1')!
-    expect(tfwLandward.nested.x).toBeCloseTo(wfLandward.nested.x)
-    expect(tfwLandward.yaw).toBeCloseTo(tfwMouthBarYaw(wfLandward.yaw ?? 0))
+    onChannel(wfLandward, tfwLandward, wfLandward.nested.x)
+    const tfwProx = tfw.find((body) => body.id === 'e-mouth-prox-0')!
+    const axis = { x: Math.sin(TFW_CHANNEL_YAW_RAD), z: Math.cos(TFW_CHANNEL_YAW_RAD) }
+    const centreOffset = (body: (typeof tfw)[number]) => ({
+      x: body.nested.x - channel.nested.x,
+      z: body.nested.z - channel.nested.z,
+    })
+    for (const body of [tfwMouth0, tfwProx]) {
+      const offset = centreOffset(body)
+      expect(offset.x * axis.z - offset.z * axis.x).toBeCloseTo(0)
+    }
 
     for (const id of ['e-ridge-l-0', 'e-ridge-l-3']) {
       expect(tfw.find((body) => body.id === id)!.yaw).toBeCloseTo(TFW_CHANNEL_YAW_RAD)
@@ -51,7 +76,7 @@ describe('tfwEcsSchematic', () => {
       expect(body.position.y).toBeCloseTo(match?.position.y ?? 0)
       if (body.kind === 'beach-ridge' && body.id.includes('-l-')) {
         expect(body.position.z).not.toBeCloseTo(match?.position.z ?? 0)
-      } else if (body.id !== 'e-channel') {
+      } else if (body.id !== 'e-channel' && body.kind !== 'mouth-bar' && body.id !== 'ec-mouth' && body.id !== 'es-mouth') {
         expect(body.position.z).toBeCloseTo(match?.position.z ?? 0)
       }
     }

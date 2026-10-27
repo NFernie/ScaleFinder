@@ -18,8 +18,10 @@ export const TFW_ECS_ANCHOR = { lat: -19.984295231442236, lng: 119.165775381814 
 /** Channel and −X (left) beach ridges swing toward +X. */
 export const TFW_CHANNEL_YAW_RAD = (15 * Math.PI) / 180
 
-/** Extra mouth-bar yaw toward −X. */
-export const TFW_MOUTH_COMPLEX_YAW_RAD = (-10 * Math.PI) / 180
+/** Wf fan offset added on top of {@link TFW_CHANNEL_YAW_RAD} for each mouth bar. */
+export function tfwMouthBarYaw(wfFanYaw: number): number {
+  return TFW_CHANNEL_YAW_RAD + wfFanYaw
+}
 
 /** How many beach-ridge Z thicknesses the −X stack shifts landward. */
 export const TFW_LEFT_FLANK_LANDWARD_ELEMENTS = 0.5
@@ -149,7 +151,7 @@ function applyTfwYaw(body: SceneBody): SceneBody {
     body.kind === 'mouth-bar' ||
     body.id.startsWith('e-mouth')
   ) {
-    return { ...body, name: NAMES[body.id] ?? body.name, yaw: yaw + TFW_MOUTH_COMPLEX_YAW_RAD }
+    return { ...body, name: NAMES[body.id] ?? body.name, yaw: tfwMouthBarYaw(yaw) }
   }
   if (body.id in NAMES) {
     return { ...body, name: NAMES[body.id] ?? body.name }
@@ -199,8 +201,9 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * use the asymmetric loft. The channel and left flank yaw +15° toward +X.
  * The left flank keeps its stack spacing and shifts landward by 0.5
  * channel-end Z thicknesses. The right flank stays on the Wf Z stack.
- * Mouth bars take an extra −10° yaw. The seaward fan is spread to half the
- * Wf alongshore overlap; the landward fan keeps the Wf overlap.
+ * Mouth-bar yaws follow the channel axis plus each fan’s Wf offset. The
+ * seaward fan is spread to half the Wf alongshore overlap; the landward
+ * fan keeps the Wf overlap.
  * Each channel end sits on its wall.
  */
 export function sceneAt(explode: number): PlacedBody[] {

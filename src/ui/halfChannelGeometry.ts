@@ -6,9 +6,9 @@ import { CHANNEL_LENGTH, CHANNEL_RADIUS } from '../core/wfSchematic'
  * CylinderGeometry leaves the diameter open, so the flat face is a separate quad.
  * The mesh origin is the middle of that flat face.
  */
-export function halfChannelGeometry(): THREE.BufferGeometry {
+export function halfChannelGeometry(length = CHANNEL_LENGTH): THREE.BufferGeometry {
   const radius = CHANNEL_RADIUS
-  const half = CHANNEL_LENGTH / 2
+  const half = length / 2
   const segments = 24
   const positions: number[] = []
   const indices: number[] = []

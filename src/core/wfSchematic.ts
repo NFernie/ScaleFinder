@@ -18,6 +18,8 @@ export interface SceneBody {
   nested: { x: number; y: number; z: number }
   /** Yaw around Y, in radians. Positive swings the seaward end toward +X. */
   yaw?: number
+  /** Half-channel length when this body is longer than `CHANNEL_LENGTH`. */
+  channelLength?: number
 }
 
 export interface PlacedBody extends SceneBody {

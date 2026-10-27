@@ -1,8 +1,9 @@
+import { brConvexSwStations } from './brConvexSwPlan'
 import { tidalChannelRadiusAt, tidalChannelSpan } from './tidalChannel'
 import {
-  beachRidgeRing,
   beachRidgeStations,
   bodyCenter,
+  CHANNEL_RADIUS,
   EXPLODE_SPREAD,
   MOUTH_BAR_SCALE,
   MOUTH_FAN_X_SCALE,
@@ -50,9 +51,6 @@ export function tfwMouthBarYaw(wfFanYaw: number, templateX = 0): number {
   return TFW_CHANNEL_YAW_RAD + wfFanYaw + tfwMouthBarSideYawRad(templateX)
 }
 
-/** How many beach-ridge Z thicknesses the −X stack shifts landward. */
-export const TFW_LEFT_FLANK_LANDWARD_ELEMENTS = 0.5
-
 /**
  * Multiplier on the seaward mouth-bar nested X so that fan's inner-pair overlap
  * is half the Wf overlap. The landward (proximal) fan stays at the Wf overlap.
@@ -62,18 +60,6 @@ export function tfwMouthBarXSpread(): number {
   const overlap = MOUTH_BAR_SCALE.x - gap
   const targetGap = MOUTH_BAR_SCALE.x - overlap * 0.5
   return targetGap / gap
-}
-
-/** Fore-aft Z extent of one beach ridge at the channel end. */
-export function beachRidgeChannelEndZThickness(): number {
-  const ring = beachRidgeRing(beachRidgeStations('r', 0)[0])
-  let min = Infinity
-  let max = -Infinity
-  for (const corner of ring) {
-    if (corner.z < min) min = corner.z
-    if (corner.z > max) max = corner.z
-  }
-  return max - min
 }
 
 const NAMES: Record<string, string> = {
@@ -159,17 +145,9 @@ function ridgeChannelEndWorld(ridge: SceneBody): { x: number; z: number } {
   return { x: world.x, z: world.z }
 }
 
-/** Landward Z offset for the whole −X ridge stack. Negative is landward. */
-export function tfwLeftFlankLandwardDeltaZ(): number {
-  return -TFW_LEFT_FLANK_LANDWARD_ELEMENTS * beachRidgeChannelEndZThickness()
-}
-
 function applyTfwYaw(body: SceneBody): SceneBody {
   const yaw = body.yaw ?? 0
   if (body.id === 'e-channel') {
-    return { ...body, name: NAMES[body.id] ?? body.name, yaw: TFW_CHANNEL_YAW_RAD }
-  }
-  if (body.id.startsWith('e-ridge-l-')) {
     return { ...body, name: NAMES[body.id] ?? body.name, yaw: TFW_CHANNEL_YAW_RAD }
   }
   if (
@@ -215,11 +193,6 @@ function applyMouthBarXSpread(body: SceneBody): SceneBody {
   return { ...body, nested: { ...body.nested, x: body.nested.x * spread } }
 }
 
-function applyLeftFlankLandwardZ(body: SceneBody, deltaZ: number): SceneBody {
-  if (!body.id.startsWith('e-ridge-l-')) return body
-  return { ...body, nested: { ...body.nested, z: body.nested.z + deltaZ } }
-}
-
 function shiftedBody(body: SceneBody, bodiesForShift: SceneBody[]): SceneBody {
   const shift = body.kind === 'beach-ridge' ? tfwRidgeShift(body.id, bodiesForShift) : 0
   return {
@@ -233,8 +206,45 @@ function sceneBodiesAtRest(): SceneBody[] {
   const yawed = alignMouthBarsToChannel(
     wf.map((body) => applyMouthBarXSpread(applyTfwYaw({ ...body, yaw: body.yaw }))),
   )
-  const withLandward = yawed.map((body) => applyLeftFlankLandwardZ(body, tfwLeftFlankLandwardDeltaZ()))
-  return withLandward.map((body) => shiftedBody(body, withLandward))
+  return yawed.map((body) => shiftedBody(body, yawed))
+}
+
+/**
+ * Half channel on the −X side of the convex left-flank set.
+ * Its seaward end sits one radius left of the outermost ridge tip. Its
+ * landward end is the tidal channel's landward left wall, so the length is
+ * the straight run that just meets the funnel.
+ */
+function leftHalfChannelBody(bodies: SceneBody[]): SceneBody {
+  const channel = bodies.find((body) => body.id === 'e-channel')!
+  const land = funnelWallPointWorld(channel, tidalChannelSpan().landZ, 'l')
+  let tip = { x: Infinity, z: 0 }
+  for (const body of bodies) {
+    if (!body.id.startsWith('e-ridge-l-')) continue
+    const index = Number(body.id.slice(body.id.lastIndexOf('-') + 1))
+    for (const station of brConvexSwStations('l', Number.isFinite(index) ? index : 0)) {
+      const world = worldFromNested(body, { x: station.x, y: 0, z: station.z })
+      if (world.x < tip.x) tip = { x: world.x, z: world.z }
+    }
+  }
+  const sea = { x: tip.x - CHANNEL_RADIUS, z: tip.z }
+  const dx = sea.x - land.x
+  const dz = sea.z - land.z
+  const length = Math.hypot(dx, dz)
+  return {
+    id: 'e-channel-l',
+    name: 'Half channel',
+    rank: 'element',
+    parentId: 'es-ridge-l',
+    kind: 'channel',
+    nested: {
+      x: (sea.x + land.x) / 2,
+      y: channel.nested.y,
+      z: (sea.z + land.z) / 2,
+    },
+    yaw: Math.atan2(dx, dz),
+    channelLength: length,
+  }
 }
 
 function explodePosition(body: SceneBody, spread: number): { x: number; y: number; z: number } {
@@ -249,30 +259,33 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
 
 /**
  * Tfw element complex set. Same ranks, mouth-bar fans, and ridge stack as the
- * symmetric Wf scene. The channel is the tidal funnel. The right flank uses
- * the asymmetric loft. The left flank uses the convex-seaward bow, in the
- * same nested poses. The channel and left flank yaw +15° toward +X.
- * The left flank keeps its stack spacing and shifts landward by 0.5
- * channel-end Z thicknesses. The right flank stays on the Wf Z stack.
+ * symmetric Wf scene. The channel is the tidal funnel and yaws +15° toward +X.
+ * The right flank uses the asymmetric loft. The left flank uses the
+ * convex-seaward bow in the same Z stack and yaw as the right flank, with
+ * each channel end on the opposite (left) wall. A half channel sits on the
+ * −X side of that left set and runs landward until it meets the tidal channel.
  * Mouth-bar positions are swung about the channel so the fan centreline
  * lies on the channel centreline. Yaws follow that axis, plus each fan’s
  * Wf offset, plus up to 5° outward (0 on the axis and proximal bars).
  * The seaward fan is spread to half the Wf alongshore overlap; the
  * landward fan keeps the Wf overlap.
- * Each channel end sits on its wall.
  */
 export function sceneAt(explode: number): PlacedBody[] {
   const t = Math.min(1, Math.max(0, explode))
   const spread = 1 + (EXPLODE_SPREAD - 1) * t
   const wfPlaced = wfSceneAt(t)
   const rested = sceneBodiesAtRest()
-  return wfPlaced.map((placed) => {
-    const body = rested.find((item) => item.id === placed.id)!
+  const placed = wfPlaced.map((item) => {
+    const body = rested.find((entry) => entry.id === item.id)!
     const position = spread === 1 ? body.nested : explodePosition(body, spread)
     return {
       ...body,
       position,
-      showLabel: placed.showLabel,
+      showLabel: item.showLabel,
     }
   })
+  const half = leftHalfChannelBody(rested)
+  const position = spread === 1 ? half.nested : explodePosition(half, spread)
+  placed.push({ ...half, position, showLabel: t > 2 / 3 })
+  return placed
 }

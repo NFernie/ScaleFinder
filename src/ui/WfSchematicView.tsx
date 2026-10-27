@@ -66,7 +66,10 @@ function layoutAt(scene: SchematicSceneId, explode: number): PlacedBody[] {
 
 function geometryFor(scene: SchematicSceneId, body: PlacedBody): THREE.BufferGeometry {
   if (body.kind === 'ground') return new THREE.BoxGeometry(8, GROUND_THICKNESS, 6)
-  if (body.kind === 'channel') return channelMesh(scene) === 'tidal' ? tidalChannelGeometry() : halfChannelGeometry()
+  if (body.kind === 'channel') {
+    if (body.channelLength != null) return halfChannelGeometry(body.channelLength)
+    return channelMesh(scene) === 'tidal' ? tidalChannelGeometry() : halfChannelGeometry()
+  }
   if (body.kind === 'mouth-bar') return mouthBarGeometry()
   if (body.kind === 'beach-ridge') {
     const index = Number(body.id.slice(body.id.lastIndexOf('-') + 1))

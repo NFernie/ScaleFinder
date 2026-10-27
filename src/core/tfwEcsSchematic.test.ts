@@ -1,26 +1,32 @@
 import { describe, expect, it } from 'vitest'
 import { beachRidgeMesh, channelMesh } from './schematicScene'
 import { tidalChannelRadiusAt, tidalChannelSpan } from './tidalChannel'
+import { brConvexSwStations } from './brConvexSwPlan'
 import {
   TFW_CHANNEL_YAW_RAD,
   TFW_ECS_ANCHOR,
   tfwMouthBarSideYawRad,
   tfwMouthBarYaw,
-  TFW_LEFT_FLANK_LANDWARD_ELEMENTS,
-  beachRidgeChannelEndZThickness,
   sceneAt as tfwSceneAt,
-  tfwLeftFlankLandwardDeltaZ,
   tfwMouthBarXSpread,
   tfwRidgeShift,
 } from './tfwEcsSchematic'
-import { MOUTH_BAR_SCALE, beachRidgeStations, mouthFanReferenceGap, MOUTH_FAN_X_SCALE, sceneAt as wfSceneAt } from './wfSchematic'
+import {
+  CHANNEL_LENGTH,
+  CHANNEL_RADIUS,
+  MOUTH_BAR_SCALE,
+  beachRidgeStations,
+  mouthFanReferenceGap,
+  MOUTH_FAN_X_SCALE,
+  sceneAt as wfSceneAt,
+} from './wfSchematic'
 
 describe('tfwEcsSchematic', () => {
   it('keeps the Wf stack, swaps in the tidal channel, and steps both ridge flanks out to the funnel', () => {
     expect(TFW_ECS_ANCHOR).toEqual({ lat: -19.984295231442236, lng: 119.165775381814 })
     const tfw = tfwSceneAt(0)
     const wf = wfSceneAt(0)
-    expect(tfw.map((body) => body.id)).toEqual(wf.map((body) => body.id))
+    expect(tfw.map((body) => body.id)).toEqual([...wf.map((body) => body.id), 'e-channel-l'])
     expect(tfw.find((body) => body.id === 'ecs')?.name).toBe('Tfw element complex set')
 
     const channel = tfw.find((body) => body.id === 'e-channel')!
@@ -66,39 +72,22 @@ describe('tfwEcsSchematic', () => {
       expect(offset.x * axis.z - offset.z * axis.x).toBeCloseTo(0)
     }
 
-    for (const id of ['e-ridge-l-0', 'e-ridge-l-3']) {
-      expect(tfw.find((body) => body.id === id)!.yaw).toBeCloseTo(TFW_CHANNEL_YAW_RAD)
+    for (const id of ['e-ridge-l-0', 'e-ridge-l-3', 'e-ridge-r-0', 'e-ridge-r-3']) {
+      expect(tfw.find((body) => body.id === id)!.yaw ?? 0).toBe(0)
+      expect(tfw.find((body) => body.id === id)!.nested.z).toBeCloseTo(wf.find((body) => body.id === id)!.nested.z)
     }
 
     for (const body of tfw) {
+      if (body.id === 'e-channel-l') continue
       const match = wf.find((item) => item.id === body.id)
       expect(body.parentId).toEqual(match?.parentId)
       expect(body.position.y).toBeCloseTo(match?.position.y ?? 0)
-      if (body.kind === 'beach-ridge' && body.id.includes('-l-')) {
-        expect(body.position.z).not.toBeCloseTo(match?.position.z ?? 0)
-      } else if (body.id !== 'e-channel' && body.kind !== 'mouth-bar' && body.id !== 'ec-mouth' && body.id !== 'es-mouth') {
+      if (body.id !== 'e-channel' && body.kind !== 'mouth-bar' && body.id !== 'ec-mouth' && body.id !== 'es-mouth') {
         expect(body.position.z).toBeCloseTo(match?.position.z ?? 0)
       }
     }
 
     const { seaZ } = tidalChannelSpan()
-    const leftSea = tfw.find((body) => body.id === 'e-ridge-l-3')!
-    const leftLand = tfw.find((body) => body.id === 'e-ridge-l-0')!
-    const wfLeftLand = wf.find((body) => body.id === 'e-ridge-l-0')!
-    const wfLeftSea = wf.find((body) => body.id === 'e-ridge-l-3')!
-    const landSeaGap = wfLeftSea.nested.z - wfLeftLand.nested.z
-    const landward = tfwLeftFlankLandwardDeltaZ()
-    expect(TFW_LEFT_FLANK_LANDWARD_ELEMENTS).toBe(0.5)
-    expect(beachRidgeChannelEndZThickness()).toBeGreaterThan(0)
-    expect(landward).toBeCloseTo(-TFW_LEFT_FLANK_LANDWARD_ELEMENTS * beachRidgeChannelEndZThickness())
-    expect(leftSea.nested.z - leftLand.nested.z).toBeCloseTo(landSeaGap)
-    expect(leftSea.nested.z - wfLeftSea.nested.z).toBeCloseTo(landward)
-    expect(leftLand.nested.z - wfLeftLand.nested.z).toBeCloseTo(landward)
-    expect(tfw.find((body) => body.id === 'e-ridge-l-1')!.nested.z - wf.find((body) => body.id === 'e-ridge-l-1')!.nested.z).toBeCloseTo(landward)
-    expect(tfw.find((body) => body.id === 'e-ridge-l-2')!.nested.z - wf.find((body) => body.id === 'e-ridge-l-2')!.nested.z).toBeCloseTo(landward)
-    for (const id of ['e-ridge-r-0', 'e-ridge-r-1', 'e-ridge-r-2', 'e-ridge-r-3']) {
-      expect(tfw.find((body) => body.id === id)!.nested.z).toBeCloseTo(wf.find((body) => body.id === id)!.nested.z)
-    }
     expect(TFW_CHANNEL_YAW_RAD).toBeGreaterThan(0)
 
     const channelEnd = (id: string) => {
@@ -164,5 +153,33 @@ describe('tfwEcsSchematic', () => {
     expect(beachRidgeMesh('tfw', 'e-ridge-r-2')).toBe('asymmetric')
     expect(beachRidgeMesh('wf', 'e-ridge-r-2')).toBe('symmetric')
     expect(beachRidgeMesh('asym', 'e-ridge-r-2')).toBe('symmetric')
+
+    const half = tfw.find((body) => body.id === 'e-channel-l')!
+    expect(half.kind).toBe('channel')
+    expect(half.parentId).toBe('es-ridge-l')
+    expect(half.channelLength).toBeGreaterThan(CHANNEL_LENGTH)
+    expect(half.position.y).toBeCloseTo(channel.position.y)
+    const halfLen = half.channelLength ?? 0
+    const halfEnd = (sign: 1 | -1) => ({
+      x: half.nested.x + sign * (halfLen / 2) * Math.sin(half.yaw ?? 0),
+      z: half.nested.z + sign * (halfLen / 2) * Math.cos(half.yaw ?? 0),
+    })
+    const sea = halfEnd(1)
+    const landEnd = halfEnd(-1)
+    const landWall = wallAt('l', Number.NEGATIVE_INFINITY)
+    expect(landEnd.x).toBeCloseTo(landWall.x)
+    expect(landEnd.z).toBeCloseTo(landWall.z)
+    expect(landEnd.z).toBeLessThan(sea.z)
+    let tip = { x: Infinity, z: 0 }
+    for (const index of [0, 1, 2, 3]) {
+      const ridge = tfw.find((body) => body.id === `e-ridge-l-${index}`)!
+      for (const station of brConvexSwStations('l', index)) {
+        const x = ridge.nested.x + station.x
+        if (x < tip.x) tip = { x, z: ridge.nested.z + station.z }
+      }
+    }
+    expect(sea.x).toBeCloseTo(tip.x - CHANNEL_RADIUS)
+    expect(sea.z).toBeCloseTo(tip.z)
+    expect(sea.x).toBeLessThan(tip.x)
   })
 })

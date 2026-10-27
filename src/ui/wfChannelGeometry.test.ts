@@ -64,4 +64,16 @@ describe('halfChannelGeometry', () => {
     expect(land).toBe(true)
     geometry.dispose()
   })
+
+  it('stretches along Z when a longer length is passed', () => {
+    const length = CHANNEL_LENGTH * 1.8
+    const geometry = halfChannelGeometry(length)
+    geometry.computeBoundingBox()
+    const box = geometry.boundingBox
+    if (!box) throw new Error('missing box')
+    expect(box.min.z).toBeCloseTo(-length / 2, 5)
+    expect(box.max.z).toBeCloseTo(length / 2, 5)
+    expect(box.max.x).toBeCloseTo(CHANNEL_RADIUS, 5)
+    geometry.dispose()
+  })
 })

@@ -23,12 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The Tfw left flank (`BRconvexSW`) keeps the asymmetric right flank’s Z stack and yaw, mirrored onto the tidal channel’s left wall. A half channel (`e-channel-l`) sits one radius left of that set’s outer tip and runs landward until its landward end meets the tidal channel’s landward left wall.
 - The tidal channel is 1.5× the half-channel length, with the extra length landward. Width stays at the half-channel width until the half channel's landward end, then flares on a curve concave toward the centre to 5× width at the seaward tip.
 - The Tfw schematic (`tfwEcsSchematic`) yaws the tidal channel and left beach ridges **+15°** toward **+X**. The **−X** ridge stack shifts landward by **0.5** channel-end Z thicknesses while keeping the Wf stack spacing. The **+X** stack stays on the Wf **Z** positions. Each channel end sits on the yawed funnel wall. The mouth-bar complex is swung onto the channel centreline. Mouth-bar yaws follow that axis, plus each fan’s Wf offset, plus an outward yaw from **0°** on the axis to **5°** on the outer bars. The seaward mouth-bar fan is spread to half the Wf alongshore overlap; the landward fan keeps the Wf overlap of **0.36**.
 
 ### Added
 
-- `BRconvexSW` (`src/ui/brConvexSwgeometry.ts`) is a beach-ridge bow, convex toward seaward, with half the height of the earlier semicircular U and the same cross-section from tip to tip. The Tfw left flank (`e-ridge-l-*`) draws it in the same nested poses as before. The right flank stays asymmetric.
+- `BRconvexSW` (`src/ui/brConvexSwgeometry.ts`) is a beach-ridge bow, convex toward seaward, with half the height of the earlier semicircular U and the same cross-section from tip to tip. The Tfw left flank (`e-ridge-l-*`) draws it. The right flank stays asymmetric.
 - A pin at latitude -19.984295231442236, longitude 119.165775381814 opens `TfwECSschematic`. The scene keeps the Wf element-complex stack. The channel is the tidal funnel. Both beach-ridge flanks use the asymmetric mesh, shifted so each channel end follows the funnel wall. Mouth bars keep the Wf arrangement.
 - `src/ui/tidalChannelGeometry.ts` builds a funnel tidal channel: half-cylinder cross-section (flat top, curved base), 1.5× the half-channel length, seaward opening **5×** the landward width. The Tfw scene uses it for the channel.
 

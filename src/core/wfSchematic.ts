@@ -67,6 +67,11 @@ const MOUTH_FAN_INNER_X = 0.16
 export const MOUTH_FAN_X_SCALE =
   (MOUTH_BAR_SCALE.x - 2 * (MOUTH_BAR_SCALE.x - 2 * MOUTH_FAN_INNER_X)) / (2 * MOUTH_FAN_INNER_X)
 
+/** Centre gap of the fan's inner pair before `MOUTH_FAN_X_SCALE`. */
+export function mouthFanReferenceGap(): number {
+  return 2 * MOUTH_FAN_INNER_X
+}
+
 /** How far the ridge base (lowest Y) sits seaward of the crest before the face is flattened. */
 export const RIDGE_BASE_SEAWARD = 0.12
 

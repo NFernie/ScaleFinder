@@ -4,6 +4,9 @@ import {
   beachRidgeStations,
   bodyCenter,
   EXPLODE_SPREAD,
+  MOUTH_BAR_SCALE,
+  MOUTH_FAN_X_SCALE,
+  mouthFanReferenceGap,
   sceneAt as wfSceneAt,
   type PlacedBody,
   type SceneBody,
@@ -15,11 +18,22 @@ export const TFW_ECS_ANCHOR = { lat: -19.984295231442236, lng: 119.165775381814 
 /** Channel and −X (left) beach ridges swing toward +X. */
 export const TFW_CHANNEL_YAW_RAD = (15 * Math.PI) / 180
 
-/** Mouth-bar complex bodies get an extra yaw toward −X. */
-export const TFW_MOUTH_COMPLEX_YAW_RAD = (-10 * Math.PI) / 180
+/** Extra mouth-bar yaw. −5° is 5° toward +X from the previous −10°. */
+export const TFW_MOUTH_COMPLEX_YAW_RAD = (-5 * Math.PI) / 180
 
 /** How many beach-ridge Z thicknesses the −X stack shifts landward. */
-export const TFW_LEFT_FLANK_LANDWARD_ELEMENTS = 1.5
+export const TFW_LEFT_FLANK_LANDWARD_ELEMENTS = 0.5
+
+/**
+ * Multiplier on mouth-bar nested X so the inner-pair overlap is half the Wf overlap.
+ * Spreading the centres is what reduces alongshore overlap.
+ */
+export function tfwMouthBarXSpread(): number {
+  const gap = mouthFanReferenceGap() * MOUTH_FAN_X_SCALE
+  const overlap = MOUTH_BAR_SCALE.x - gap
+  const targetGap = MOUTH_BAR_SCALE.x - overlap * 0.5
+  return targetGap / gap
+}
 
 /** Fore-aft Z extent of one beach ridge at the channel end. */
 export function beachRidgeChannelEndZThickness(): number {
@@ -143,6 +157,12 @@ function applyTfwYaw(body: SceneBody): SceneBody {
   return body
 }
 
+function applyMouthBarXSpread(body: SceneBody): SceneBody {
+  if (body.kind !== 'mouth-bar') return body
+  const spread = tfwMouthBarXSpread()
+  return { ...body, nested: { ...body.nested, x: body.nested.x * spread } }
+}
+
 function applyLeftFlankLandwardZ(body: SceneBody, deltaZ: number): SceneBody {
   if (!body.id.startsWith('e-ridge-l-')) return body
   return { ...body, nested: { ...body.nested, z: body.nested.z + deltaZ } }
@@ -158,7 +178,7 @@ function shiftedBody(body: SceneBody, bodiesForShift: SceneBody[]): SceneBody {
 
 function sceneBodiesAtRest(): SceneBody[] {
   const wf = wfSceneAt(0)
-  const yawed = wf.map((body) => applyTfwYaw({ ...body, yaw: body.yaw }))
+  const yawed = wf.map((body) => applyMouthBarXSpread(applyTfwYaw({ ...body, yaw: body.yaw })))
   const withLandward = yawed.map((body) => applyLeftFlankLandwardZ(body, tfwLeftFlankLandwardDeltaZ()))
   return withLandward.map((body) => shiftedBody(body, withLandward))
 }
@@ -177,8 +197,9 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * Tfw element complex set. Same ranks, mouth-bar fans, and ridge stack as the
  * symmetric Wf scene. The channel is the tidal funnel. Both beach-ridge flanks
  * use the asymmetric loft. The channel and left flank yaw +15° toward +X.
- * The left flank keeps its stack spacing and shifts landward by 1.5
+ * The left flank keeps its stack spacing and shifts landward by 0.5
  * channel-end Z thicknesses. The right flank stays on the Wf Z stack.
+ * Mouth bars take an extra −5° yaw and half the Wf alongshore overlap.
  * Each channel end sits on its wall.
  */
 export function sceneAt(explode: number): PlacedBody[] {

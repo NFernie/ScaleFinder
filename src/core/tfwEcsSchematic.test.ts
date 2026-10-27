@@ -8,10 +8,11 @@ import {
   TFW_LEFT_FLANK_LANDWARD_ELEMENTS,
   beachRidgeChannelEndZThickness,
   sceneAt as tfwSceneAt,
-  tfwRidgeShift,
   tfwLeftFlankLandwardDeltaZ,
+  tfwMouthBarXSpread,
+  tfwRidgeShift,
 } from './tfwEcsSchematic'
-import { beachRidgeStations, sceneAt as wfSceneAt } from './wfSchematic'
+import { MOUTH_BAR_SCALE, beachRidgeStations, mouthFanReferenceGap, MOUTH_FAN_X_SCALE, sceneAt as wfSceneAt } from './wfSchematic'
 
 describe('tfwEcsSchematic', () => {
   it('keeps the Wf stack, swaps in the tidal channel, and steps both ridge flanks out to the funnel', () => {
@@ -26,7 +27,15 @@ describe('tfwEcsSchematic', () => {
 
     const wfMouth0 = wf.find((body) => body.id === 'e-mouth-0')!
     const tfwMouth0 = tfw.find((body) => body.id === 'e-mouth-0')!
+    expect(TFW_MOUTH_COMPLEX_YAW_RAD).toBeCloseTo((-5 * Math.PI) / 180)
     expect(tfwMouth0.yaw).toBeCloseTo((wfMouth0.yaw ?? 0) + TFW_MOUTH_COMPLEX_YAW_RAD)
+    const spread = tfwMouthBarXSpread()
+    const referenceGap = mouthFanReferenceGap() * MOUTH_FAN_X_SCALE
+    expect(MOUTH_BAR_SCALE.x - referenceGap * spread).toBeCloseTo((MOUTH_BAR_SCALE.x - referenceGap) * 0.5)
+    const wfOffAxis = wf.find((body) => body.id === 'e-mouth-1')!
+    const tfwOffAxis = tfw.find((body) => body.id === 'e-mouth-1')!
+    expect(tfwOffAxis.nested.x).toBeCloseTo(wfOffAxis.nested.x * spread)
+    expect(Math.abs(tfwOffAxis.nested.x)).toBeGreaterThan(Math.abs(wfOffAxis.nested.x))
 
     for (const id of ['e-ridge-l-0', 'e-ridge-l-3']) {
       expect(tfw.find((body) => body.id === id)!.yaw).toBeCloseTo(TFW_CHANNEL_YAW_RAD)
@@ -50,9 +59,9 @@ describe('tfwEcsSchematic', () => {
     const wfLeftSea = wf.find((body) => body.id === 'e-ridge-l-3')!
     const landSeaGap = wfLeftSea.nested.z - wfLeftLand.nested.z
     const landward = tfwLeftFlankLandwardDeltaZ()
-    expect(TFW_LEFT_FLANK_LANDWARD_ELEMENTS).toBe(1.5)
+    expect(TFW_LEFT_FLANK_LANDWARD_ELEMENTS).toBe(0.5)
     expect(beachRidgeChannelEndZThickness()).toBeGreaterThan(0)
-    expect(landward).toBeCloseTo(-1.5 * beachRidgeChannelEndZThickness())
+    expect(landward).toBeCloseTo(-TFW_LEFT_FLANK_LANDWARD_ELEMENTS * beachRidgeChannelEndZThickness())
     expect(leftSea.nested.z - leftLand.nested.z).toBeCloseTo(landSeaGap)
     expect(leftSea.nested.z - wfLeftSea.nested.z).toBeCloseTo(landward)
     expect(leftLand.nested.z - wfLeftLand.nested.z).toBeCloseTo(landward)

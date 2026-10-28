@@ -52,6 +52,7 @@ describe('tfwEcsSchematic', () => {
       'e-ridge-hl-1',
       'e-ridge-hl-2',
       'e-ridge-hl-3',
+      'e-deltaplain',
     ])
     expect(tfw.find((body) => body.id === 'ecs')?.name).toBe('Tfw element complex set')
 

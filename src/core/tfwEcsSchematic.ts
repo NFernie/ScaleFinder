@@ -1,4 +1,5 @@
 import { brConvexSwStations } from './brConvexSwPlan'
+import { DELTA_PLAIN_THICKNESS, deltaPlainShape } from './deltaplain'
 import { tidalChannelFrameAt, tidalChannelRadiusAt, tidalChannelSpan } from './tidalChannel'
 import {
   beachRidgeRing,
@@ -602,7 +603,10 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * second section runs from that landward end to the tidal channel's landward
  * tip. A mouth-bar complex copied from the Wf offsets sits on the half channel.
  * A symmetric beach-ridge complex sits on the left of that half channel with
- * the same offsets. The water slab grows to cover that extension.
+ * the same offsets. The water slab grows to cover that extension. A delta
+ * plain sits at the base of the most landward beach ridge, follows the
+ * landward toe of each ridge set, stops at the channels, and runs to the
+ * water slab's landward edge.
  * Mouth-bar positions are swung about the channel so the fan centreline
  * lies on the channel centreline, then each bar's channel-local X is scaled
  * with the local half-width so it keeps the same place between the margins.
@@ -647,5 +651,23 @@ export function sceneAt(explode: number): PlacedBody[] {
               body.id === 'e-ridge-hl-0')
     placed.push({ ...body, position, showLabel })
   }
+  const shape = deltaPlainShape('tfw', [ground, ...rested.filter((body) => body.kind !== 'ground'), ...extras])
+  const plain: SceneBody = {
+    id: 'e-deltaplain',
+    name: 'Delta plain',
+    rank: 'element',
+    parentId: 'ecs',
+    kind: 'delta-plain',
+    nested: {
+      x: shape.origin.x,
+      y: shape.y - DELTA_PLAIN_THICKNESS / 2,
+      z: shape.origin.z,
+    },
+  }
+  placed.push({
+    ...plain,
+    position: spread === 1 ? plain.nested : explodePosition(plain, spread),
+    showLabel: t > 2 / 3,
+  })
   return placed
 }

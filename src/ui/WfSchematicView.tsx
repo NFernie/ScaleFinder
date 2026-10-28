@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { sceneAt as asymSceneAt } from '../core/asymWfSchematic'
+import { DELTA_PLAIN_COLOUR, deltaPlainShape } from '../core/deltaplain'
 import { beachRidgeMesh, channelMesh, type SchematicSceneId } from '../core/schematicScene'
 import { sceneAt as tfwSceneAt } from '../core/tfwEcsSchematic'
 import {
@@ -15,6 +16,7 @@ import {
   type SolidKind,
 } from '../core/wfSchematic'
 import { asymmetricBeachRidgeGeometry } from './asymmetricBeachRidgeGeometry'
+import { deltaPlainGeometry } from './deltaplain'
 import { beachRidgeGeometry } from './beachRidgeGeometry'
 import { brConvexSwGeometry } from './brConvexSwgeometry'
 import { halfChannelGeometry } from './halfChannelGeometry'
@@ -57,6 +59,7 @@ const COLOUR: Record<SolidKind, number> = {
   channel: 0xf97316,
   'mouth-bar': 0x4ade80,
   'beach-ridge': 0xeab308,
+  'delta-plain': DELTA_PLAIN_COLOUR,
   group: 0xe2e8f0,
 }
 
@@ -77,6 +80,7 @@ function geometryFor(scene: SchematicSceneId, body: PlacedBody): THREE.BufferGeo
     return channelMesh(scene) === 'tidal' ? tidalChannelGeometry() : halfChannelGeometry()
   }
   if (body.kind === 'mouth-bar') return mouthBarGeometry()
+  if (body.kind === 'delta-plain') return deltaPlainGeometry(deltaPlainShape(scene, layoutAt(scene, 0)))
   if (body.kind === 'beach-ridge') {
     const index = Number(body.id.slice(body.id.lastIndexOf('-') + 1))
     const side = body.id.includes('-r-') ? 'r' : 'l'

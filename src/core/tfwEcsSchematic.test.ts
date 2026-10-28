@@ -16,11 +16,15 @@ import {
 } from './tfwEcsSchematic'
 import {
   CHANNEL_RADIUS,
+  GROUND_THICKNESS,
   MOUTH_BAR_SCALE,
   beachRidgeStations,
   mouthFanReferenceGap,
   MOUTH_FAN_X_SCALE,
   sceneAt as wfSceneAt,
+  WATER_SLAB_DEPTH,
+  WATER_SLAB_WIDTH,
+  waterlineY,
 } from './wfSchematic'
 
 describe('tfwEcsSchematic', () => {
@@ -42,6 +46,12 @@ describe('tfwEcsSchematic', () => {
       'e-channel-l',
       'e-channel-l-join',
       ...leftMouthIds,
+      'ec-ridge-hl',
+      'es-ridge-hl',
+      'e-ridge-hl-0',
+      'e-ridge-hl-1',
+      'e-ridge-hl-2',
+      'e-ridge-hl-3',
     ])
     expect(tfw.find((body) => body.id === 'ecs')?.name).toBe('Tfw element complex set')
 
@@ -195,6 +205,7 @@ describe('tfwEcsSchematic', () => {
 
     expect(channelMesh('tfw')).toBe('tidal')
     expect(channelMesh('wf')).toBe('half')
+    expect(beachRidgeMesh('tfw', 'e-ridge-hl-2')).toBe('symmetric')
     expect(beachRidgeMesh('tfw', 'e-ridge-l-2')).toBe('convex-sw')
     expect(beachRidgeMesh('tfw', 'e-ridge-r-2')).toBe('asymmetric')
     expect(beachRidgeMesh('wf', 'e-ridge-r-2')).toBe('symmetric')
@@ -273,5 +284,44 @@ describe('tfwEcsSchematic', () => {
     expect(tfw.find((body) => body.id === 'ec-mouth-l')?.parentId).toBe('ecs')
     expect(tfw.find((body) => body.id === 'es-mouth-l')?.parentId).toBe('ec-mouth-l')
     expect(tfw.filter((body) => body.id.startsWith('e-mouth-l-')).length).toBe(18)
+
+    const copiedRidge = tfw.find((body) => body.id === 'e-ridge-hl-0')!
+    const sourceRidge = wf.find((body) => body.id === 'e-ridge-l-0')!
+    const ridgeDx = sourceRidge.nested.x - wfChannel.nested.x
+    const ridgeDy = sourceRidge.nested.y - wfChannel.nested.y
+    const ridgeDz = sourceRidge.nested.z - wfChannel.nested.z
+    expect(copiedRidge.nested.x).toBeCloseTo(half.nested.x + ridgeDx * Math.cos(halfYaw) + ridgeDz * Math.sin(halfYaw))
+    expect(copiedRidge.nested.z).toBeCloseTo(half.nested.z - ridgeDx * Math.sin(halfYaw) + ridgeDz * Math.cos(halfYaw))
+    expect(copiedRidge.nested.y).toBeCloseTo(half.nested.y + ridgeDy)
+    expect(copiedRidge.yaw ?? 0).toBeCloseTo(halfYaw)
+    expect(copiedRidge.parentId).toBe('es-ridge-hl')
+    expect(copiedRidge.kind).toBe('beach-ridge')
+    expect(tfw.find((body) => body.id === 'ec-ridge-hl')?.parentId).toBe('ecs')
+    expect(tfw.find((body) => body.id === 'es-ridge-hl')?.parentId).toBe('ec-ridge-hl')
+
+    const ground = tfw.find((body) => body.id === 'ecs')!
+    expect(wf.find((body) => body.id === 'ecs')!.groundSpan).toBeUndefined()
+    expect(ground.groundSpan!.width).toBeGreaterThan(WATER_SLAB_WIDTH)
+    expect(ground.groundSpan!.depth).toBeGreaterThanOrEqual(WATER_SLAB_DEPTH)
+    expect(ground.nested.y + GROUND_THICKNESS / 2).toBeCloseTo(waterlineY())
+    const inside = (point: { x: number; z: number }) => {
+      expect(Math.abs(point.x - ground.nested.x)).toBeLessThanOrEqual(ground.groundSpan!.width / 2)
+      expect(Math.abs(point.z - ground.nested.z)).toBeLessThanOrEqual(ground.groundSpan!.depth / 2)
+    }
+    const wfGround = wf.find((body) => body.id === 'ecs')!
+    inside({ x: wfGround.nested.x - WATER_SLAB_WIDTH / 2, z: wfGround.nested.z - WATER_SLAB_DEPTH / 2 })
+    inside({ x: wfGround.nested.x + WATER_SLAB_WIDTH / 2, z: wfGround.nested.z + WATER_SLAB_DEPTH / 2 })
+    inside(landEnd)
+    const onSlab = (body: (typeof tfw)[number], index: number) => {
+      const stations = beachRidgeStations('l', index)
+      const station = stations[stations.length - 1]
+      const yaw = body.yaw ?? 0
+      inside({
+        x: body.nested.x + station.x * Math.cos(yaw) + station.z * Math.sin(yaw),
+        z: body.nested.z - station.x * Math.sin(yaw) + station.z * Math.cos(yaw),
+      })
+    }
+    onSlab(copiedRidge, 0)
+    onSlab(tfw.find((body) => body.id === 'e-ridge-hl-3')!, 3)
   })
 })

@@ -9,6 +9,8 @@ import {
   sceneAt as wfSceneAt,
   WATER_COLOUR,
   WATER_OPACITY,
+  WATER_SLAB_DEPTH,
+  WATER_SLAB_WIDTH,
   type PlacedBody,
   type SolidKind,
 } from '../core/wfSchematic'
@@ -65,7 +67,11 @@ function layoutAt(scene: SchematicSceneId, explode: number): PlacedBody[] {
 }
 
 function geometryFor(scene: SchematicSceneId, body: PlacedBody): THREE.BufferGeometry {
-  if (body.kind === 'ground') return new THREE.BoxGeometry(8, GROUND_THICKNESS, 6)
+  if (body.kind === 'ground') {
+    const width = body.groundSpan?.width ?? WATER_SLAB_WIDTH
+    const depth = body.groundSpan?.depth ?? WATER_SLAB_DEPTH
+    return new THREE.BoxGeometry(width, GROUND_THICKNESS, depth)
+  }
   if (body.kind === 'channel') {
     if (body.channelLength != null) return halfChannelGeometry(body.channelLength)
     return channelMesh(scene) === 'tidal' ? tidalChannelGeometry() : halfChannelGeometry()

@@ -20,6 +20,8 @@ export interface SceneBody {
   yaw?: number
   /** Half-channel length when this body is longer than `CHANNEL_LENGTH`. */
   channelLength?: number
+  /** Plan size of a ground slab when it is larger than the default water slab. */
+  groundSpan?: { width: number; depth: number }
 }
 
 export interface PlacedBody extends SceneBody {
@@ -101,6 +103,10 @@ export const RIDGE_ANGLE_LANDWARD_DROP = 0.12
 
 /** Thickness of the water-line slab. Its top is the channel base. */
 export const GROUND_THICKNESS = 0.05
+
+/** Default water-slab plan size. A scene may grow it with `SceneBody.groundSpan`. */
+export const WATER_SLAB_WIDTH = 8
+export const WATER_SLAB_DEPTH = 6
 
 /** Diagram water line. Opacity is 30%. */
 export const WATER_COLOUR = 0x38bdf8

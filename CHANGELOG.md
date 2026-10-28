@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The Tfw scene adds a symmetric beach-ridge complex on the left of the half channel, copying the Wf left-flank offsets and yaw. The Tfw water slab grows to cover that extended section, and still covers the original 8×6 slab. The Wf and asymmetric slabs stay 8×6.
 - The Tfw left half channel is twice the convex-set tip-to-tip length, the extra length landward. A second half channel runs from that landward end to the tidal channel’s landward tip. A mouth-bar complex on the half channel copies the Wf mouth-bar offsets.
 - The Tfw tidal channel turns 45° toward the left beach ridges from the landward tip to the flare start. The flare stays on the channel axis. The convex left flank moves landward by half one beach-ridge mesh width, and each channel end overlaps the left wall by 10% of the local channel width. The left half channel lines up with the most seaward convex ridge and runs landward along that set’s outer edge.
 - The Tfw tidal channel shell is 50% transparent (opacity 0.5). Its floor dips toward +Z: the landward tip stays at the semicircle depth, and the dip angle is 20% steeper than the angle from that floor down to the most landward mouth-bar base, so the seaward tip sits deeper.

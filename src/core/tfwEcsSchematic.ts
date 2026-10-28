@@ -11,6 +11,8 @@ import {
   MOUTH_FAN_X_SCALE,
   mouthFanReferenceGap,
   sceneAt as wfSceneAt,
+  WATER_SLAB_DEPTH,
+  WATER_SLAB_WIDTH,
   type PlacedBody,
   type SceneBody,
 } from './wfSchematic'
@@ -418,6 +420,123 @@ function leftHalfChannelJoin(half: SceneBody, bodies: SceneBody[]): SceneBody {
   )
 }
 
+function leftRidgeId(id: string): string {
+  if (id === 'ec-lobe') return 'ec-ridge-hl'
+  if (id === 'es-ridge-l') return 'es-ridge-hl'
+  return `e-ridge-hl-${id.slice('e-ridge-l-'.length)}`
+}
+
+/**
+ * Symmetric beach-ridge complex on the left of the half channel. Offsets and
+ * yaw match the Wf left flank relative to the Wf channel, then rotate with
+ * the half channel so the mesh hangs to its left.
+ */
+function leftRidgeComplex(half: SceneBody): SceneBody[] {
+  const wf = wfSceneAt(0)
+  const wfChannel = wf.find((body) => body.id === 'e-channel')!
+  const yaw = half.yaw ?? 0
+  return wf
+    .filter((body) => body.id === 'ec-lobe' || body.id === 'es-ridge-l' || body.id.startsWith('e-ridge-l-'))
+    .map((body) => {
+      const rotated = rotateYaw(
+        {
+          x: body.nested.x - wfChannel.nested.x,
+          y: body.nested.y - wfChannel.nested.y,
+          z: body.nested.z - wfChannel.nested.z,
+        },
+        yaw,
+      )
+      const name =
+        body.id === 'ec-lobe'
+          ? 'Symmetric beach-ridge complex'
+          : body.id === 'es-ridge-l'
+            ? 'Beach-ridge set left'
+            : body.name
+      const parentId = body.id === 'ec-lobe' ? 'ecs' : body.id === 'es-ridge-l' ? 'ec-ridge-hl' : 'es-ridge-hl'
+      return {
+        ...body,
+        id: leftRidgeId(body.id),
+        name,
+        parentId,
+        nested: {
+          x: half.nested.x + rotated.x,
+          y: half.nested.y + rotated.y,
+          z: half.nested.z + rotated.z,
+        },
+        yaw: (body.yaw ?? 0) + yaw,
+      }
+    })
+}
+
+/** Margin past the union so meshes are not flush with the water edge. */
+const WATER_SLAB_PAD = 0.4
+
+function footprintXZ(body: SceneBody): { x: number; z: number }[] {
+  const world = (x: number, z: number) => {
+    const point = worldFromNested(body, { x, y: 0, z })
+    return { x: point.x, z: point.z }
+  }
+  if (body.kind === 'channel') {
+    const half = (body.channelLength ?? CHANNEL_LENGTH) / 2
+    const radius = CHANNEL_RADIUS
+    return [
+      world(-radius, -half),
+      world(radius, -half),
+      world(-radius, half),
+      world(radius, half),
+    ]
+  }
+  if (body.kind === 'beach-ridge') {
+    const side = body.id.includes('-r-') ? 'r' : 'l'
+    const points: { x: number; z: number }[] = []
+    for (const station of beachRidgeStations(side, ridgeIndex(body.id))) {
+      for (const corner of beachRidgeRing(station)) {
+        const point = worldFromNested(body, corner)
+        points.push({ x: point.x, z: point.z })
+      }
+    }
+    return points
+  }
+  if (body.kind === 'mouth-bar') {
+    const rx = MOUTH_BAR_SCALE.x / 2
+    const rz = MOUTH_BAR_SCALE.z / 2
+    return [world(-rx, -rz), world(rx, -rz), world(-rx, rz), world(rx, rz)]
+  }
+  return []
+}
+
+/**
+ * Grow the Tfw water slab so it still covers the default 8×6 rectangle and
+ * also the half-channel extension. Y stays put, so the top remains the waterline.
+ */
+function extendWaterSlab(ecs: SceneBody, extras: SceneBody[]): SceneBody {
+  let minX = ecs.nested.x - WATER_SLAB_WIDTH / 2
+  let maxX = ecs.nested.x + WATER_SLAB_WIDTH / 2
+  let minZ = ecs.nested.z - WATER_SLAB_DEPTH / 2
+  let maxZ = ecs.nested.z + WATER_SLAB_DEPTH / 2
+  for (const body of extras) {
+    for (const corner of footprintXZ(body)) {
+      minX = Math.min(minX, corner.x)
+      maxX = Math.max(maxX, corner.x)
+      minZ = Math.min(minZ, corner.z)
+      maxZ = Math.max(maxZ, corner.z)
+    }
+  }
+  minX -= WATER_SLAB_PAD
+  maxX += WATER_SLAB_PAD
+  minZ -= WATER_SLAB_PAD
+  maxZ += WATER_SLAB_PAD
+  return {
+    ...ecs,
+    nested: {
+      x: (minX + maxX) / 2,
+      y: ecs.nested.y,
+      z: (minZ + maxZ) / 2,
+    },
+    groundSpan: { width: maxX - minX, depth: maxZ - minZ },
+  }
+}
+
 function leftMouthId(id: string): string {
   if (id === 'ec-mouth') return 'ec-mouth-l'
   if (id === 'es-mouth') return 'es-mouth-l'
@@ -482,6 +601,8 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * channel is twice the tip-to-tip length, the extra length landward, and a
  * second section runs from that landward end to the tidal channel's landward
  * tip. A mouth-bar complex copied from the Wf offsets sits on the half channel.
+ * A symmetric beach-ridge complex sits on the left of that half channel with
+ * the same offsets. The water slab grows to cover that extension.
  * Mouth-bar positions are swung about the channel so the fan centreline
  * lies on the channel centreline, then each bar's channel-local X is scaled
  * with the local half-width so it keeps the same place between the margins.
@@ -495,8 +616,16 @@ export function sceneAt(explode: number): PlacedBody[] {
   const spread = 1 + (EXPLODE_SPREAD - 1) * t
   const wfPlaced = wfSceneAt(t)
   const rested = sceneBodiesAtRest()
+  const half = leftHalfChannelBody(rested)
+  const extras = [
+    half,
+    leftHalfChannelJoin(half, rested),
+    ...leftMouthComplex(half),
+    ...leftRidgeComplex(half),
+  ]
+  const ground = extendWaterSlab(rested.find((body) => body.id === 'ecs')!, extras)
   const placed = wfPlaced.map((item) => {
-    const body = rested.find((entry) => entry.id === item.id)!
+    const body = item.id === 'ecs' ? ground : rested.find((entry) => entry.id === item.id)!
     const position = spread === 1 ? body.nested : explodePosition(body, spread)
     return {
       ...body,
@@ -504,8 +633,6 @@ export function sceneAt(explode: number): PlacedBody[] {
       showLabel: item.showLabel,
     }
   })
-  const half = leftHalfChannelBody(rested)
-  const extras = [half, leftHalfChannelJoin(half, rested), ...leftMouthComplex(half)]
   for (const body of extras) {
     const position = spread === 1 ? body.nested : explodePosition(body, spread)
     const showLabel =
@@ -513,7 +640,11 @@ export function sceneAt(explode: number): PlacedBody[] {
         ? t > 0
         : body.rank === 'element-set'
           ? t > 1 / 3
-          : t > 2 / 3 && (body.id === 'e-channel-l' || body.id === 'e-channel-l-join' || body.id === 'e-mouth-l-0')
+          : t > 2 / 3 &&
+            (body.id === 'e-channel-l' ||
+              body.id === 'e-channel-l-join' ||
+              body.id === 'e-mouth-l-0' ||
+              body.id === 'e-ridge-hl-0')
     placed.push({ ...body, position, showLabel })
   }
   return placed

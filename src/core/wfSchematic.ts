@@ -76,6 +76,35 @@ export function mouthFanReferenceGap(): number {
   return 2 * MOUTH_FAN_INNER_X
 }
 
+/**
+ * Filled V in front of the channel. The apex is the centre bar.
+ * The next row is one left and one right. Each of those then adds an
+ * outer bar, a bar back toward the opposite side of the axis, and one
+ * more bar along its own arm. The two axis bars overlap.
+ */
+const MOUTH_FAN: Array<{ x: number; z: number }> = [
+  { x: 0, z: 0 },
+  { x: -0.32, z: 0.18 },
+  { x: 0.32, z: 0.18 },
+  { x: -0.64, z: 0.36 },
+  { x: 0.16, z: 0.34 },
+  { x: -0.48, z: 0.5 },
+  { x: 0.64, z: 0.36 },
+  { x: -0.16, z: 0.34 },
+  { x: 0.48, z: 0.5 },
+]
+
+/**
+ * Drop in Y per unit +Z from the landward mouth-bar rank to the seaward rank.
+ * Each rank drops `MOUTH_BAR_SCALE.y * MOUTH_BAR_STEP`; the run is that fan's Z span.
+ */
+export function mouthBarSeawardSlope(): number {
+  const levels = [...new Set(MOUTH_FAN.map((point) => point.z))].sort((a, b) => a - b)
+  const drop = MOUTH_BAR_SCALE.y * MOUTH_BAR_STEP
+  const span = levels[levels.length - 1] - levels[0]
+  return ((levels.length - 1) * drop) / span
+}
+
 /** How far the ridge base (lowest Y) sits seaward of the crest before the face is flattened. */
 export const RIDGE_BASE_SEAWARD = 0.12
 
@@ -162,7 +191,7 @@ export function bodyCenter(body: SceneBody): { x: number; y: number; z: number }
   }
 }
 
-const RIDGE_COUNT = 4
+const RIDGE_COUNT = 5
 const RIDGE_INNER = CHANNEL_RADIUS
 const RIDGE_OUTER = 3.45
 const RIDGE_Z_BASE = -0.55
@@ -179,16 +208,17 @@ const CHANNEL_FLAT_Y = 0.32
 const RIDGE_NEST_Y = 0.04
 /** Reference crest the seaward Y step is expressed against. */
 const RIDGE_BASE_REF = 0.36
-/**
- * Downstep that still seats the most seaward ridge. The stack slope now follows
- * the mouth bars; this anchor keeps that ridge's base, its crest on the channel
- * top, and the mouth-bar seat.
- */
-const RIDGE_SEAWARD_ANCHOR_DOWNSTEP = 0.02
 
-/** Base of the most seaward beach ridge. Stays on the pre-slope-match seat. */
+/**
+ * Fraction of the reference crest between one beach ridge and the next seaward
+ * ridge. The Y drop is the mouth-bar slope times the channel-end Z step.
+ * The landward ridge stays at {@link RIDGE_NEST_Y}; each step seaward drops.
+ */
+export const RIDGE_DOWNSTEP = (mouthBarSeawardSlope() * RIDGE_Z_STEP) / RIDGE_BASE_REF
+
+/** Base of the most seaward beach ridge. */
 export function seawardRidgeBaseY(): number {
-  return RIDGE_NEST_Y - (RIDGE_COUNT - 1) * RIDGE_BASE_REF * RIDGE_SEAWARD_ANCHOR_DOWNSTEP
+  return RIDGE_NEST_Y - (RIDGE_COUNT - 1) * RIDGE_BASE_REF * RIDGE_DOWNSTEP
 }
 
 /** How far the tip crest sits above the water line on the lowest ridge. */
@@ -382,24 +412,6 @@ export function landwardMouthBarBaseY(): number {
   return rimY + mouthBarBaseOffset(halfZ, halfZ)
 }
 
-/**
- * Filled V in front of the channel. The apex is the centre bar.
- * The next row is one left and one right. Each of those then adds an
- * outer bar, a bar back toward the opposite side of the axis, and one
- * more bar along its own arm. The two axis bars overlap.
- */
-const MOUTH_FAN: Array<{ x: number; z: number }> = [
-  { x: 0, z: 0 },
-  { x: -0.32, z: 0.18 },
-  { x: 0.32, z: 0.18 },
-  { x: -0.64, z: 0.36 },
-  { x: 0.16, z: 0.34 },
-  { x: -0.48, z: 0.5 },
-  { x: 0.64, z: 0.36 },
-  { x: -0.16, z: 0.34 },
-  { x: 0.48, z: 0.5 },
-]
-
 /** Top of the water-line slab. It meets the base of the channel. */
 export function waterlineY(): number {
   const span = channelSpan()
@@ -433,23 +445,6 @@ function mouthFans(): { seaward: ReturnType<typeof layMouthFan>; proximal: Retur
   }
 }
 
-/**
- * Drop in Y per unit +Z from the landward mouth-bar rank to the seaward rank.
- * Each rank drops `MOUTH_BAR_SCALE.y * MOUTH_BAR_STEP`; the run is that fan's Z span.
- */
-export function mouthBarSeawardSlope(): number {
-  const levels = [...new Set(MOUTH_FAN.map((point) => point.z))].sort((a, b) => a - b)
-  const drop = MOUTH_BAR_SCALE.y * MOUTH_BAR_STEP
-  const span = levels[levels.length - 1] - levels[0]
-  return ((levels.length - 1) * drop) / span
-}
-
-/**
- * Fraction of the reference crest between one beach ridge and the next seaward
- * ridge. The Y drop is the mouth-bar slope times the channel-end Z step.
- */
-export const RIDGE_DOWNSTEP = (mouthBarSeawardSlope() * RIDGE_Z_STEP) / RIDGE_BASE_REF
-
 function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
   const sign = side === 'r' ? 1 : -1
   const parentId = `es-ridge-${side}`
@@ -460,7 +455,7 @@ function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
       rank: 'element-set',
       parentId: 'ec-lobe',
       kind: 'group',
-      nested: { x: sign * 1.7, y: 0.5, z: RIDGE_Z_BASE + 1.5 * RIDGE_Z_STEP + RIDGE_BOW * 0.45 },
+      nested: { x: sign * 1.7, y: 0.5, z: RIDGE_Z_BASE + ((RIDGE_COUNT - 1) / 2) * RIDGE_Z_STEP + RIDGE_BOW * 0.45 },
     },
   ]
   for (let index = 0; index < RIDGE_COUNT; index += 1) {
@@ -472,7 +467,7 @@ function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
       kind: 'beach-ridge',
       nested: {
         x: 0,
-        y: seawardRidgeBaseY() + (RIDGE_COUNT - 1 - index) * RIDGE_BASE_REF * RIDGE_DOWNSTEP,
+        y: RIDGE_NEST_Y - index * RIDGE_BASE_REF * RIDGE_DOWNSTEP,
         z: RIDGE_Z_BASE + index * RIDGE_Z_STEP,
       },
     })

@@ -68,6 +68,7 @@ describe('tfwEcsSchematic', () => {
       'e-ridge-hl-1',
       'e-ridge-hl-2',
       'e-ridge-hl-3',
+      'e-ridge-hl-4',
       'e-deltaplain',
     ])
     expect(tfw.find((body) => body.id === 'ecs')?.name).toBe('Tfw element complex set')
@@ -119,10 +120,10 @@ describe('tfwEcsSchematic', () => {
       expect(offset.x * axis.z - offset.z * axis.x).toBeCloseTo(0)
     }
 
-    for (const id of ['e-ridge-l-0', 'e-ridge-l-3', 'e-ridge-r-0', 'e-ridge-r-3']) {
+    for (const id of ['e-ridge-l-0', 'e-ridge-l-4', 'e-ridge-r-0', 'e-ridge-r-4']) {
       expect(tfw.find((body) => body.id === id)!.yaw ?? 0).toBe(0)
     }
-    for (const id of ['e-ridge-r-0', 'e-ridge-r-3']) {
+    for (const id of ['e-ridge-r-0', 'e-ridge-r-4']) {
       expect(tfw.find((body) => body.id === id)!.nested.z).toBeCloseTo(wf.find((body) => body.id === id)!.nested.z)
     }
     const meshWidth = tfwConvexSwMeshWidth()
@@ -209,8 +210,8 @@ describe('tfwEcsSchematic', () => {
       const hi = Math.max(zOf(span.landZ), zOf(span.seaZ))
       if (end.z >= lo && end.z <= hi) expect(end.z).toBeCloseTo(wall.z)
     }
-    for (const id of ['e-ridge-r-0', 'e-ridge-r-1', 'e-ridge-r-2', 'e-ridge-r-3']) onWall('r', id)
-    for (const id of ['e-ridge-l-0', 'e-ridge-l-1', 'e-ridge-l-2', 'e-ridge-l-3']) {
+    for (const id of ['e-ridge-r-0', 'e-ridge-r-1', 'e-ridge-r-2', 'e-ridge-r-3', 'e-ridge-r-4']) onWall('r', id)
+    for (const id of ['e-ridge-l-0', 'e-ridge-l-1', 'e-ridge-l-2', 'e-ridge-l-3', 'e-ridge-l-4']) {
       const end = channelEnd(id)
       const yaw = channel.yaw ?? 0
       const dx = end.x - channel.nested.x
@@ -258,7 +259,7 @@ describe('tfwEcsSchematic', () => {
       return tip
     }
     const landTip = outerTip(0)
-    const seaTip = outerTip(3)
+    const seaTip = outerTip(4)
     const edgeX = seaTip.x - landTip.x
     const edgeZ = seaTip.z - landTip.z
     const edge = Math.hypot(edgeX, edgeZ)
@@ -365,6 +366,6 @@ describe('tfwEcsSchematic', () => {
       })
     }
     onSlab(copiedRidge, 0)
-    onSlab(tfw.find((body) => body.id === 'e-ridge-hl-3')!, 3)
+    onSlab(tfw.find((body) => body.id === 'e-ridge-hl-4')!, 4)
   })
 })

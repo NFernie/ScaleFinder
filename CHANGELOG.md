@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Beach-ridge complexes in the Wf, asymmetric, and Tfw scenes step down toward +Z at the mouth-bar fan’s dy/dz (about 0.0114 per 0.34 channel-end step, down from 0.0072). The most seaward ridge base stays on the previous seat.
+- Beach-ridge complexes in the Wf, asymmetric, and Tfw scenes have five ridges per flank. The landward ridge stays at nested Y 0.04. Each more seaward ridge drops at the mouth-bar fan’s dy/dz (about 0.0114 per 0.34 channel-end step). Index 4 is the deepest and most seaward.
 - The Tfw tidal channel has three mouth-bar element complexes (proximal, middle seaward, and a third seaward fan copied from the middle with the same land→sea Y/Z step). The middle fan starts at half the Wf alongshore overlap, then the inner-pair centre gap shrinks **30%** (~**0.276** overlap). Outer bar yaws double toward ±X and taper to the channel axis at the centre; the Wf fan yaw on each bar doubles as well.
 - The Tfw scene adds a symmetric beach-ridge complex on the left of the half channel, copying the Wf left-flank offsets and yaw. The Tfw water slab grows to cover that extended section, and still covers the original 8×6 slab. The Wf and asymmetric slabs stay 8×6.
 - The Tfw left half channel is twice the convex-set tip-to-tip length, the extra length landward. A second half channel runs from that landward end to the tidal channel’s landward tip. A mouth-bar complex on the half channel copies the Wf mouth-bar offsets.

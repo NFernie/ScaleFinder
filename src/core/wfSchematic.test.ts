@@ -155,7 +155,8 @@ describe('wfSchematic', () => {
       const ridges = nested
         .filter((body) => body.id.startsWith(`e-ridge-${side}-`))
         .sort((a, b) => a.position.z - b.position.z)
-      expect(ridges).toHaveLength(4)
+      expect(ridges).toHaveLength(5)
+      expect(ridges[0].position.y).toBeCloseTo(0.04)
       expect(new Set(ridges.map((body) => body.parentId))).toEqual(new Set([`es-ridge-${side}`]))
       const seawardIndex = ridges.length - 1
       const stations = beachRidgeStations(side, seawardIndex)

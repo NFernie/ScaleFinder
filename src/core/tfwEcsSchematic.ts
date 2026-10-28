@@ -31,9 +31,9 @@ const MOUTH_BAR_PROXIMAL_TEMPLATE_X = 0.16
 const MOUTH_BAR_SIDE_YAW_INNER_X = 0.32
 const MOUTH_BAR_SIDE_YAW_OUTER_X = 0.64
 
-/** Extra yaw, in degrees, from the inner off-axis bars out to the outer bars. */
-const MOUTH_BAR_SIDE_YAW_INNER_DEG = 2
-const MOUTH_BAR_SIDE_YAW_OUTER_DEG = 5
+/** Extra yaw, in degrees, from the inner off-axis bars out to the outer bars (doubled on Tfw). */
+const MOUTH_BAR_SIDE_YAW_INNER_DEG = 4
+const MOUTH_BAR_SIDE_YAW_OUTER_DEG = 10
 
 /**
  * Extra yaw for one mouth bar from how far it sits off the channel.
@@ -75,13 +75,17 @@ export function tfwConvexSwMeshWidth(): number {
 }
 
 /**
- * Multiplier on the seaward mouth-bar nested X so that fan's inner-pair overlap
- * is half the Wf overlap. The landward (proximal) fan stays at the Wf overlap.
+ * Multiplier on the middle seaward fan's nested X. Overlap starts at half the
+ * Wf overlap, then tightens by {@link TFW_MOUTH_SEAWARD_OVERLAP_TIGHTEN}.
  */
+export const TFW_MOUTH_SEAWARD_OVERLAP_TIGHTEN = 0.3
+
 export function tfwMouthBarXSpread(): number {
   const gap = mouthFanReferenceGap() * MOUTH_FAN_X_SCALE
   const overlap = MOUTH_BAR_SCALE.x - gap
-  const targetGap = MOUTH_BAR_SCALE.x - overlap * 0.5
+  const halved = overlap * 0.5
+  const tightened = halved * (1 + TFW_MOUTH_SEAWARD_OVERLAP_TIGHTEN)
+  const targetGap = MOUTH_BAR_SCALE.x - tightened
   return targetGap / gap
 }
 
@@ -112,6 +116,158 @@ const NAMES: Record<string, string> = {
   ecs: 'Tfw element complex set',
   'ec-lobe': 'Tfw-Lobe',
   'ec-mouth': 'Tfw-Mouth Bar',
+  'ec-mouth-prox': 'Tfw-Mouth Bar proximal',
+  'ec-mouth-sea': 'Tfw-Mouth Bar seaward',
+}
+
+const TFW_MOUTH_COMPLEX_IDS = new Set([
+  'ec-mouth',
+  'ec-mouth-prox',
+  'ec-mouth-sea',
+  'es-mouth',
+  'es-mouth-prox',
+  'es-mouth-sea',
+])
+
+function isTidalSeawardMouthId(id: string): boolean {
+  return /^e-mouth-\d+$/.test(id)
+}
+
+function isTfwMouthBody(body: SceneBody): boolean {
+  return (
+    body.kind === 'mouth-bar' ||
+    TFW_MOUTH_COMPLEX_IDS.has(body.id) ||
+    body.id.startsWith('e-mouth-')
+  )
+}
+
+/** Landward-to-seaward step between Wf mouth-bar complexes (proximal → seaward fan). */
+function mouthComplexLandSeaStep(): { localDz: number; dy: number } {
+  const wf = wfSceneAt(0)
+  const prox = wf.find((body) => body.id === 'e-mouth-prox-0')!
+  const sea = wf.find((body) => body.id === 'e-mouth-0')!
+  return { localDz: sea.nested.z - prox.nested.z, dy: prox.nested.y - sea.nested.y }
+}
+
+function mouthSetNested(bars: SceneBody[]): { x: number; y: number; z: number } {
+  const sum = bars.reduce(
+    (total, bar) => ({
+      x: total.x + bar.nested.x,
+      y: total.y + bar.nested.y,
+      z: total.z + bar.nested.z,
+    }),
+    { x: 0, y: 0, z: 0 },
+  )
+  const count = bars.length || 1
+  return { x: sum.x / count, y: sum.y / count + 0.2, z: sum.z / count }
+}
+
+function advanceMouthBarAlongChannel(
+  body: SceneBody,
+  channel: SceneBody,
+  localDz: number,
+  dy: number,
+): SceneBody {
+  const yaw = channel.yaw ?? 0
+  const cos = Math.cos(yaw)
+  const sin = Math.sin(yaw)
+  const dx = body.nested.x - channel.nested.x
+  const dz = body.nested.z - channel.nested.z
+  const localX = dx * cos - dz * sin
+  const localZ = dx * sin + dz * cos
+  const rotated = rotateYaw({ x: localX, y: 0, z: localZ + localDz }, yaw)
+  return {
+    ...body,
+    nested: {
+      x: channel.nested.x + rotated.x,
+      y: body.nested.y - dy,
+      z: channel.nested.z + rotated.z,
+    },
+  }
+}
+
+/**
+ * Three tidal mouth-bar element complexes: proximal, middle seaward (tightened
+ * overlap), and a third seaward copy of the middle fan with the same land→sea
+ * Y and Z step as the Wf proximal→seaward pair.
+ */
+function splitTfwMouthComplexes(bodies: SceneBody[]): SceneBody[] {
+  const channel = bodies.find((body) => body.id === 'e-channel')
+  const ecMouth = bodies.find((body) => body.id === 'ec-mouth')
+  const esMouth = bodies.find((body) => body.id === 'es-mouth')
+  if (!channel || !ecMouth || !esMouth) return bodies
+
+  const proxBars = bodies.filter((body) => body.id.startsWith('e-mouth-prox-'))
+  const midBars = bodies
+    .filter((body) => isTidalSeawardMouthId(body.id))
+    .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
+  if (proxBars.length === 0 || midBars.length === 0) return bodies
+
+  const step = mouthComplexLandSeaStep()
+  const proxComplex: SceneBody = {
+    ...ecMouth,
+    id: 'ec-mouth-prox',
+    name: NAMES['ec-mouth-prox'],
+    parentId: 'ecs',
+    nested: mouthSetNested(proxBars),
+  }
+  const proxSet: SceneBody = {
+    id: 'es-mouth-prox',
+    name: 'Mouth-bar set proximal',
+    rank: 'element-set',
+    parentId: 'ec-mouth-prox',
+    kind: 'group',
+    nested: mouthSetNested(proxBars),
+  }
+  const proxReparented = proxBars.map((bar) => ({ ...bar, parentId: 'es-mouth-prox' }))
+
+  const midReparented = midBars.map((bar) => ({ ...bar, parentId: 'es-mouth' }))
+  const midSet: SceneBody = { ...esMouth, nested: mouthSetNested(midBars) }
+  const midComplex: SceneBody = { ...ecMouth, name: NAMES['ec-mouth'], nested: mouthSetNested(midBars) }
+
+  const seaBars = midReparented.map((bar, index) =>
+    advanceMouthBarAlongChannel(
+      { ...bar, id: `e-mouth-sea-${index}`, parentId: 'es-mouth-sea' },
+      channel,
+      step.localDz,
+      step.dy,
+    ),
+  )
+  const seaComplex: SceneBody = {
+    ...ecMouth,
+    id: 'ec-mouth-sea',
+    name: NAMES['ec-mouth-sea'],
+    parentId: 'ecs',
+    nested: mouthSetNested(seaBars),
+  }
+  const seaSet: SceneBody = {
+    id: 'es-mouth-sea',
+    name: 'Mouth-bar set seaward',
+    rank: 'element-set',
+    parentId: 'ec-mouth-sea',
+    kind: 'group',
+    nested: mouthSetNested(seaBars),
+  }
+
+  const skip = new Set([
+    ...proxBars.map((bar) => bar.id),
+    ...midBars.map((bar) => bar.id),
+    'ec-mouth',
+    'es-mouth',
+  ])
+  const rest = bodies.filter((body) => !skip.has(body.id))
+  return [
+    ...rest,
+    proxComplex,
+    proxSet,
+    ...proxReparented,
+    midComplex,
+    midSet,
+    ...midReparented,
+    seaComplex,
+    seaSet,
+    ...seaBars,
+  ]
 }
 
 function rotateYaw(point: { x: number; y: number; z: number }, yaw: number): { x: number; y: number; z: number } {
@@ -196,14 +352,10 @@ function applyTfwYaw(body: SceneBody): SceneBody {
   if (body.id === 'e-channel') {
     return { ...body, name: NAMES[body.id] ?? body.name, yaw: TFW_CHANNEL_YAW_RAD }
   }
-  if (
-    body.id === 'ec-mouth' ||
-    body.id === 'es-mouth' ||
-    body.kind === 'mouth-bar' ||
-    body.id.startsWith('e-mouth')
-  ) {
+  if (TFW_MOUTH_COMPLEX_IDS.has(body.id) || body.kind === 'mouth-bar' || body.id.startsWith('e-mouth-')) {
     const templateX = body.kind === 'mouth-bar' ? body.nested.x / MOUTH_FAN_X_SCALE : 0
-    return { ...body, name: NAMES[body.id] ?? body.name, yaw: tfwMouthBarYaw(yaw, templateX) }
+    const fanYaw = body.kind === 'mouth-bar' ? yaw * 2 : yaw
+    return { ...body, name: NAMES[body.id] ?? body.name, yaw: tfwMouthBarYaw(fanYaw, templateX) }
   }
   if (body.id in NAMES) {
     return { ...body, name: NAMES[body.id] ?? body.name }
@@ -216,7 +368,7 @@ function alignMouthBarsToChannel(bodies: SceneBody[]): SceneBody[] {
   const channel = bodies.find((body) => body.id === 'e-channel')
   if (!channel) return bodies
   return bodies.map((body) => {
-    const onFan = body.kind === 'mouth-bar' || body.id === 'ec-mouth' || body.id === 'es-mouth'
+    const onFan = isTfwMouthBody(body)
     if (!onFan) return body
     const rotated = rotateYaw(
       { x: body.nested.x - channel.nested.x, y: 0, z: body.nested.z - channel.nested.z },
@@ -234,7 +386,7 @@ function alignMouthBarsToChannel(bodies: SceneBody[]): SceneBody[] {
 }
 
 function applyMouthBarXSpread(body: SceneBody): SceneBody {
-  if (!body.id.startsWith('e-mouth-') || body.id.startsWith('e-mouth-prox-')) return body
+  if (!isTidalSeawardMouthId(body.id)) return body
   const spread = tfwMouthBarXSpread()
   return { ...body, nested: { ...body.nested, x: body.nested.x * spread } }
 }
@@ -325,7 +477,7 @@ function sceneBodiesAtRest(): SceneBody[] {
   )
   const channel = yawed.find((body) => body.id === 'e-channel')
   const margined = channel ? yawed.map((body) => applyMouthBarMargin(body, channel)) : yawed
-  return margined.map((body) => shiftedBody(body, margined))
+  return splitTfwMouthComplexes(margined.map((body) => shiftedBody(body, margined)))
 }
 
 function convexOuterTip(body: SceneBody): { x: number; z: number } {
@@ -611,9 +763,11 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * lies on the channel centreline, then each bar's channel-local X is scaled
  * with the local half-width so it keeps the same place between the margins.
  * Beach-ridge channel ends stay on those margins. Yaws follow that axis, plus each fan’s
- * Wf offset, plus up to 5° outward (0 on the axis and proximal bars).
- * The seaward fan is spread to half the Wf alongshore overlap; the
- * landward fan keeps the Wf overlap.
+ * Wf offset (doubled on each bar), plus up to 10° outward (0 on the axis).
+ * Three mouth-bar element complexes on the tidal channel: proximal, middle
+ * seaward (overlap half the Wf fan then tightened 30%), and a third seaward
+ * fan copied from the middle with the same land→sea Y/Z step. The landward
+ * fan keeps the Wf overlap.
  */
 export function sceneAt(explode: number): PlacedBody[] {
   const t = Math.min(1, Math.max(0, explode))
@@ -628,6 +782,8 @@ export function sceneAt(explode: number): PlacedBody[] {
     ...leftRidgeComplex(half),
   ]
   const ground = extendWaterSlab(rested.find((body) => body.id === 'ecs')!, extras)
+  const wfIds = new Set(wfSceneAt(0).map((body) => body.id))
+  const mouthExtras = rested.filter((body) => !wfIds.has(body.id))
   const placed = wfPlaced.map((item) => {
     const body = item.id === 'ecs' ? ground : rested.find((entry) => entry.id === item.id)!
     const position = spread === 1 ? body.nested : explodePosition(body, spread)
@@ -637,6 +793,16 @@ export function sceneAt(explode: number): PlacedBody[] {
       showLabel: item.showLabel,
     }
   })
+  for (const body of mouthExtras) {
+    const position = spread === 1 ? body.nested : explodePosition(body, spread)
+    const showLabel =
+      body.rank === 'element-complex'
+        ? t > 0
+        : body.rank === 'element-set'
+          ? t > 1 / 3
+          : t > 2 / 3 && body.id === 'e-mouth-sea-0'
+    placed.push({ ...body, position, showLabel })
+  }
   for (const body of extras) {
     const position = spread === 1 ? body.nested : explodePosition(body, spread)
     const showLabel =

@@ -41,8 +41,24 @@ describe('tfwEcsSchematic', () => {
           : `e-mouth-l-${body.id.slice('e-mouth-'.length)}`,
       ),
     ]
+    const mouthExtraIds = [
+      'ec-mouth-prox',
+      'es-mouth-prox',
+      'ec-mouth-sea',
+      'es-mouth-sea',
+      'e-mouth-sea-0',
+      'e-mouth-sea-1',
+      'e-mouth-sea-2',
+      'e-mouth-sea-3',
+      'e-mouth-sea-4',
+      'e-mouth-sea-5',
+      'e-mouth-sea-6',
+      'e-mouth-sea-7',
+      'e-mouth-sea-8',
+    ]
     expect(tfw.map((body) => body.id)).toEqual([
       ...wf.map((body) => body.id),
+      ...mouthExtraIds,
       'e-channel-l',
       'e-channel-l-join',
       ...leftMouthIds,
@@ -64,14 +80,14 @@ describe('tfwEcsSchematic', () => {
     expect(tfwMouthBarSideYawRad(0)).toBe(0)
     expect(tfwMouthBarSideYawRad(0.16)).toBe(0)
     expect(tfwMouthBarSideYawRad(-0.16)).toBe(0)
-    expect(tfwMouthBarSideYawRad(0.32) * (180 / Math.PI)).toBeCloseTo(2)
-    expect(tfwMouthBarSideYawRad(-0.32) * (180 / Math.PI)).toBeCloseTo(-2)
-    expect(tfwMouthBarSideYawRad(0.64) * (180 / Math.PI)).toBeCloseTo(5)
-    expect(tfwMouthBarSideYawRad(-0.64) * (180 / Math.PI)).toBeCloseTo(-5)
+    expect(tfwMouthBarSideYawRad(0.32) * (180 / Math.PI)).toBeCloseTo(4)
+    expect(tfwMouthBarSideYawRad(-0.32) * (180 / Math.PI)).toBeCloseTo(-4)
+    expect(tfwMouthBarSideYawRad(0.64) * (180 / Math.PI)).toBeCloseTo(10)
+    expect(tfwMouthBarSideYawRad(-0.64) * (180 / Math.PI)).toBeCloseTo(-10)
     const spread = tfwMouthBarXSpread()
     const referenceGap = mouthFanReferenceGap() * MOUTH_FAN_X_SCALE
     expect(MOUTH_BAR_SCALE.x - referenceGap).toBeCloseTo(0.36)
-    expect(MOUTH_BAR_SCALE.x - referenceGap * spread).toBeCloseTo(0.18)
+    expect(MOUTH_BAR_SCALE.x - referenceGap * spread).toBeCloseTo(0.234)
     const onChannel = (wfBody: (typeof wf)[number], tfwBody: (typeof tfw)[number], localX: number) => {
       const yaw = TFW_CHANNEL_YAW_RAD
       const dz = wfBody.nested.z - channel.nested.z
@@ -81,7 +97,7 @@ describe('tfwEcsSchematic', () => {
       expect(tfwBody.nested.x).toBeCloseTo(channel.nested.x + seatedX * cos + dz * sin)
       expect(tfwBody.nested.z).toBeCloseTo(channel.nested.z - seatedX * sin + dz * cos)
       const templateX = wfBody.nested.x / MOUTH_FAN_X_SCALE
-      expect(tfwBody.yaw).toBeCloseTo(tfwMouthBarYaw(wfBody.yaw ?? 0, templateX))
+      expect(tfwBody.yaw).toBeCloseTo(tfwMouthBarYaw((wfBody.yaw ?? 0) * 2, templateX))
     }
     const wfOffAxis = wf.find((body) => body.id === 'e-mouth-1')!
     const tfwOffAxis = tfw.find((body) => body.id === 'e-mouth-1')!
@@ -116,15 +132,20 @@ describe('tfwEcsSchematic', () => {
     for (const body of tfw) {
       const match = wf.find((item) => item.id === body.id)
       if (!match) continue
+      if (body.kind === 'mouth-bar' || body.id === 'ec-mouth' || body.id === 'es-mouth') continue
       expect(body.parentId).toEqual(match?.parentId)
       expect(body.position.y).toBeCloseTo(match?.position.y ?? 0)
       const leftFlank = body.id === 'es-ridge-l' || body.id.startsWith('e-ridge-l-')
       if (
         !leftFlank &&
         body.id !== 'e-channel' &&
-        body.kind !== 'mouth-bar' &&
         body.id !== 'ec-mouth' &&
-        body.id !== 'es-mouth'
+        body.id !== 'es-mouth' &&
+        !body.id.startsWith('e-mouth-') &&
+        body.id !== 'ec-mouth-prox' &&
+        body.id !== 'ec-mouth-sea' &&
+        body.id !== 'es-mouth-prox' &&
+        body.id !== 'es-mouth-sea'
       ) {
         expect(body.position.z).toBeCloseTo(match?.position.z ?? 0)
       }
@@ -285,6 +306,16 @@ describe('tfwEcsSchematic', () => {
     expect(tfw.find((body) => body.id === 'ec-mouth-l')?.parentId).toBe('ecs')
     expect(tfw.find((body) => body.id === 'es-mouth-l')?.parentId).toBe('ec-mouth-l')
     expect(tfw.filter((body) => body.id.startsWith('e-mouth-l-')).length).toBe(18)
+
+    expect(tfw.find((body) => body.id === 'ec-mouth-prox')?.parentId).toBe('ecs')
+    expect(tfw.find((body) => body.id === 'ec-mouth-sea')?.parentId).toBe('ecs')
+    expect(tfw.find((body) => body.id === 'e-mouth-prox-0')?.parentId).toBe('es-mouth-prox')
+    expect(tfw.find((body) => body.id === 'e-mouth-0')?.parentId).toBe('es-mouth')
+    expect(tfw.find((body) => body.id === 'e-mouth-sea-0')?.parentId).toBe('es-mouth-sea')
+    const mid0 = tfw.find((body) => body.id === 'e-mouth-0')!
+    const sea0 = tfw.find((body) => body.id === 'e-mouth-sea-0')!
+    expect(sea0.nested.y).toBeLessThan(mid0.nested.y)
+    expect(sea0.nested.z).toBeGreaterThan(mid0.nested.z)
 
     const copiedRidge = tfw.find((body) => body.id === 'e-ridge-hl-0')!
     const sourceRidge = wf.find((body) => body.id === 'e-ridge-l-0')!

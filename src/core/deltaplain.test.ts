@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   DELTA_PLAIN_COLOUR,
   DELTA_PLAIN_THICKNESS,
+  beachRidgeCrestY,
   deltaPlainContains,
   deltaPlainShape,
   landwardContour,
 } from './deltaplain'
 import { sceneAt as tfwSceneAt } from './tfwEcsSchematic'
 import { tidalChannelFrameAt, tidalChannelSpan } from './tidalChannel'
-import { sceneAt as wfSceneAt } from './wfSchematic'
+import { sceneAt as wfSceneAt, waterlineY } from './wfSchematic'
 
 describe('delta plain', () => {
   it('follows the Tfw beach ridges, channels, and the landward edge of the water slab', () => {
@@ -22,10 +23,12 @@ describe('delta plain', () => {
     const maxX = ground.nested.x + ground.groundSpan!.width / 2
 
     expect(shape.heightSourceId).toBe('e-ridge-hl-0')
-    expect(shape.y).toBeCloseTo(source.nested.y)
+    const crest = beachRidgeCrestY('tfw', source)
+    expect(crest).toBeGreaterThan(waterlineY())
+    expect(shape.y).toBeCloseTo(crest)
     expect(plain.kind).toBe('delta-plain')
     expect(plain.parentId).toBe('ecs')
-    expect(plain.nested.y + DELTA_PLAIN_THICKNESS / 2).toBeCloseTo(source.nested.y)
+    expect(plain.nested.y + DELTA_PLAIN_THICKNESS / 2).toBeCloseTo(crest)
     expect(DELTA_PLAIN_COLOUR).toBe(0x15803d)
     expect(wfSceneAt(0).some((body) => body.kind === 'delta-plain')).toBe(false)
 

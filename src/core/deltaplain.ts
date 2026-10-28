@@ -15,7 +15,7 @@ import {
 /** Solid green. Mouth bars keep their lighter green. */
 export const DELTA_PLAIN_COLOUR = 0x15803d
 
-/** Sheet thickness. The top sits on the source element's base. */
+/** Sheet thickness. The top face sits on the source ridge's crest. */
 export const DELTA_PLAIN_THICKNESS = 0.02
 
 export interface DeltaPlainPoint {
@@ -24,7 +24,7 @@ export interface DeltaPlainPoint {
 }
 
 export interface DeltaPlainShape {
-  /** World Y of the top face. */
+  /** World Y of the top face: the crest of {@link DeltaPlainShape.heightSourceId}. */
   y: number
   /** Beach ridge whose base supplies `y`. */
   heightSourceId: string
@@ -132,6 +132,13 @@ function adjacentRidges(scene: SchematicSceneId, ridges: SceneBody[]): SceneBody
     chosen.push(best)
   }
   return chosen
+}
+
+/** Highest crest of one beach ridge. The cross-section crest is `station.height` above the base. */
+export function beachRidgeCrestY(scene: SchematicSceneId, body: SceneBody): number {
+  let crest = 0
+  for (const station of stationsFor(scene, body)) crest = Math.max(crest, station.height)
+  return body.nested.y + crest
 }
 
 function mostLandwardRidge(scene: SchematicSceneId, ridges: SceneBody[]): SceneBody {
@@ -397,7 +404,7 @@ function buildShape(scene: SchematicSceneId, bodies: SceneBody[]): DeltaPlainSha
     positions[i + 2] -= originZ
   }
   return {
-    y: source.nested.y,
+    y: beachRidgeCrestY(scene, source),
     heightSourceId: source.id,
     origin: { x: originX, z: originZ },
     positions,

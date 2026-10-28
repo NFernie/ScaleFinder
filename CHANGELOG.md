@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `deltaplain.ts` adds a green opaque delta plain to the Tfw scene. Its top is the base of the most landward beach ridge. Its seaward edge follows the landward toe of each beach-ridge set, channels are cut out, and it runs to the landward edge of the water slab.
+- `deltaplain.ts` adds a green opaque delta plain to the Tfw scene. Its top aligns with the crest of the most landward beach ridge, above the water slab. Its seaward edge follows the landward toe of each beach-ridge set, channels are cut out, and it runs to the landward edge of the water slab.
 - `BRconvexSW` (`src/ui/brConvexSwgeometry.ts`) is a beach-ridge bow, convex toward seaward, with half the height of the earlier semicircular U and the same cross-section from tip to tip. The Tfw left flank (`e-ridge-l-*`) draws it. The right flank stays asymmetric.
 - A pin at latitude -19.984295231442236, longitude 119.165775381814 opens `TfwECSschematic`. The scene keeps the Wf element-complex stack. The channel is the tidal funnel. Both beach-ridge flanks use the asymmetric mesh, shifted so each channel end follows the funnel wall. Mouth bars keep the Wf arrangement.
 - `src/ui/tidalChannelGeometry.ts` builds a funnel tidal channel: half-cylinder cross-section (flat top, curved base), 1.5× the half-channel length. The Tfw scene uses it for the channel. The seaward opening and flare length are recorded under Changed.

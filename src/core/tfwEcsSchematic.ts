@@ -4,6 +4,7 @@ import { tidalChannelFrameAt, tidalChannelRadiusAt, tidalChannelSpan } from './t
 import {
   beachRidgeRing,
   beachRidgeStations,
+  RIDGE_FACE_LENGTH_SCALE,
   bodyCenter,
   CHANNEL_LENGTH,
   CHANNEL_RADIUS,
@@ -62,16 +63,27 @@ export function tfwMouthBarYaw(wfFanYaw: number, templateX = 0): number {
  */
 export const TFW_CONVEX_CHANNEL_OVERLAP = 0.1
 
-/** Fore-aft width of one BRconvexSW mesh. The cross-section is uniform. */
+/**
+ * Fore-aft width of one BRconvexSW mesh used to tuck the set landward.
+ * The doubled seaward face sticks out past the crest; that extra toe is not
+ * part of this width, so the crest stays where it was.
+ */
 export function tfwConvexSwMeshWidth(): number {
-  const ring = beachRidgeRing(brConvexSwStations('l', 0)[0])
+  const station = brConvexSwStations('l', 0)[0]
+  const ring = beachRidgeRing(station)
   let minZ = Infinity
   let maxZ = -Infinity
+  let baseSeaZ = -Infinity
+  let crestSeaZ = -Infinity
   for (const corner of ring) {
     minZ = Math.min(minZ, corner.z)
     maxZ = Math.max(maxZ, corner.z)
+    if (corner.y === station.height) crestSeaZ = Math.max(crestSeaZ, corner.z)
+    if (corner.y < station.height) baseSeaZ = Math.max(baseSeaZ, corner.z)
   }
-  return maxZ - minZ
+  const faceRun = baseSeaZ - crestSeaZ
+  const extension = faceRun * (1 - 1 / RIDGE_FACE_LENGTH_SCALE)
+  return maxZ - minZ - extension
 }
 
 /**

@@ -134,7 +134,7 @@ function adjacentRidges(scene: SchematicSceneId, ridges: SceneBody[]): SceneBody
   return chosen
 }
 
-/** Highest crest of one beach ridge. The cross-section crest is `station.height` above the base. */
+/** Highest crest of one beach ridge. The cross-section crest is `station.height` above the nested origin. */
 export function beachRidgeCrestY(scene: SchematicSceneId, body: SceneBody): number {
   let crest = 0
   for (const station of stationsFor(scene, body)) crest = Math.max(crest, station.height)

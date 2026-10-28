@@ -75,18 +75,18 @@ export function tfwConvexSwMeshWidth(): number {
 }
 
 /**
- * Multiplier on the middle seaward fan's nested X. Overlap starts at half the
- * Wf overlap, then tightens by {@link TFW_MOUTH_SEAWARD_OVERLAP_TIGHTEN}.
+ * Fraction by which the middle fan's inner-pair centre gap shrinks relative to
+ * the half-Wf gap (half overlap). {@link tfwMouthBarXSpread} applies this after
+ * halving, so overlap lands at roughly **0.276** when Wf inner overlap is **0.36**.
  */
 export const TFW_MOUTH_SEAWARD_OVERLAP_TIGHTEN = 0.3
 
 export function tfwMouthBarXSpread(): number {
   const gap = mouthFanReferenceGap() * MOUTH_FAN_X_SCALE
   const overlap = MOUTH_BAR_SCALE.x - gap
-  const halved = overlap * 0.5
-  const tightened = halved * (1 + TFW_MOUTH_SEAWARD_OVERLAP_TIGHTEN)
-  const targetGap = MOUTH_BAR_SCALE.x - tightened
-  return targetGap / gap
+  const halfGap = MOUTH_BAR_SCALE.x - overlap * 0.5
+  const tightenedGap = halfGap * (1 - TFW_MOUTH_SEAWARD_OVERLAP_TIGHTEN)
+  return tightenedGap / gap
 }
 
 /**
@@ -765,7 +765,7 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * Beach-ridge channel ends stay on those margins. Yaws follow that axis, plus each fan’s
  * Wf offset (doubled on each bar), plus up to 10° outward (0 on the axis).
  * Three mouth-bar element complexes on the tidal channel: proximal, middle
- * seaward (overlap half the Wf fan then tightened 30%), and a third seaward
+ * seaward (half the Wf overlap, then the inner-pair centre gap shrinks 30%), and a third seaward
  * fan copied from the middle with the same land→sea Y/Z step. The landward
  * fan keeps the Wf overlap.
  */

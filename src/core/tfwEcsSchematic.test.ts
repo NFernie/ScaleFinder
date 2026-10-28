@@ -87,7 +87,10 @@ describe('tfwEcsSchematic', () => {
     const spread = tfwMouthBarXSpread()
     const referenceGap = mouthFanReferenceGap() * MOUTH_FAN_X_SCALE
     expect(MOUTH_BAR_SCALE.x - referenceGap).toBeCloseTo(0.36)
-    expect(MOUTH_BAR_SCALE.x - referenceGap * spread).toBeCloseTo(0.234)
+    expect(MOUTH_BAR_SCALE.x - referenceGap * spread).toBeCloseTo(0.276)
+    const wfOverlap = MOUTH_BAR_SCALE.x - referenceGap
+    const halfSpread = (MOUTH_BAR_SCALE.x - wfOverlap * 0.5) / referenceGap
+    expect(spread / halfSpread).toBeCloseTo(1 - 0.3)
     const onChannel = (wfBody: (typeof wf)[number], tfwBody: (typeof tfw)[number], localX: number) => {
       const yaw = TFW_CHANNEL_YAW_RAD
       const dz = wfBody.nested.z - channel.nested.z

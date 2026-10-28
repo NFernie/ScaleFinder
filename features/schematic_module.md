@@ -4,21 +4,21 @@
 
 ## What shipped
 
-`threejs-geometry` only. Positions stay in `src/core/wfSchematic.ts`. Meshes stay in `src/ui/WfSchematicView.tsx`, and the half-cylinder builder is `src/ui/halfChannelGeometry.ts`. `three` is not imported from core.
+`threejs-geometry` only. Positions stay in `src/core/wfSchematic.ts`. Element meshes are `src/ui/mouthBarGeometry.ts`, `src/ui/beachRidgeGeometry.ts`, and `src/ui/halfChannelGeometry.ts`. `WfSchematicView.tsx` places them. `three` is not imported from core.
 
 | Body | Mesh | Frame |
 | --- | --- | --- |
 | Ground | Thin box, blue, opacity 0.3, `depthWrite` off | Water line. The top of the slab is the base of the channel. Mouth bars sit below it |
 | Channel | Custom half-cylinder `BufferGeometry` along **+Z**. Flat face at local y = 0, arc down to `−radius`. `computeVertexNormals()` | Radius is half the earlier full cylinder. The mesh origin is the middle of the flat face. The **+Z** tip meets the thick end of the most seaward beach ridge. Centred at X = 0 |
-| Beach ridge | Custom `BufferGeometry` from `beachRidgeRing`. Sigmoid seaward face, `computeVertexNormals()`, flat shading | Thick at the channel, thinner at the alongshore tip. Centreline swings landward, then the tip turns slightly seaward. Crest stays above the water line. The most seaward crest meets the channel top. Each landward ridge is 2% of the reference crest height above the next, and the bases stay at those elevations. Fore-aft width is half the previous thickness. The base is seaward of the crest. Left flank is the right flank mirrored in X |
-| Mouth bar | Custom half spheroid in `mouthBarGeometry`. Flat base, dome on top, `computeVertexNormals()` | Nine bars fill a V in front of the channel. Thickness is 50% greater and the long axis is 50% longer, extended seaward. The base follows an exaggerated sigmoid along **+Z**. The landward base of the channel bar matches the base of the most seaward beach ridge. Each bar farther seaward is 5% of the bar thickness lower and yaws outward by another 1°, toward +X on the right and −X on the left. The channel bar stays straight. A second fan uses the same steps under the channel. Its landward rim is where the channel meets the most landward beach ridge, its crown meets the channel base, and it progrades seaward onto the fan in front of the channel. The stack stays under the water line |
+| Beach ridge | Custom loft in `beachRidgeGeometry`. Logistic seaward face, `computeVertexNormals()`, flat shading | Thick at the channel, thinner at the alongshore tip. Fore-aft spacing at the channel stays put. The most seaward ridge swings landward by 20°; each landward ridge keeps 12% less plan angle, so the tips close to a small Z gap and the channel is the seaward apex. Crest stays above the water line. The most seaward crest meets the channel top. Each landward ridge is 2% of the reference crest height above the next, and the bases stay at those elevations. Fore-aft width is half the previous thickness. The seaward face slope is a quarter of the unsheared wedge. The logistic is reflected across the chord: convex seaward in the upper half, concave in the lower half, with the toe flattening seaward. Left flank is the right flank mirrored in X |
+| Mouth bar | Custom half spheroid in `mouthBarGeometry`. Flat base, dome on top, `computeVertexNormals()` | Nine bars fill a V in front of the channel. Thickness is 50% greater and the long axis is 50% longer, extended seaward. The base follows an exaggerated sigmoid along **+Z**. The landward apex crown meets the channel centre in Y. Each bar farther seaward is 5% of the bar thickness lower and yaws outward by another 1°, toward +X on the right and −X on the left. Plan centres are scaled toward the axis. The first pass added 50% alongshore overlap; the shipped scale doubles that (centre gap 0.32 → 0.14). The channel bar stays straight. A second fan uses the same steps under the channel. Its landward rim is where the channel meets the most landward beach ridge, and it progrades seaward onto the fan in front of the channel |
 | Swale, mouth-bar slab, lobe solid | Not drawn | Wf-Lobe and Wf-Mouth Bar remain labels |
 
 +X is alongshore to the right. +Y is up. +Z is seaward. Figure 10’s Wf-Lobe crescents are the ridge shape. Figures 7 and 8 are the stacking reference. The PNG is the plan arrangement, without its grey swales or blue body.
 
-**Architecture:** Positions, ranks, the mouth-bar fan, and the two flanks stay in `src/core/wfSchematic.ts`. Meshes stay in `src/ui/WfSchematicView.tsx`. `three` is not imported from `src/core/`. Explode still adds a Y gap by rank only. The slider still tracks the thumb.
+**Architecture:** Positions, ranks, the mouth-bar fan, and the two flanks stay in `src/core/wfSchematic.ts`. Element meshes are `mouthBarGeometry.ts`, `beachRidgeGeometry.ts`, and `halfChannelGeometry.ts`. `WfSchematicView.tsx` places those meshes. `three` is not imported from `src/core/`. Explode is radial from the origin (`sceneAt`); see `features/wfpaneldesignsummary.md`.
 
-**Tech stack:** Vite, React 18, TypeScript, Tailwind, Vitest, `three` `^0.186.1` (only the schematic view). MapLibre is unchanged.
+**Tech stack:** Vite, React 18, TypeScript, Tailwind, Vitest, `three` `^0.186.1` (schematic view and the three element meshes). MapLibre is unchanged.
 
 The earlier stand-in list (blue lobe sphere, green slab, grey swale boxes, square channel) is gone. Do not restore it. Diagram colours stay inside the canvas: gold ridges, green mouth bars, orange channel, blue water line. Do not paint the PNG onto a mesh.
 
@@ -50,12 +50,12 @@ UI skills (UI UX Pro Max, Impeccable, Emil) do not run for this pass. The pin, p
 One skill per message. Do not open a skipped skill “for context”.
 
 1. **Read geometry, then fundamentals.** Confirm the frame: +X alongshore right, +Y up, +Z seaward. Write down which constructor each kind will use before editing the view.
-2. **Keep the scene graph.** `sceneAt` positions and ranks stay. Mouth bars keep the seaward fan and the descending sigmoid. Beach ridges stay rooted on X = 0 and step in +Z. There are no swales. Explode clamps to 0–1 and adds Y by rank only (`0`, `1.2`, `2.4`, `3.6`).
+2. **Keep the scene graph.** `sceneAt` positions and ranks stay. Mouth bars keep the seaward fan and the descending sigmoid. Beach ridges stay rooted on X = 0 and step in +Z. There are no swales. Explode clamps to 0–1 and moves each centre along the ray from the origin (`EXPLODE_SPREAD`).
 3. **Silhouette numbers live in core.** `beachRidgeStations` and `beachRidgeRing` are the plan, the taper, and the base shift. `channelSpan` trims the channel. Land is −Z. Sea is +Z. The channel is the axis. Do not draw the PNG into the canvas.
-4. **Further mesh edits stay in `geometryFor`.** Ground stays a thin box. Wf-Lobe, Wf-Mouth Bar, and element sets stay labels. Do not add a lobe solid, a mouth-bar slab, or a swale.
+4. **Further mesh edits stay in the element geometry files.** `beachRidgeGeometry.ts`, `mouthBarGeometry.ts`, and `halfChannelGeometry.ts` build the solids. `geometryFor` in the view only dispatches them. Ground stays a thin box. Wf-Lobe, Wf-Mouth Bar, and element sets stay labels. Do not add a lobe solid, a mouth-bar slab, or a swale.
 5. **Orientation check.** The channel mesh is already in schematic axes: length on Z, flat face on +Y, arc on −Y. Do not rotate a full `CylinderGeometry` back in. Ridge vertices are already in schematic X, Y, Z. The thick end touches the channel and is the seaward side of the bow. The thin end is the alongshore tip and lies landward.
 6. **Read materials, then lighting, only if the plan already matches and the solids are hard to read.** Flat shading on wedges. Double-sided thin lenses if a face disappears. Polygon offset if two slabs flicker. Hemisphere light plus the lights already in the view. No shadows.
-7. **Explode still tracks the thumb.** Move `position.y` from `sceneAt`. Do not ease it.
+7. **Explode still tracks the thumb.** Apply `sceneAt` positions. Do not ease them.
 8. **Cleanup stays.** Dispose geometries, mesh materials, sprite materials, and label textures, then `renderer.dispose()`, `renderer.forceContextLoss()`, and remove the canvas. The WebGL probe still calls `loseContext()` so it does not hold a slot.
 9. **Changelog and tests.** Every product-code commit adds a line under `## [Unreleased]` in [`CHANGELOG.md`](../CHANGELOG.md). Core silhouette data gets a Vitest. The view’s jsdom path stays the text list. MapLibre and the canvas are a manual check: top view against the PNG, then the existing oblique camera, then Explode at 0 and at 1. The panel stays outside the snapshot frame.
 
@@ -75,7 +75,7 @@ Already in the repo. Do not add another paper. Do not ask for a new drawing.
 
 ## Leave these alone
 
-- Pin at `44.878674, 29.515563`, inside the snapshot. Panel outside the snapshot, bottom-right. On a phone-width Danube framing the open panel may cover the pin. Close and Escape return focus to `#wf-schematic-pin` synchronously.
+- Symmetric Wf pin at latitude 18.601312, longitude -92.674937 (`#wf-schematic-pin`). Asymmetric Wf pin at `44.878674, 29.515563` (`#asym-wf-schematic-pin`). Tfw pin at `-19.984295231442236, 119.165775381814` (`#tfw-ecs-schematic-pin`), opening `TfwECSschematic`. All three are inside the snapshot. The panel is outside the snapshot, bottom-right. Close and Escape return focus to the pin that opened the panel.
 - Caption: “Type schematic for a wave-dominated, fluvial-influenced shoreline. Size and direction are not a measured map of this coast.”
 - Diagram colours stay inside the canvas. Panel chrome stays the locked toolbox classes. No second accent, no light theme, no shadcn.
 - Schematic units are not metres and are not georeferenced.

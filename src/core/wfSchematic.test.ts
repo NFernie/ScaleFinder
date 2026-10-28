@@ -19,6 +19,7 @@ import {
   RIDGE_ANGLE_LANDWARD_DROP,
   RIDGE_BASE_SEAWARD,
   RIDGE_DOWNSTEP,
+  mouthBarSeawardSlope,
   RIDGE_FACE_SLOPE,
   RIDGE_SEAWARD_ANGLE_DEG,
   bodyCenter,
@@ -154,7 +155,8 @@ describe('wfSchematic', () => {
       const ridges = nested
         .filter((body) => body.id.startsWith(`e-ridge-${side}-`))
         .sort((a, b) => a.position.z - b.position.z)
-      expect(ridges).toHaveLength(4)
+      expect(ridges).toHaveLength(5)
+      expect(ridges[0].position.y).toBeCloseTo(0.04)
       expect(new Set(ridges.map((body) => body.parentId))).toEqual(new Set([`es-ridge-${side}`]))
       const seawardIndex = ridges.length - 1
       const stations = beachRidgeStations(side, seawardIndex)
@@ -233,11 +235,14 @@ describe('wfSchematic', () => {
           expect(ridge.position.y + station.height).toBeGreaterThan(water)
         }
       }
+      expect(ridges[ridges.length - 1].position.y).toBeCloseTo(seawardRidgeBaseY())
       for (let i = 1; i < ridges.length; i += 1) {
         const step = ridges[i].position.z - ridges[i - 1].position.z
         expect(step).toBeGreaterThan(0)
         expect(ridges[i].position.x).toBe(0)
-        expect((ridges[i - 1].position.y - ridges[i].position.y) / 0.36).toBeCloseTo(RIDGE_DOWNSTEP)
+        const drop = ridges[i - 1].position.y - ridges[i].position.y
+        expect(drop / 0.36).toBeCloseTo(RIDGE_DOWNSTEP)
+        expect(drop / step).toBeCloseTo(mouthBarSeawardSlope())
       }
     }
   })

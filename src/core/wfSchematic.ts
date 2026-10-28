@@ -7,7 +7,7 @@ export const WF_ANCHOR = { lat: 18.601312, lng: -92.674937 } as const
 
 export type Rank = 'element' | 'element-set' | 'element-complex' | 'element-complex-set'
 
-export type SolidKind = 'ground' | 'channel' | 'mouth-bar' | 'beach-ridge' | 'group'
+export type SolidKind = 'ground' | 'channel' | 'mouth-bar' | 'beach-ridge' | 'delta-plain' | 'group'
 
 export interface SceneBody {
   id: string
@@ -20,6 +20,8 @@ export interface SceneBody {
   yaw?: number
   /** Half-channel length when this body is longer than `CHANNEL_LENGTH`. */
   channelLength?: number
+  /** Plan size of a ground slab when it is larger than the default water slab. */
+  groundSpan?: { width: number; depth: number }
 }
 
 export interface PlacedBody extends SceneBody {
@@ -74,6 +76,35 @@ export function mouthFanReferenceGap(): number {
   return 2 * MOUTH_FAN_INNER_X
 }
 
+/**
+ * Filled V in front of the channel. The apex is the centre bar.
+ * The next row is one left and one right. Each of those then adds an
+ * outer bar, a bar back toward the opposite side of the axis, and one
+ * more bar along its own arm. The two axis bars overlap.
+ */
+const MOUTH_FAN: Array<{ x: number; z: number }> = [
+  { x: 0, z: 0 },
+  { x: -0.32, z: 0.18 },
+  { x: 0.32, z: 0.18 },
+  { x: -0.64, z: 0.36 },
+  { x: 0.16, z: 0.34 },
+  { x: -0.48, z: 0.5 },
+  { x: 0.64, z: 0.36 },
+  { x: -0.16, z: 0.34 },
+  { x: 0.48, z: 0.5 },
+]
+
+/**
+ * Drop in Y per unit +Z from the landward mouth-bar rank to the seaward rank.
+ * Each rank drops `MOUTH_BAR_SCALE.y * MOUTH_BAR_STEP`; the run is that fan's Z span.
+ */
+export function mouthBarSeawardSlope(): number {
+  const levels = [...new Set(MOUTH_FAN.map((point) => point.z))].sort((a, b) => a - b)
+  const drop = MOUTH_BAR_SCALE.y * MOUTH_BAR_STEP
+  const span = levels[levels.length - 1] - levels[0]
+  return ((levels.length - 1) * drop) / span
+}
+
 /** How far the ridge base (lowest Y) sits seaward of the crest before the face is flattened. */
 export const RIDGE_BASE_SEAWARD = 0.12
 
@@ -82,9 +113,6 @@ export const RIDGE_BASE_SEAWARD = 0.12
  * 0.25 is another halving of the previous 0.5 slope, so the whole section is 50% flatter again.
  */
 export const RIDGE_FACE_SLOPE = 0.25
-
-/** Each landward beach ridge sits this fraction of the crest height above the next seaward ridge. */
-export const RIDGE_DOWNSTEP = 0.02
 
 /**
  * Plan angle, in degrees, added at the channel end of the most seaward beach ridge.
@@ -101,6 +129,10 @@ export const RIDGE_ANGLE_LANDWARD_DROP = 0.12
 
 /** Thickness of the water-line slab. Its top is the channel base. */
 export const GROUND_THICKNESS = 0.05
+
+/** Default water-slab plan size. A scene may grow it with `SceneBody.groundSpan`. */
+export const WATER_SLAB_WIDTH = 8
+export const WATER_SLAB_DEPTH = 6
 
 /** Diagram water line. Opacity is 30%. */
 export const WATER_COLOUR = 0x38bdf8
@@ -159,7 +191,7 @@ export function bodyCenter(body: SceneBody): { x: number; y: number; z: number }
   }
 }
 
-const RIDGE_COUNT = 4
+const RIDGE_COUNT = 5
 const RIDGE_INNER = CHANNEL_RADIUS
 const RIDGE_OUTER = 3.45
 const RIDGE_Z_BASE = -0.55
@@ -174,8 +206,21 @@ const RIDGE_STATIONS = 10
 const CHANNEL_LANDWARD_REACH = 1.55
 const CHANNEL_FLAT_Y = 0.32
 const RIDGE_NEST_Y = 0.04
-/** Crest height the 2% base offset was set against. Bases stay on this spacing. */
+/** Reference crest the seaward Y step is expressed against. */
 const RIDGE_BASE_REF = 0.36
+
+/**
+ * Fraction of the reference crest between one beach ridge and the next seaward
+ * ridge. The Y drop is the mouth-bar slope times the channel-end Z step.
+ * The landward ridge stays at {@link RIDGE_NEST_Y}; each step seaward drops.
+ */
+export const RIDGE_DOWNSTEP = (mouthBarSeawardSlope() * RIDGE_Z_STEP) / RIDGE_BASE_REF
+
+/** Base of the most seaward beach ridge. */
+export function seawardRidgeBaseY(): number {
+  return RIDGE_NEST_Y - (RIDGE_COUNT - 1) * RIDGE_BASE_REF * RIDGE_DOWNSTEP
+}
+
 /** How far the tip crest sits above the water line on the lowest ridge. */
 const RIDGE_TIP_CLEARANCE = 0.03
 
@@ -196,7 +241,7 @@ function ridgeCentreZ(t: number): number {
  * crest stays above the water line.
  */
 function ridgeHeights(): { thick: number; tip: number } {
-  const lowestBase = RIDGE_NEST_Y - (RIDGE_COUNT - 1) * RIDGE_BASE_REF * RIDGE_DOWNSTEP
+  const lowestBase = seawardRidgeBaseY()
   const water = CHANNEL_FLAT_Y - CHANNEL_RADIUS
   return {
     thick: CHANNEL_FLAT_Y - lowestBase,
@@ -341,11 +386,6 @@ export function mouthBarCrownY(): number {
   return crown
 }
 
-/** Base of the most seaward beach ridge. */
-export function seawardRidgeBaseY(): number {
-  return RIDGE_NEST_Y - (RIDGE_COUNT - 1) * RIDGE_BASE_REF * RIDGE_DOWNSTEP
-}
-
 /**
  * Uniform Y offset for every mouth bar. The landward apex crown meets the channel centre.
  * Seaward steps and the offset between the two fans stay the same.
@@ -362,22 +402,15 @@ export function channelCenterY(): number {
 }
 
 /**
- * Filled V in front of the channel. The apex is the centre bar.
- * The next row is one left and one right. Each of those then adds an
- * outer bar, a bar back toward the opposite side of the axis, and one
- * more bar along its own arm. The two axis bars overlap.
+ * World Y of the lowest point on the base of the most landward mouth bar.
+ * That bar is the proximal apex. Its landward rim is the fan's landward base,
+ * and the underside dips to {@link MOUTH_BAR_DIP} at the seaward rim.
  */
-const MOUTH_FAN: Array<{ x: number; z: number }> = [
-  { x: 0, z: 0 },
-  { x: -0.32, z: 0.18 },
-  { x: 0.32, z: 0.18 },
-  { x: -0.64, z: 0.36 },
-  { x: 0.16, z: 0.34 },
-  { x: -0.48, z: 0.5 },
-  { x: 0.64, z: 0.36 },
-  { x: -0.16, z: 0.34 },
-  { x: 0.48, z: 0.5 },
-]
+export function landwardMouthBarBaseY(): number {
+  const halfZ = MOUTH_BAR_SCALE.z / 2
+  const rimY = channelSpan().flatY - CHANNEL_RADIUS / 2 - mouthBarCrownY()
+  return rimY + mouthBarBaseOffset(halfZ, halfZ)
+}
 
 /** Top of the water-line slab. It meets the base of the channel. */
 export function waterlineY(): number {
@@ -422,7 +455,7 @@ function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
       rank: 'element-set',
       parentId: 'ec-lobe',
       kind: 'group',
-      nested: { x: sign * 1.7, y: 0.5, z: RIDGE_Z_BASE + 1.5 * RIDGE_Z_STEP + RIDGE_BOW * 0.45 },
+      nested: { x: sign * 1.7, y: 0.5, z: RIDGE_Z_BASE + ((RIDGE_COUNT - 1) / 2) * RIDGE_Z_STEP + RIDGE_BOW * 0.45 },
     },
   ]
   for (let index = 0; index < RIDGE_COUNT; index += 1) {

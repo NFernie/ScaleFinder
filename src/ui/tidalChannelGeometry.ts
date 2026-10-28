@@ -31,8 +31,10 @@ function sampleZ(): number[] {
  * arc to y = −radius(z). Landward width matches the half channel. Total length is
  * {@link TIDAL_CHANNEL_LENGTH_SCALE}× `CHANNEL_LENGTH`, with the extra length landward
  * and the seaward tip kept at the half channel's seaward tip. Width stays constant until
- * the half channel's landward end, then flares with a curve concave toward the centre to
- * {@link TIDAL_CHANNEL_SEAWARD_WIDTH_RATIO}× at the seaward end.
+ * the flare, which starts landward of the half channel's landward end, then opens with
+ * a curve concave toward the centre to {@link TIDAL_CHANNEL_SEAWARD_WIDTH_RATIO}× at
+ * the seaward end. The centreline stays on x = 0. Faces point outward so the orange
+ * material covers the flat top, the arc, and both end caps out to those dimensions.
  */
 export function tidalChannelGeometry(): THREE.BufferGeometry {
   const positions: number[] = []
@@ -61,7 +63,7 @@ export function tidalChannelGeometry(): THREE.BufferGeometry {
       const a1 = a + i + 1
       const b0 = b + i
       const b1 = b + i + 1
-      indices.push(a0, b0, a1, a1, b0, b1)
+      indices.push(a0, a1, b0, a1, b1, b0)
     }
   }
 
@@ -144,7 +146,7 @@ export function tidalChannelPlanSvg(): string {
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <rect width="100%" height="100%" fill="#0f172a"/>
   <text x="40" y="32" fill="#e2e8f0" font-family="system-ui,sans-serif" font-size="20">Tidal channel plan (+X right, +Z up = seaward)</text>
-  <text x="40" y="56" fill="#94a3b8" font-family="system-ui,sans-serif" font-size="14">Gold = 1.5× length. Straight until the half channel's landward end, then a flare concave toward the centre (5× at the sea). Dashed = half channel.</text>
+  <text x="40" y="56" fill="#94a3b8" font-family="system-ui,sans-serif" font-size="14">Gold = 1.5× length. Flare starts landward of the half channel and opens to 10× at the sea. Dashed = half channel.</text>
   <path d="${toPath(constantOutline)} Z" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="8 6"/>
   <path d="${toPath([...right, ...left])} Z" fill="rgba(251,191,36,0.22)" stroke="#fbbf24" stroke-width="2.5"/>
   <line x1="${sx(-landRadius)}" y1="${sy(taperZ)}" x2="${sx(landRadius)}" y2="${sy(taperZ)}" stroke="#38bdf8" stroke-width="1.5"/>

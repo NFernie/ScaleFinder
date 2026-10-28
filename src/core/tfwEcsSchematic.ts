@@ -3,6 +3,7 @@ import { tidalChannelRadiusAt, tidalChannelSpan } from './tidalChannel'
 import {
   beachRidgeStations,
   bodyCenter,
+  CHANNEL_LENGTH,
   CHANNEL_RADIUS,
   EXPLODE_SPREAD,
   MOUTH_BAR_SCALE,
@@ -60,6 +61,29 @@ export function tfwMouthBarXSpread(): number {
   const overlap = MOUTH_BAR_SCALE.x - gap
   const targetGap = MOUTH_BAR_SCALE.x - overlap * 0.5
   return targetGap / gap
+}
+
+/**
+ * Half-width the mouth-bar fan was seated against: flare from the half
+ * channel's landward end to 5× width. The live funnel is wider and starts
+ * further landward; {@link tfwMouthBarMarginScale} keeps each bar the same
+ * fraction of the way from the centreline to the wall.
+ */
+function mouthBarReferenceRadius(channelLocalZ: number): number {
+  const seaZ = CHANNEL_LENGTH / 2
+  const taperZ = -CHANNEL_LENGTH / 2
+  const land = CHANNEL_RADIUS
+  const sea = land * 5
+  if (channelLocalZ <= taperZ || seaZ === taperZ) return land
+  const u = Math.min(1, Math.max(0, (channelLocalZ - taperZ) / (seaZ - taperZ)))
+  return land + (sea - land) * u * u
+}
+
+/** Scale on channel-local X so a mouth bar keeps its place between the margins. */
+export function tfwMouthBarMarginScale(channelLocalZ: number): number {
+  const previous = mouthBarReferenceRadius(channelLocalZ)
+  if (previous === 0) return 1
+  return tidalChannelRadiusAt(channelLocalZ) / previous
 }
 
 const NAMES: Record<string, string> = {
@@ -193,6 +217,26 @@ function applyMouthBarXSpread(body: SceneBody): SceneBody {
   return { ...body, nested: { ...body.nested, x: body.nested.x * spread } }
 }
 
+function applyMouthBarMargin(body: SceneBody, channel: SceneBody): SceneBody {
+  if (body.kind !== 'mouth-bar') return body
+  const yaw = channel.yaw ?? 0
+  const cos = Math.cos(yaw)
+  const sin = Math.sin(yaw)
+  const dx = body.nested.x - channel.nested.x
+  const dz = body.nested.z - channel.nested.z
+  const localX = dx * cos - dz * sin
+  const localZ = dx * sin + dz * cos
+  const rotated = rotateYaw({ x: localX * tfwMouthBarMarginScale(localZ), y: 0, z: localZ }, yaw)
+  return {
+    ...body,
+    nested: {
+      ...body.nested,
+      x: channel.nested.x + rotated.x,
+      z: channel.nested.z + rotated.z,
+    },
+  }
+}
+
 function shiftedBody(body: SceneBody, bodiesForShift: SceneBody[]): SceneBody {
   const shift = body.kind === 'beach-ridge' ? tfwRidgeShift(body.id, bodiesForShift) : 0
   return {
@@ -206,7 +250,9 @@ function sceneBodiesAtRest(): SceneBody[] {
   const yawed = alignMouthBarsToChannel(
     wf.map((body) => applyMouthBarXSpread(applyTfwYaw({ ...body, yaw: body.yaw }))),
   )
-  return yawed.map((body) => shiftedBody(body, yawed))
+  const channel = yawed.find((body) => body.id === 'e-channel')
+  const margined = channel ? yawed.map((body) => applyMouthBarMargin(body, channel)) : yawed
+  return margined.map((body) => shiftedBody(body, margined))
 }
 
 /**
@@ -265,7 +311,9 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * each channel end on the opposite (left) wall. A half channel sits on the
  * −X side of that left set and runs landward until it meets the tidal channel.
  * Mouth-bar positions are swung about the channel so the fan centreline
- * lies on the channel centreline. Yaws follow that axis, plus each fan’s
+ * lies on the channel centreline, then each bar's channel-local X is scaled
+ * with the local half-width so it keeps the same place between the margins.
+ * Beach-ridge channel ends stay on those margins. Yaws follow that axis, plus each fan’s
  * Wf offset, plus up to 5° outward (0 on the axis and proximal bars).
  * The seaward fan is spread to half the Wf alongshore overlap; the
  * landward fan keeps the Wf overlap.

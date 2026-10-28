@@ -1,27 +1,36 @@
 import { CHANNEL_LENGTH, CHANNEL_RADIUS } from './wfSchematic'
 
 /** Seaward opening width is this many times the landward width. */
-export const TIDAL_CHANNEL_SEAWARD_WIDTH_RATIO = 5
+export const TIDAL_CHANNEL_SEAWARD_WIDTH_RATIO = 10
 
 /** Total length is this multiple of `CHANNEL_LENGTH`. The extra length is landward. */
 export const TIDAL_CHANNEL_LENGTH_SCALE = 1.5
 
 /**
+ * Flare length along Z, as a multiple of `CHANNEL_LENGTH`.
+ * 1.2× the half-channel length, so the flare starts landward of the half channel's landward end.
+ */
+export const TIDAL_CHANNEL_TAPER_LENGTH_SCALE = 1.2
+
+/**
  * Landward tip, seaward tip, and the station where the flare begins.
- * The flare starts at the landward end of the half channel (`−CHANNEL_LENGTH / 2`).
- * Z is in the channel mesh frame: the seaward tip matches the half channel.
+ * The seaward tip matches the half channel. The flare runs
+ * {@link TIDAL_CHANNEL_TAPER_LENGTH_SCALE}× `CHANNEL_LENGTH` and therefore
+ * starts landward of `−CHANNEL_LENGTH / 2`.
+ * Z is in the channel mesh frame.
  */
 export function tidalChannelSpan(): { landZ: number; seaZ: number; taperZ: number; length: number } {
   const seaZ = CHANNEL_LENGTH / 2
   const length = CHANNEL_LENGTH * TIDAL_CHANNEL_LENGTH_SCALE
   const landZ = seaZ - length
-  return { landZ, seaZ, taperZ: -CHANNEL_LENGTH / 2, length }
+  const taperZ = seaZ - CHANNEL_LENGTH * TIDAL_CHANNEL_TAPER_LENGTH_SCALE
+  return { landZ, seaZ, taperZ, length }
 }
 
 /**
- * Half-width at z. Constant on the landward extension, then a u² flare from the
- * half channel's landward end so the walls stay inside the straight chord
- * (concave toward the channel centre).
+ * Half-width at z. The centreline stays at x = 0. Width is constant on the
+ * landward extension, then a u² flare from {@link tidalChannelSpan}.taperZ so
+ * the walls stay inside the straight chord (concave toward the channel centre).
  */
 export function tidalChannelRadiusAt(z: number): number {
   const { taperZ, seaZ } = tidalChannelSpan()

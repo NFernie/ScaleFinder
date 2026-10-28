@@ -8,6 +8,7 @@ import {
   tfwMouthBarSideYawRad,
   tfwMouthBarYaw,
   sceneAt as tfwSceneAt,
+  tfwMouthBarMarginScale,
   tfwMouthBarXSpread,
   tfwRidgeShift,
 } from './tfwEcsSchematic'
@@ -48,10 +49,11 @@ describe('tfwEcsSchematic', () => {
     const onChannel = (wfBody: (typeof wf)[number], tfwBody: (typeof tfw)[number], localX: number) => {
       const yaw = TFW_CHANNEL_YAW_RAD
       const dz = wfBody.nested.z - channel.nested.z
+      const seatedX = localX * tfwMouthBarMarginScale(dz)
       const cos = Math.cos(yaw)
       const sin = Math.sin(yaw)
-      expect(tfwBody.nested.x).toBeCloseTo(channel.nested.x + localX * cos + dz * sin)
-      expect(tfwBody.nested.z).toBeCloseTo(channel.nested.z - localX * sin + dz * cos)
+      expect(tfwBody.nested.x).toBeCloseTo(channel.nested.x + seatedX * cos + dz * sin)
+      expect(tfwBody.nested.z).toBeCloseTo(channel.nested.z - seatedX * sin + dz * cos)
       const templateX = wfBody.nested.x / MOUTH_FAN_X_SCALE
       expect(tfwBody.yaw).toBeCloseTo(tfwMouthBarYaw(wfBody.yaw ?? 0, templateX))
     }

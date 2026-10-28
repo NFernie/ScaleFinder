@@ -1,6 +1,7 @@
 import { brConvexSwStations } from './brConvexSwPlan'
 import { tidalChannelRadiusAt, tidalChannelSpan } from './tidalChannel'
 import {
+  beachRidgeRing,
   beachRidgeStations,
   bodyCenter,
   CHANNEL_LENGTH,
@@ -50,6 +51,24 @@ export function tfwMouthBarSideYawRad(templateX: number): number {
 /** Channel yaw, plus the Wf fan offset, plus the side yaw from `templateX`. */
 export function tfwMouthBarYaw(wfFanYaw: number, templateX = 0): number {
   return TFW_CHANNEL_YAW_RAD + wfFanYaw + tfwMouthBarSideYawRad(templateX)
+}
+
+/**
+ * How far a BRconvexSW channel end sits inside the left wall, as a fraction
+ * of the local tidal-channel width (both walls).
+ */
+export const TFW_CONVEX_CHANNEL_OVERLAP = 0.1
+
+/** Fore-aft width of one BRconvexSW mesh. The cross-section is uniform. */
+export function tfwConvexSwMeshWidth(): number {
+  const ring = beachRidgeRing(brConvexSwStations('l', 0)[0])
+  let minZ = Infinity
+  let maxZ = -Infinity
+  for (const corner of ring) {
+    minZ = Math.min(minZ, corner.z)
+    maxZ = Math.max(maxZ, corner.z)
+  }
+  return maxZ - minZ
 }
 
 /**
@@ -237,7 +256,58 @@ function applyMouthBarMargin(body: SceneBody, channel: SceneBody): SceneBody {
   }
 }
 
+function ridgeIndex(id: string): number {
+  const index = Number(id.slice(id.lastIndexOf('-') + 1))
+  return Number.isFinite(index) ? index : 0
+}
+
+/**
+ * Left-flank pose. The whole complex moves landward by half one mesh width.
+ * Each channel end then overlaps the left wall by {@link TFW_CONVEX_CHANNEL_OVERLAP}
+ * of the local tidal-channel width.
+ */
+function convexSwNested(body: SceneBody, channel: SceneBody): { x: number; z: number } {
+  const landward = tfwConvexSwMeshWidth() / 2
+  if (body.kind !== 'beach-ridge') {
+    return { x: body.nested.x, z: body.nested.z - landward }
+  }
+  const station = beachRidgeStations('l', ridgeIndex(body.id))[0]
+  const yaw = body.yaw ?? 0
+  const shifted = worldFromNested(
+    { ...body, nested: { ...body.nested, z: body.nested.z - landward } },
+    { x: station.x, y: 0, z: station.z },
+  )
+  let probeZ = shifted.z
+  let target = { x: shifted.x, z: shifted.z }
+  for (let step = 0; step < 8; step += 1) {
+    const localZ = wallLocalZAtWorldZ(channel, 'l', probeZ)
+    const radius = tidalChannelRadiusAt(localZ)
+    const overlap = TFW_CONVEX_CHANNEL_OVERLAP * 2 * radius
+    const wall = worldFromNested(channel, { x: -radius, y: 0, z: localZ })
+    const centre = worldFromNested(channel, { x: 0, y: 0, z: localZ })
+    const dx = centre.x - wall.x
+    const dz = centre.z - wall.z
+    const span = Math.hypot(dx, dz) || 1
+    target = {
+      x: wall.x + (dx / span) * overlap,
+      z: wall.z + (dz / span) * overlap,
+    }
+    probeZ = target.z
+  }
+  const cos = Math.cos(yaw)
+  const sin = Math.sin(yaw)
+  return {
+    x: target.x - (station.x * cos + station.z * sin),
+    z: target.z - (-station.x * sin + station.z * cos),
+  }
+}
+
 function shiftedBody(body: SceneBody, bodiesForShift: SceneBody[]): SceneBody {
+  const channel = bodiesForShift.find((entry) => entry.id === 'e-channel')
+  if (channel && (body.id === 'es-ridge-l' || body.id.startsWith('e-ridge-l-'))) {
+    const nested = convexSwNested(body, channel)
+    return { ...body, nested: { ...body.nested, x: nested.x, z: nested.z } }
+  }
   const shift = body.kind === 'beach-ridge' ? tfwRidgeShift(body.id, bodiesForShift) : 0
   return {
     ...body,
@@ -255,25 +325,35 @@ function sceneBodiesAtRest(): SceneBody[] {
   return margined.map((body) => shiftedBody(body, margined))
 }
 
+function convexOuterTip(body: SceneBody): { x: number; z: number } {
+  let tip = { x: Infinity, z: 0 }
+  for (const station of brConvexSwStations('l', ridgeIndex(body.id))) {
+    const world = worldFromNested(body, { x: station.x, y: 0, z: station.z })
+    if (world.x < tip.x) tip = { x: world.x, z: world.z }
+  }
+  return tip
+}
+
 /**
- * Half channel on the −X side of the convex left-flank set.
- * Its seaward end sits one radius left of the outermost ridge tip. Its
- * landward end is the tidal channel's landward left wall, so the length is
- * the straight run that just meets the funnel.
+ * Half channel along the outer edge of the convex left-flank set.
+ * The seaward end lines up with the most seaward ridge's outer tip. The run
+ * goes landward to the most landward ridge's outer tip. The centreline sits
+ * one radius outside that edge, so the inner side of the channel lies on it.
  */
 function leftHalfChannelBody(bodies: SceneBody[]): SceneBody {
   const channel = bodies.find((body) => body.id === 'e-channel')!
-  const land = funnelWallPointWorld(channel, tidalChannelSpan().landZ, 'l')
-  let tip = { x: Infinity, z: 0 }
-  for (const body of bodies) {
-    if (!body.id.startsWith('e-ridge-l-')) continue
-    const index = Number(body.id.slice(body.id.lastIndexOf('-') + 1))
-    for (const station of brConvexSwStations('l', Number.isFinite(index) ? index : 0)) {
-      const world = worldFromNested(body, { x: station.x, y: 0, z: station.z })
-      if (world.x < tip.x) tip = { x: world.x, z: world.z }
-    }
-  }
-  const sea = { x: tip.x - CHANNEL_RADIUS, z: tip.z }
+  const ridges = bodies.filter((body) => body.id.startsWith('e-ridge-l-'))
+  const landRidge = ridges.reduce((best, body) => (ridgeIndex(body.id) < ridgeIndex(best.id) ? body : best))
+  const seaRidge = ridges.reduce((best, body) => (ridgeIndex(body.id) > ridgeIndex(best.id) ? body : best))
+  const landTip = convexOuterTip(landRidge)
+  const seaTip = convexOuterTip(seaRidge)
+  const edgeX = seaTip.x - landTip.x
+  const edgeZ = seaTip.z - landTip.z
+  const edge = Math.hypot(edgeX, edgeZ) || 1
+  const outX = -edgeZ / edge
+  const outZ = edgeX / edge
+  const sea = { x: seaTip.x + outX * CHANNEL_RADIUS, z: seaTip.z + outZ * CHANNEL_RADIUS }
+  const land = { x: landTip.x + outX * CHANNEL_RADIUS, z: landTip.z + outZ * CHANNEL_RADIUS }
   const dx = sea.x - land.x
   const dz = sea.z - land.z
   const length = Math.hypot(dx, dz)
@@ -306,10 +386,12 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
 /**
  * Tfw element complex set. Same ranks, mouth-bar fans, and ridge stack as the
  * symmetric Wf scene. The channel is the tidal funnel and yaws +15° toward +X.
+ * From its landward tip to the flare start the centreline turns 45° toward −X.
  * The right flank uses the asymmetric loft. The left flank uses the
- * convex-seaward bow in the same Z stack and yaw as the right flank, with
- * each channel end on the opposite (left) wall. A half channel sits on the
- * −X side of that left set and runs landward until it meets the tidal channel.
+ * convex-seaward bow, moved landward by half one mesh width, with each channel
+ * end overlapping the left wall by 10% of the local channel width. A half
+ * channel lines up with the most seaward left ridge and runs landward along
+ * that set's outer edge.
  * Mouth-bar positions are swung about the channel so the fan centreline
  * lies on the channel centreline, then each bar's channel-local X is scaled
  * with the local half-width so it keeps the same place between the margins.

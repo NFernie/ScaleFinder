@@ -25,6 +25,46 @@ export const TIDAL_CHANNEL_OPACITY = 0.5
 export const TIDAL_CHANNEL_DIP_ANGLE_SCALE = 1.2
 
 /**
+ * Heading of the reach from the landward tip to the flare start.
+ * That reach turns this far from −Z toward −X, the left beach-ridge side.
+ * The flare, from the taper station to the seaward tip, stays on the axis.
+ */
+export const TIDAL_CHANNEL_LANDWARD_TURN_RAD = (45 * Math.PI) / 180
+
+/** Centreline point and the horizontal right axis at station `s` (`landZ` … `seaZ`). */
+export interface TidalChannelFrame {
+  s: number
+  x: number
+  z: number
+  rightX: number
+  rightZ: number
+}
+
+/**
+ * Centreline frame. `s` is arc length along the old straight axis, so radius
+ * and depth stay keyed to it. From the landward tip to the flare start the
+ * centreline runs straight at {@link TIDAL_CHANNEL_LANDWARD_TURN_RAD} toward −X.
+ * From the flare start to the seaward tip it stays on x = 0.
+ */
+export function tidalChannelFrameAt(s: number): TidalChannelFrame {
+  const { taperZ } = tidalChannelSpan()
+  if (s >= taperZ) return { s, x: 0, z: s, rightX: 1, rightZ: 0 }
+  const run = taperZ - s
+  const turn = TIDAL_CHANNEL_LANDWARD_TURN_RAD
+  const landX = -Math.sin(turn)
+  const landZ = -Math.cos(turn)
+  const seawardX = -landX
+  const seawardZ = -landZ
+  return {
+    s,
+    x: landX * run,
+    z: taperZ + landZ * run,
+    rightX: seawardZ,
+    rightZ: -seawardX,
+  }
+}
+
+/**
  * Landward tip, seaward tip, and the station where the flare begins.
  * The seaward tip matches the half channel. The flare runs
  * {@link TIDAL_CHANNEL_TAPER_LENGTH_SCALE}× `CHANNEL_LENGTH` and therefore

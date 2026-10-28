@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
 import {
   TIDAL_CHANNEL_DIP_ANGLE_SCALE,
+  TIDAL_CHANNEL_LANDWARD_TURN_RAD,
   TIDAL_CHANNEL_OPACITY,
   TIDAL_CHANNEL_TAPER_LENGTH_SCALE,
   tidalChannelDepthAt,
+  tidalChannelFrameAt,
   tidalChannelReferenceDepth,
 } from '../core/tidalChannel'
 import { CHANNEL_LENGTH, CHANNEL_RADIUS, channelSpan, landwardMouthBarBaseY } from '../core/wfSchematic'
@@ -50,21 +52,32 @@ describe('tidalChannelGeometry', () => {
     const linear = landRadius + (seaRadius - landRadius) * 0.5
     expect(tidalChannelRadiusAt(midFlare)).toBeLessThan(linear)
 
+    const tip = tidalChannelFrameAt(landZ)
+    const joint = tidalChannelFrameAt(taperZ)
+    const run = Math.hypot(tip.x - joint.x, tip.z - joint.z)
+    expect(run).toBeCloseTo(taperZ - landZ, 6)
+    expect((tip.x - joint.x) / run).toBeCloseTo(-Math.sin(TIDAL_CHANNEL_LANDWARD_TURN_RAD), 6)
+    expect((tip.z - joint.z) / run).toBeCloseTo(-Math.cos(TIDAL_CHANNEL_LANDWARD_TURN_RAD), 6)
+    expect(tidalChannelFrameAt((taperZ + seaZ) / 2).x).toBeCloseTo(0, 6)
+
     const geometry = tidalChannelGeometry()
     geometry.computeBoundingBox()
     const box = geometry.boundingBox
     if (!box) throw new Error('missing box')
-    expect(box.min.z).toBeCloseTo(landZ, 4)
+    const landRightZ = tip.z + landRadius * tip.rightZ
+    expect(box.min.z).toBeCloseTo(landRightZ, 4)
     expect(box.max.z).toBeCloseTo(seaZ, 4)
     expect(box.max.y).toBeCloseTo(0, 4)
     expect(box.min.x).toBeCloseTo(-seaRadius, 3)
     expect(box.max.x).toBeCloseTo(seaRadius, 3)
 
     const plan = tidalChannelPlanSamples()
-    expect(plan[0].z).toBeCloseTo(landZ)
+    expect(plan[0].s).toBeCloseTo(landZ)
+    expect(plan[0].z).toBeCloseTo(tip.z)
     expect(plan[plan.length - 1].z).toBeCloseTo(seaZ)
-    expect(plan[0].xRight - plan[0].xLeft).toBeCloseTo(2 * landRadius, 5)
-    const atTaper = plan.find((ring) => Math.abs(ring.z - taperZ) < 1e-8)
+    const landSpan = Math.hypot(plan[0].xRight - plan[0].xLeft, plan[0].zRight - plan[0].zLeft)
+    expect(landSpan).toBeCloseTo(2 * landRadius, 5)
+    const atTaper = plan.find((ring) => Math.abs(ring.s - taperZ) < 1e-8)
     expect(atTaper).toBeDefined()
     expect(atTaper!.xRight - atTaper!.xLeft).toBeCloseTo(2 * landRadius, 5)
     expect(plan[plan.length - 1].xRight - plan[plan.length - 1].xLeft).toBeCloseTo(2 * seaRadius, 5)
@@ -73,7 +86,7 @@ describe('tidalChannelGeometry', () => {
   })
 
   it('dips the floor toward +Z and keeps the landward tip at the semicircle depth', () => {
-    const { landZ, seaZ, length } = tidalChannelSpan()
+    const { landZ, seaZ, taperZ, length } = tidalChannelSpan()
     const reference = tidalChannelReferenceDepth()
     const landDepth = CHANNEL_RADIUS
     const referenceAngle = Math.atan2(reference - landDepth, length)
@@ -93,30 +106,35 @@ describe('tidalChannelGeometry', () => {
 
     const geometry = tidalChannelGeometry()
     const position = geometry.getAttribute('position')
-    const bottomAt = (z: number) => {
+    const bottomNear = (x: number, z: number) => {
       let bottom = 0
+      let best = Infinity
       for (let i = 0; i < position.count; i += 1) {
-        if (Math.abs(position.getZ(i) - z) > 1e-6) continue
-        if (Math.abs(position.getX(i)) > 1e-4) continue
-        bottom = Math.min(bottom, position.getY(i))
+        const dx = position.getX(i) - x
+        const dz = position.getZ(i) - z
+        const dist = dx * dx + dz * dz
+        if (dist > best) continue
+        best = dist
+        bottom = position.getY(i)
       }
       return bottom
     }
-    const ringZ = new Set<number>()
-    for (let i = 0; i < position.count; i += 1) ringZ.add(position.getZ(i))
-    const midRing = [...ringZ].filter((z) => z > landZ && z < seaZ).sort((a, b) => a - b)
-    const midRingZ = midRing[Math.floor(midRing.length / 2)]
-    expect(midRing.length).toBeGreaterThan(0)
-    expect(bottomAt(landZ)).toBeCloseTo(-landDepth, 4)
-    expect(bottomAt(midRingZ)).toBeCloseTo(-tidalChannelDepthAt(midRingZ), 4)
-    expect(bottomAt(seaZ)).toBeCloseTo(-seaDepth, 4)
-    expect(bottomAt(seaZ)).toBeLessThan(bottomAt(landZ))
+    const tip = tidalChannelFrameAt(landZ)
+    const midS = (taperZ + seaZ) / 2
+    const mid = tidalChannelFrameAt(midS)
+    expect(bottomNear(tip.x, tip.z)).toBeCloseTo(-landDepth, 4)
+    expect(bottomNear(mid.x, mid.z)).toBeCloseTo(-tidalChannelDepthAt(midS), 4)
+    expect(bottomNear(0, seaZ)).toBeCloseTo(-seaDepth, 4)
+    expect(bottomNear(0, seaZ)).toBeLessThan(bottomNear(tip.x, tip.z))
     geometry.dispose()
   })
 
   it('winds the orange shell outward across the full length and seaward width', () => {
     const { landZ, seaZ } = tidalChannelSpan()
     const seaRadius = CHANNEL_RADIUS * TIDAL_CHANNEL_SEAWARD_WIDTH_RATIO
+    const tip = tidalChannelFrameAt(landZ)
+    const landRightZ = tip.z + CHANNEL_RADIUS * tip.rightZ
+    const landward = new THREE.Vector3(-Math.sin(TIDAL_CHANNEL_LANDWARD_TURN_RAD), 0, -Math.cos(TIDAL_CHANNEL_LANDWARD_TURN_RAD))
     const geometry = tidalChannelGeometry()
     const index = geometry.getIndex()
     const position = geometry.getAttribute('position')
@@ -137,7 +155,7 @@ describe('tidalChannelGeometry', () => {
     }
     expect(minX).toBeCloseTo(-seaRadius, 4)
     expect(maxX).toBeCloseTo(seaRadius, 4)
-    expect(minZ).toBeCloseTo(landZ, 4)
+    expect(minZ).toBeCloseTo(landRightZ, 4)
     expect(maxZ).toBeCloseTo(seaZ, 4)
     for (let triangle = 0; triangle < index.count / 3; triangle += 1) {
       const normal = faceNormal(geometry, triangle)
@@ -149,7 +167,8 @@ describe('tidalChannelGeometry', () => {
       if (Math.abs(center.y) < 1e-4 && normal.y > 0.9) flatUp = true
       if (center.y < -CHANNEL_RADIUS * 0.8 && normal.y < -0.5) arcOut = true
       if (center.z > seaZ - 1e-3 && normal.z > 0.9) seaCap = true
-      if (center.z < landZ + 1e-3 && normal.z < -0.9) landCap = true
+      const fromTip = center.clone().sub(new THREE.Vector3(tip.x, 0, tip.z))
+      if (fromTip.length() < CHANNEL_RADIUS * 1.2 && normal.dot(landward) > 0.9) landCap = true
     }
     expect(flatUp).toBe(true)
     expect(arcOut).toBe(true)

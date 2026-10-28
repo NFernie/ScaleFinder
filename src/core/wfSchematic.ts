@@ -85,9 +85,6 @@ export const RIDGE_BASE_SEAWARD = 0.12
  */
 export const RIDGE_FACE_SLOPE = 0.25
 
-/** Each landward beach ridge sits this fraction of the crest height above the next seaward ridge. */
-export const RIDGE_DOWNSTEP = 0.02
-
 /**
  * Plan angle, in degrees, added at the channel end of the most seaward beach ridge.
  * Positive swings the alongshore tip landward so the channel stays the seaward apex.
@@ -180,8 +177,20 @@ const RIDGE_STATIONS = 10
 const CHANNEL_LANDWARD_REACH = 1.55
 const CHANNEL_FLAT_Y = 0.32
 const RIDGE_NEST_Y = 0.04
-/** Crest height the 2% base offset was set against. Bases stay on this spacing. */
+/** Reference crest the seaward Y step is expressed against. */
 const RIDGE_BASE_REF = 0.36
+/**
+ * Downstep that still seats the most seaward ridge. The stack slope now follows
+ * the mouth bars; this anchor keeps that ridge's base, its crest on the channel
+ * top, and the mouth-bar seat.
+ */
+const RIDGE_SEAWARD_ANCHOR_DOWNSTEP = 0.02
+
+/** Base of the most seaward beach ridge. Stays on the pre-slope-match seat. */
+export function seawardRidgeBaseY(): number {
+  return RIDGE_NEST_Y - (RIDGE_COUNT - 1) * RIDGE_BASE_REF * RIDGE_SEAWARD_ANCHOR_DOWNSTEP
+}
+
 /** How far the tip crest sits above the water line on the lowest ridge. */
 const RIDGE_TIP_CLEARANCE = 0.03
 
@@ -202,7 +211,7 @@ function ridgeCentreZ(t: number): number {
  * crest stays above the water line.
  */
 function ridgeHeights(): { thick: number; tip: number } {
-  const lowestBase = RIDGE_NEST_Y - (RIDGE_COUNT - 1) * RIDGE_BASE_REF * RIDGE_DOWNSTEP
+  const lowestBase = seawardRidgeBaseY()
   const water = CHANNEL_FLAT_Y - CHANNEL_RADIUS
   return {
     thick: CHANNEL_FLAT_Y - lowestBase,
@@ -347,11 +356,6 @@ export function mouthBarCrownY(): number {
   return crown
 }
 
-/** Base of the most seaward beach ridge. */
-export function seawardRidgeBaseY(): number {
-  return RIDGE_NEST_Y - (RIDGE_COUNT - 1) * RIDGE_BASE_REF * RIDGE_DOWNSTEP
-}
-
 /**
  * Uniform Y offset for every mouth bar. The landward apex crown meets the channel centre.
  * Seaward steps and the offset between the two fans stay the same.
@@ -429,6 +433,23 @@ function mouthFans(): { seaward: ReturnType<typeof layMouthFan>; proximal: Retur
   }
 }
 
+/**
+ * Drop in Y per unit +Z from the landward mouth-bar rank to the seaward rank.
+ * Each rank drops `MOUTH_BAR_SCALE.y * MOUTH_BAR_STEP`; the run is that fan's Z span.
+ */
+export function mouthBarSeawardSlope(): number {
+  const levels = [...new Set(MOUTH_FAN.map((point) => point.z))].sort((a, b) => a - b)
+  const drop = MOUTH_BAR_SCALE.y * MOUTH_BAR_STEP
+  const span = levels[levels.length - 1] - levels[0]
+  return ((levels.length - 1) * drop) / span
+}
+
+/**
+ * Fraction of the reference crest between one beach ridge and the next seaward
+ * ridge. The Y drop is the mouth-bar slope times the channel-end Z step.
+ */
+export const RIDGE_DOWNSTEP = (mouthBarSeawardSlope() * RIDGE_Z_STEP) / RIDGE_BASE_REF
+
 function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
   const sign = side === 'r' ? 1 : -1
   const parentId = `es-ridge-${side}`
@@ -451,7 +472,7 @@ function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
       kind: 'beach-ridge',
       nested: {
         x: 0,
-        y: RIDGE_NEST_Y - index * RIDGE_BASE_REF * RIDGE_DOWNSTEP,
+        y: seawardRidgeBaseY() + (RIDGE_COUNT - 1 - index) * RIDGE_BASE_REF * RIDGE_DOWNSTEP,
         z: RIDGE_Z_BASE + index * RIDGE_Z_STEP,
       },
     })

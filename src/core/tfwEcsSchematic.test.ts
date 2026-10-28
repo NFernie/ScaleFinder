@@ -328,6 +328,14 @@ describe('tfwEcsSchematic', () => {
     expect(copiedRidge.nested.x).toBeCloseTo(half.nested.x + ridgeDx * Math.cos(halfYaw) + ridgeDz * Math.sin(halfYaw))
     expect(copiedRidge.nested.z).toBeCloseTo(half.nested.z - ridgeDx * Math.sin(halfYaw) + ridgeDz * Math.cos(halfYaw))
     expect(copiedRidge.nested.y).toBeCloseTo(half.nested.y + ridgeDy)
+    const wfRidgeDrop =
+      wf.find((body) => body.id === 'e-ridge-r-0')!.nested.y -
+      wf.find((body) => body.id === 'e-ridge-r-1')!.nested.y
+    for (const prefix of ['e-ridge-l-', 'e-ridge-r-', 'e-ridge-hl-']) {
+      const land = tfw.find((body) => body.id === `${prefix}0`)!
+      const next = tfw.find((body) => body.id === `${prefix}1`)!
+      expect(land.nested.y - next.nested.y).toBeCloseTo(wfRidgeDrop)
+    }
     expect(copiedRidge.yaw ?? 0).toBeCloseTo(halfYaw)
     expect(copiedRidge.parentId).toBe('es-ridge-hl')
     expect(copiedRidge.kind).toBe('beach-ridge')

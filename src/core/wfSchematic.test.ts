@@ -19,6 +19,7 @@ import {
   RIDGE_ANGLE_LANDWARD_DROP,
   RIDGE_BASE_SEAWARD,
   RIDGE_DOWNSTEP,
+  mouthBarSeawardSlope,
   RIDGE_FACE_SLOPE,
   RIDGE_SEAWARD_ANGLE_DEG,
   bodyCenter,
@@ -233,11 +234,14 @@ describe('wfSchematic', () => {
           expect(ridge.position.y + station.height).toBeGreaterThan(water)
         }
       }
+      expect(ridges[ridges.length - 1].position.y).toBeCloseTo(seawardRidgeBaseY())
       for (let i = 1; i < ridges.length; i += 1) {
         const step = ridges[i].position.z - ridges[i - 1].position.z
         expect(step).toBeGreaterThan(0)
         expect(ridges[i].position.x).toBe(0)
-        expect((ridges[i - 1].position.y - ridges[i].position.y) / 0.36).toBeCloseTo(RIDGE_DOWNSTEP)
+        const drop = ridges[i - 1].position.y - ridges[i].position.y
+        expect(drop / 0.36).toBeCloseTo(RIDGE_DOWNSTEP)
+        expect(drop / step).toBeCloseTo(mouthBarSeawardSlope())
       }
     }
   })

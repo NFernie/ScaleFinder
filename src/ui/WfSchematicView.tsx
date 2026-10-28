@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { sceneAt as asymSceneAt } from '../core/asymWfSchematic'
+import { DELTA_PLAIN_COLOUR, deltaPlainShape } from '../core/deltaplain'
 import { beachRidgeMesh, channelMesh, type SchematicSceneId } from '../core/schematicScene'
 import { sceneAt as tfwSceneAt } from '../core/tfwEcsSchematic'
 import {
@@ -9,15 +10,18 @@ import {
   sceneAt as wfSceneAt,
   WATER_COLOUR,
   WATER_OPACITY,
+  WATER_SLAB_DEPTH,
+  WATER_SLAB_WIDTH,
   type PlacedBody,
   type SolidKind,
 } from '../core/wfSchematic'
 import { asymmetricBeachRidgeGeometry } from './asymmetricBeachRidgeGeometry'
+import { deltaPlainGeometry } from './deltaplain'
 import { beachRidgeGeometry } from './beachRidgeGeometry'
 import { brConvexSwGeometry } from './brConvexSwgeometry'
 import { halfChannelGeometry } from './halfChannelGeometry'
 import { mouthBarGeometry } from './mouthBarGeometry'
-import { tidalChannelGeometry } from './tidalChannelGeometry'
+import { TIDAL_CHANNEL_OPACITY, tidalChannelGeometry } from './tidalChannelGeometry'
 import { cssEaseOut } from '../core/cssEaseOut'
 import {
   cameraPositionAtDistance,
@@ -55,6 +59,7 @@ const COLOUR: Record<SolidKind, number> = {
   channel: 0xf97316,
   'mouth-bar': 0x4ade80,
   'beach-ridge': 0xeab308,
+  'delta-plain': DELTA_PLAIN_COLOUR,
   group: 0xe2e8f0,
 }
 
@@ -65,12 +70,17 @@ function layoutAt(scene: SchematicSceneId, explode: number): PlacedBody[] {
 }
 
 function geometryFor(scene: SchematicSceneId, body: PlacedBody): THREE.BufferGeometry {
-  if (body.kind === 'ground') return new THREE.BoxGeometry(8, GROUND_THICKNESS, 6)
+  if (body.kind === 'ground') {
+    const width = body.groundSpan?.width ?? WATER_SLAB_WIDTH
+    const depth = body.groundSpan?.depth ?? WATER_SLAB_DEPTH
+    return new THREE.BoxGeometry(width, GROUND_THICKNESS, depth)
+  }
   if (body.kind === 'channel') {
     if (body.channelLength != null) return halfChannelGeometry(body.channelLength)
     return channelMesh(scene) === 'tidal' ? tidalChannelGeometry() : halfChannelGeometry()
   }
   if (body.kind === 'mouth-bar') return mouthBarGeometry()
+  if (body.kind === 'delta-plain') return deltaPlainGeometry(deltaPlainShape(scene, layoutAt(scene, 0)))
   if (body.kind === 'beach-ridge') {
     const index = Number(body.id.slice(body.id.lastIndexOf('-') + 1))
     const side = body.id.includes('-r-') ? 'r' : 'l'
@@ -212,13 +222,15 @@ const WfSchematicView = forwardRef<
       if (body.kind !== 'group') {
         const geometry = geometryFor(scene, body)
         geometries.push(geometry)
+        const tidalChannel =
+          body.kind === 'channel' && body.channelLength == null && channelMesh(scene) === 'tidal'
         const material = new THREE.MeshStandardMaterial({
           color: COLOUR[body.kind],
           roughness: 0.72,
           flatShading: body.kind === 'beach-ridge',
-          transparent: body.kind === 'ground',
-          opacity: body.kind === 'ground' ? WATER_OPACITY : 1,
-          depthWrite: body.kind !== 'ground',
+          transparent: body.kind === 'ground' || tidalChannel,
+          opacity: body.kind === 'ground' ? WATER_OPACITY : tidalChannel ? TIDAL_CHANNEL_OPACITY : 1,
+          depthWrite: body.kind !== 'ground' && !tidalChannel,
         })
         meshMaterials.push(material)
         group.add(new THREE.Mesh(geometry, material))

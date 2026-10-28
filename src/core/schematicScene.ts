@@ -5,6 +5,7 @@ export function beachRidgeMesh(
   scene: SchematicSceneId,
   bodyId: string,
 ): 'symmetric' | 'asymmetric' | 'convex-sw' {
+  if (scene === 'tfw' && bodyId.startsWith('e-ridge-hl-')) return 'symmetric'
   if (scene === 'tfw' && bodyId.startsWith('e-ridge-l-')) return 'convex-sw'
   if (scene === 'tfw' && bodyId.startsWith('e-ridge-')) return 'asymmetric'
   if (scene === 'asym' && bodyId.startsWith('e-ridge-') && !bodyId.includes('-r-')) return 'asymmetric'

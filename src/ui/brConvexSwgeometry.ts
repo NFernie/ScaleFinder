@@ -114,11 +114,12 @@ export function brConvexSwPlanSvg(index = 3): string {
 }
 
 /**
- * Plan of four right-flank elements with the Wf channel-end Z step (0.34).
- * Index 0 is landward. This is a preview, not a placed scene.
+ * Plan of five right-flank elements with the Wf channel-end Z step (0.34).
+ * Index 0 is landward. Index 4 is the deepest, most seaward element.
+ * This is a preview, not a placed scene.
  */
 export function brConvexSwStackPlanSvg(): string {
-  const ridges = Array.from({ length: 4 }, (_, index) => {
+  const ridges = Array.from({ length: 5 }, (_, index) => {
     const shift = index * STACK_PREVIEW_STEP
     return brConvexSwPlanSamples('r', index).map((sample) => ({
       x: sample.x,
@@ -154,9 +155,9 @@ export function brConvexSwStackPlanSvg(): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <rect width="100%" height="100%" fill="#0f172a"/>
-  <text x="40" y="28" fill="#e2e8f0" font-family="system-ui,sans-serif" font-size="18">BRconvexSW stack preview — indices 0–3</text>
+  <text x="40" y="28" fill="#e2e8f0" font-family="system-ui,sans-serif" font-size="18">BRconvexSW stack preview — indices 0–4</text>
   <text x="40" y="50" fill="#94a3b8" font-family="system-ui,sans-serif" font-size="13">Same channel-end Z step as the symmetric and asymmetric ridge stacks (0.34). Not placed in a scene. +Z up.</text>
   ${paths}
-  <text x="40" y="${H - 16}" fill="#94a3b8" font-size="12">+X right · +Z up = seaward · channel end at low |X| · index 3 is the seaward ridge</text>
+  <text x="40" y="${H - 16}" fill="#94a3b8" font-size="12">+X right · +Z up = seaward · channel end at low |X| · index 4 is the seaward ridge</text>
 </svg>`
 }

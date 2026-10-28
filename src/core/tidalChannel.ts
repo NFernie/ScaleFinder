@@ -1,4 +1,4 @@
-import { CHANNEL_LENGTH, CHANNEL_RADIUS } from './wfSchematic'
+import { CHANNEL_LENGTH, CHANNEL_RADIUS, channelSpan, landwardMouthBarBaseY } from './wfSchematic'
 
 /** Seaward opening width is this many times the landward width. */
 export const TIDAL_CHANNEL_SEAWARD_WIDTH_RATIO = 10
@@ -39,4 +39,21 @@ export function tidalChannelRadiusAt(z: number): number {
   if (z <= taperZ || seaZ === taperZ) return land
   const u = Math.min(1, Math.max(0, (z - taperZ) / (seaZ - taperZ)))
   return land + (sea - land) * u * u
+}
+
+/**
+ * Depth of the curved base below the flat top (y = 0).
+ * Landward of the flare the section is a semicircle, so depth equals the half-width.
+ * From the flare start to the seaward tip the depth is constant and the floor
+ * sits on the base of the most landward mouth bar.
+ */
+export function tidalChannelShallowDepth(): number {
+  return channelSpan().flatY - landwardMouthBarBaseY()
+}
+
+/** Vertical radius of the base arc at z. X half-width stays {@link tidalChannelRadiusAt}. */
+export function tidalChannelDepthAt(z: number): number {
+  const { taperZ } = tidalChannelSpan()
+  if (z < taperZ) return tidalChannelRadiusAt(z)
+  return tidalChannelShallowDepth()
 }

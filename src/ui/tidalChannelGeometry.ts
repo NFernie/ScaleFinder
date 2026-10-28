@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import {
   TIDAL_CHANNEL_LENGTH_SCALE,
   TIDAL_CHANNEL_SEAWARD_WIDTH_RATIO,
+  tidalChannelDepthAt,
   tidalChannelRadiusAt,
   tidalChannelSpan,
 } from '../core/tidalChannel'
@@ -10,6 +11,7 @@ import { CHANNEL_LENGTH, CHANNEL_RADIUS } from '../core/wfSchematic'
 export {
   TIDAL_CHANNEL_LENGTH_SCALE,
   TIDAL_CHANNEL_SEAWARD_WIDTH_RATIO,
+  tidalChannelDepthAt,
   tidalChannelRadiusAt,
   tidalChannelSpan,
 }
@@ -27,14 +29,19 @@ function sampleZ(): number[] {
 }
 
 /**
- * Funnel tidal channel along +Z. Each cross-section is a half circle: flat at y = 0,
- * arc to y = −radius(z). Landward width matches the half channel. Total length is
+ * Funnel tidal channel along +Z. Flat top at y = 0, curved base below it.
+ * Landward of the flare the section is a semicircle. From the flare start the
+ * base keeps that curve at one depth. Landward width matches the half channel.
+ * Total length is
  * {@link TIDAL_CHANNEL_LENGTH_SCALE}× `CHANNEL_LENGTH`, with the extra length landward
  * and the seaward tip kept at the half channel's seaward tip. Width stays constant until
  * the flare, which starts landward of the half channel's landward end, then opens with
  * a curve concave toward the centre to {@link TIDAL_CHANNEL_SEAWARD_WIDTH_RATIO}× at
- * the seaward end. The centreline stays on x = 0. Faces point outward so the orange
- * material covers the flat top, the arc, and both end caps out to those dimensions.
+ * the seaward end. The centreline stays on x = 0. From the flare start to the
+ * seaward tip the base arc keeps that curve but its depth is constant, and the
+ * floor sits on the base of the most landward mouth bar. Landward of the flare
+ * the section stays a semicircle. Faces point outward so the orange material
+ * covers the flat top, the arc, and both end caps out to those dimensions.
  */
 export function tidalChannelGeometry(): THREE.BufferGeometry {
   const positions: number[] = []
@@ -43,12 +50,13 @@ export function tidalChannelGeometry(): THREE.BufferGeometry {
   const zs = sampleZ()
 
   const pushArc = (z: number) => {
-    const radius = tidalChannelRadiusAt(z)
+    const xRadius = tidalChannelRadiusAt(z)
+    const yRadius = tidalChannelDepthAt(z)
     const start = positions.length / 3
     ringStarts.push(start)
     for (let i = 0; i <= ARC_SEGMENTS; i += 1) {
       const theta = -Math.PI / 2 + (i / ARC_SEGMENTS) * Math.PI
-      positions.push(radius * Math.sin(theta), -radius * Math.cos(theta), z)
+      positions.push(xRadius * Math.sin(theta), -yRadius * Math.cos(theta), z)
     }
     return start
   }
@@ -68,12 +76,13 @@ export function tidalChannelGeometry(): THREE.BufferGeometry {
   }
 
   const cap = (z: number, outward: 1 | -1) => {
-    const radius = tidalChannelRadiusAt(z)
+    const xRadius = tidalChannelRadiusAt(z)
+    const yRadius = tidalChannelDepthAt(z)
     const start = positions.length / 3
     positions.push(0, 0, z)
     for (let i = 0; i <= ARC_SEGMENTS; i += 1) {
       const theta = -Math.PI / 2 + (i / ARC_SEGMENTS) * Math.PI
-      positions.push(radius * Math.sin(theta), -radius * Math.cos(theta), z)
+      positions.push(xRadius * Math.sin(theta), -yRadius * Math.cos(theta), z)
     }
     for (let i = 0; i < ARC_SEGMENTS; i += 1) {
       if (outward === 1) indices.push(start, start + i + 1, start + i + 2)
@@ -109,7 +118,7 @@ export interface TidalChannelPlanRing {
 export function tidalChannelPlanSamples(): TidalChannelPlanRing[] {
   return sampleZ().map((z) => {
     const radius = tidalChannelRadiusAt(z)
-    return { z, xLeft: -radius, xRight: radius, zArcDeep: -radius }
+    return { z, xLeft: -radius, xRight: radius, zArcDeep: -tidalChannelDepthAt(z) }
   })
 }
 

@@ -362,6 +362,17 @@ export function channelCenterY(): number {
 }
 
 /**
+ * World Y of the lowest point on the base of the most landward mouth bar.
+ * That bar is the proximal apex. Its landward rim is the fan's landward base,
+ * and the underside dips to {@link MOUTH_BAR_DIP} at the seaward rim.
+ */
+export function landwardMouthBarBaseY(): number {
+  const halfZ = MOUTH_BAR_SCALE.z / 2
+  const rimY = channelSpan().flatY - CHANNEL_RADIUS / 2 - mouthBarCrownY()
+  return rimY + mouthBarBaseOffset(halfZ, halfZ)
+}
+
+/**
  * Filled V in front of the channel. The apex is the centre bar.
  * The next row is one left and one right. Each of those then adds an
  * outer bar, a bar back toward the opposite side of the axis, and one

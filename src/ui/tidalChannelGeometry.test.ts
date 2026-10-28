@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
-import { TIDAL_CHANNEL_TAPER_LENGTH_SCALE, tidalChannelDepthAt, tidalChannelShallowDepth } from '../core/tidalChannel'
+import {
+  TIDAL_CHANNEL_DIP_ANGLE_SCALE,
+  TIDAL_CHANNEL_OPACITY,
+  TIDAL_CHANNEL_TAPER_LENGTH_SCALE,
+  tidalChannelDepthAt,
+  tidalChannelReferenceDepth,
+} from '../core/tidalChannel'
 import { CHANNEL_LENGTH, CHANNEL_RADIUS, channelSpan, landwardMouthBarBaseY } from '../core/wfSchematic'
 import {
   TIDAL_CHANNEL_LENGTH_SCALE,
@@ -66,19 +72,24 @@ describe('tidalChannelGeometry', () => {
     geometry.dispose()
   })
 
-  it('holds a shallow curved base from the flare start to the seaward tip', () => {
-    const { landZ, seaZ, taperZ } = tidalChannelSpan()
-    const depth = tidalChannelShallowDepth()
-    const floorY = landwardMouthBarBaseY() - channelSpan().flatY
+  it('dips the floor toward +Z and keeps the landward tip at the semicircle depth', () => {
+    const { landZ, seaZ, length } = tidalChannelSpan()
+    const reference = tidalChannelReferenceDepth()
+    const landDepth = CHANNEL_RADIUS
+    const referenceAngle = Math.atan2(reference - landDepth, length)
+    const seaDepth = tidalChannelDepthAt(seaZ)
+    const dipAngle = Math.atan2(seaDepth - landDepth, length)
+    const midZ = (landZ + seaZ) / 2
 
-    expect(depth).toBeGreaterThan(0)
-    expect(depth).toBeLessThan(tidalChannelRadiusAt(seaZ))
-    expect(floorY).toBeCloseTo(-depth)
-    expect(tidalChannelDepthAt(landZ)).toBeCloseTo(CHANNEL_RADIUS)
-    expect(tidalChannelDepthAt(taperZ - 1e-6)).toBeCloseTo(CHANNEL_RADIUS)
-    expect(tidalChannelDepthAt(taperZ)).toBeCloseTo(depth)
-    expect(tidalChannelDepthAt((taperZ + seaZ) / 2)).toBeCloseTo(depth)
-    expect(tidalChannelDepthAt(seaZ)).toBeCloseTo(depth)
+    expect(TIDAL_CHANNEL_OPACITY).toBe(0.5)
+    expect(reference).toBeCloseTo(channelSpan().flatY - landwardMouthBarBaseY())
+    expect(reference).toBeGreaterThan(landDepth)
+    expect(tidalChannelDepthAt(landZ)).toBeCloseTo(landDepth)
+    expect(seaDepth).toBeGreaterThan(reference)
+    expect(dipAngle).toBeCloseTo(referenceAngle * TIDAL_CHANNEL_DIP_ANGLE_SCALE, 8)
+    expect(tidalChannelDepthAt(midZ)).toBeCloseTo((landDepth + seaDepth) / 2, 8)
+    expect(tidalChannelDepthAt(midZ)).toBeGreaterThan(tidalChannelDepthAt(landZ))
+    expect(tidalChannelDepthAt(seaZ)).toBeGreaterThan(tidalChannelDepthAt(midZ))
 
     const geometry = tidalChannelGeometry()
     const position = geometry.getAttribute('position')
@@ -93,12 +104,13 @@ describe('tidalChannelGeometry', () => {
     }
     const ringZ = new Set<number>()
     for (let i = 0; i < position.count; i += 1) ringZ.add(position.getZ(i))
-    const midRing = [...ringZ].filter((z) => z > taperZ && z < seaZ).sort((a, b) => a - b)
+    const midRing = [...ringZ].filter((z) => z > landZ && z < seaZ).sort((a, b) => a - b)
+    const midRingZ = midRing[Math.floor(midRing.length / 2)]
     expect(midRing.length).toBeGreaterThan(0)
-    expect(bottomAt(landZ)).toBeCloseTo(-CHANNEL_RADIUS, 4)
-    expect(bottomAt(taperZ)).toBeCloseTo(floorY, 4)
-    expect(bottomAt(midRing[Math.floor(midRing.length / 2)])).toBeCloseTo(floorY, 4)
-    expect(bottomAt(seaZ)).toBeCloseTo(floorY, 4)
+    expect(bottomAt(landZ)).toBeCloseTo(-landDepth, 4)
+    expect(bottomAt(midRingZ)).toBeCloseTo(-tidalChannelDepthAt(midRingZ), 4)
+    expect(bottomAt(seaZ)).toBeCloseTo(-seaDepth, 4)
+    expect(bottomAt(seaZ)).toBeLessThan(bottomAt(landZ))
     geometry.dispose()
   })
 

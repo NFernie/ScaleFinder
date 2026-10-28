@@ -13,6 +13,18 @@ export const TIDAL_CHANNEL_LENGTH_SCALE = 1.5
 export const TIDAL_CHANNEL_TAPER_LENGTH_SCALE = 1.2
 
 /**
+ * Opacity of the tidal channel shell in the schematic view.
+ * The shell was fully opaque; this is 50% transparency.
+ */
+export const TIDAL_CHANNEL_OPACITY = 0.5
+
+/**
+ * The floor's dip toward +Z is this multiple of the angle from the landward
+ * floor down to the most landward mouth-bar base. The landward tip stays put.
+ */
+export const TIDAL_CHANNEL_DIP_ANGLE_SCALE = 1.2
+
+/**
  * Landward tip, seaward tip, and the station where the flare begins.
  * The seaward tip matches the half channel. The flare runs
  * {@link TIDAL_CHANNEL_TAPER_LENGTH_SCALE}× `CHANNEL_LENGTH` and therefore
@@ -42,18 +54,38 @@ export function tidalChannelRadiusAt(z: number): number {
 }
 
 /**
- * Depth of the curved base below the flat top (y = 0).
- * Landward of the flare the section is a semicircle, so depth equals the half-width.
- * From the flare start to the seaward tip the depth is constant and the floor
- * sits on the base of the most landward mouth bar.
+ * Depth below the flat top (y = 0) of the floor that sat on the most landward
+ * mouth-bar base. That depth is the reference for the dip angle. The seaward
+ * tip is deeper than this.
  */
-export function tidalChannelShallowDepth(): number {
+export function tidalChannelReferenceDepth(): number {
   return channelSpan().flatY - landwardMouthBarBaseY()
 }
 
-/** Vertical radius of the base arc at z. X half-width stays {@link tidalChannelRadiusAt}. */
+/**
+ * Floor depth at the landward tip and at the seaward tip.
+ * The landward tip stays a semicircle (`CHANNEL_RADIUS`). The seaward tip is
+ * low enough that the angle down toward +Z is {@link TIDAL_CHANNEL_DIP_ANGLE_SCALE}
+ * times the angle from that landward floor to {@link tidalChannelReferenceDepth}.
+ */
+export function tidalChannelDip(): { landDepth: number; seaDepth: number } {
+  const { length } = tidalChannelSpan()
+  const landDepth = CHANNEL_RADIUS
+  const drop = tidalChannelReferenceDepth() - landDepth
+  const angle = Math.atan2(drop, length)
+  const seaDepth = landDepth + length * Math.tan(angle * TIDAL_CHANNEL_DIP_ANGLE_SCALE)
+  return { landDepth, seaDepth }
+}
+
+/**
+ * Vertical radius of the base arc at z. X half-width stays {@link tidalChannelRadiusAt}.
+ * Depth increases in a straight line from the landward tip to the seaward tip,
+ * so the floor dips toward +Z and the seaward side sits deeper in Y.
+ */
 export function tidalChannelDepthAt(z: number): number {
-  const { taperZ } = tidalChannelSpan()
-  if (z < taperZ) return tidalChannelRadiusAt(z)
-  return tidalChannelShallowDepth()
+  const { landZ, length } = tidalChannelSpan()
+  const { landDepth, seaDepth } = tidalChannelDip()
+  if (length === 0) return landDepth
+  const u = Math.min(1, Math.max(0, (z - landZ) / length))
+  return landDepth + (seaDepth - landDepth) * u
 }

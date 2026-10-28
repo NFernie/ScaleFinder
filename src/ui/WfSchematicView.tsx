@@ -17,7 +17,7 @@ import { beachRidgeGeometry } from './beachRidgeGeometry'
 import { brConvexSwGeometry } from './brConvexSwgeometry'
 import { halfChannelGeometry } from './halfChannelGeometry'
 import { mouthBarGeometry } from './mouthBarGeometry'
-import { tidalChannelGeometry } from './tidalChannelGeometry'
+import { TIDAL_CHANNEL_OPACITY, tidalChannelGeometry } from './tidalChannelGeometry'
 import { cssEaseOut } from '../core/cssEaseOut'
 import {
   cameraPositionAtDistance,
@@ -212,13 +212,15 @@ const WfSchematicView = forwardRef<
       if (body.kind !== 'group') {
         const geometry = geometryFor(scene, body)
         geometries.push(geometry)
+        const tidalChannel =
+          body.kind === 'channel' && body.channelLength == null && channelMesh(scene) === 'tidal'
         const material = new THREE.MeshStandardMaterial({
           color: COLOUR[body.kind],
           roughness: 0.72,
           flatShading: body.kind === 'beach-ridge',
-          transparent: body.kind === 'ground',
-          opacity: body.kind === 'ground' ? WATER_OPACITY : 1,
-          depthWrite: body.kind !== 'ground',
+          transparent: body.kind === 'ground' || tidalChannel,
+          opacity: body.kind === 'ground' ? WATER_OPACITY : tidalChannel ? TIDAL_CHANNEL_OPACITY : 1,
+          depthWrite: body.kind !== 'ground' && !tidalChannel,
         })
         meshMaterials.push(material)
         group.add(new THREE.Mesh(geometry, material))

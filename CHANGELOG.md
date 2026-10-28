@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The Tfw tidal channel shell is 50% transparent (opacity 0.5). Its floor dips toward +Z: the landward tip stays at the semicircle depth, and the dip angle is 20% steeper than the angle from that floor down to the most landward mouth-bar base, so the seaward tip sits deeper.
 - The Tfw tidal channel seaward opening is **10×** the landward width, still centred on the channel axis. The flare length is **1.2×** `CHANNEL_LENGTH`, so it starts further landward. From that flare start to the seaward tip the curved base keeps one depth, and the floor sits on the base of the most landward mouth bar. Landward of the flare the section stays a semicircle. Outward winding puts the orange material on the flat top, the arc, and both end caps out to those dimensions. Beach-ridge channel ends stay on the new walls. Mouth bars keep the same fraction of the local half-width.
 - The Tfw left flank (`BRconvexSW`) keeps the asymmetric right flank’s Z stack and yaw, mirrored onto the tidal channel’s left wall. A half channel (`e-channel-l`) sits one radius left of that set’s outer tip and runs landward until its landward end meets the tidal channel’s landward left wall.
 - The tidal channel is 1.5× the half-channel length, with the extra length landward. Width stays at the half-channel width on that landward extension, then flares on a curve concave toward the centre.

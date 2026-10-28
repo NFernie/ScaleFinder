@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import {
   TIDAL_CHANNEL_LENGTH_SCALE,
+  TIDAL_CHANNEL_OPACITY,
   TIDAL_CHANNEL_SEAWARD_WIDTH_RATIO,
   tidalChannelDepthAt,
   tidalChannelRadiusAt,
@@ -10,6 +11,7 @@ import { CHANNEL_LENGTH, CHANNEL_RADIUS } from '../core/wfSchematic'
 
 export {
   TIDAL_CHANNEL_LENGTH_SCALE,
+  TIDAL_CHANNEL_OPACITY,
   TIDAL_CHANNEL_SEAWARD_WIDTH_RATIO,
   tidalChannelDepthAt,
   tidalChannelRadiusAt,
@@ -30,18 +32,16 @@ function sampleZ(): number[] {
 
 /**
  * Funnel tidal channel along +Z. Flat top at y = 0, curved base below it.
- * Landward of the flare the section is a semicircle. From the flare start the
- * base keeps that curve at one depth. Landward width matches the half channel.
+ * The landward tip stays a semicircle. The floor then dips in a straight line
+ * toward +Z, so the seaward tip is deeper. Landward width matches the half channel.
  * Total length is
  * {@link TIDAL_CHANNEL_LENGTH_SCALE}× `CHANNEL_LENGTH`, with the extra length landward
  * and the seaward tip kept at the half channel's seaward tip. Width stays constant until
  * the flare, which starts landward of the half channel's landward end, then opens with
  * a curve concave toward the centre to {@link TIDAL_CHANNEL_SEAWARD_WIDTH_RATIO}× at
- * the seaward end. The centreline stays on x = 0. From the flare start to the
- * seaward tip the base arc keeps that curve but its depth is constant, and the
- * floor sits on the base of the most landward mouth bar. Landward of the flare
- * the section stays a semicircle. Faces point outward so the orange material
- * covers the flat top, the arc, and both end caps out to those dimensions.
+ * the seaward end. The centreline stays on x = 0. Faces point outward so the orange
+ * material covers the flat top, the arc, and both end caps out to those dimensions.
+ * The Tfw view draws that shell at {@link TIDAL_CHANNEL_OPACITY}.
  */
 export function tidalChannelGeometry(): THREE.BufferGeometry {
   const positions: number[] = []

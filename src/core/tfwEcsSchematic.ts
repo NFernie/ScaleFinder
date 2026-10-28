@@ -1,5 +1,5 @@
 import { brConvexSwStations } from './brConvexSwPlan'
-import { tidalChannelRadiusAt, tidalChannelSpan } from './tidalChannel'
+import { tidalChannelFrameAt, tidalChannelRadiusAt, tidalChannelSpan } from './tidalChannel'
 import {
   beachRidgeRing,
   beachRidgeStations,
@@ -334,11 +334,52 @@ function convexOuterTip(body: SceneBody): { x: number; z: number } {
   return tip
 }
 
+function straightChannel(
+  id: string,
+  name: string,
+  sea: { x: number; z: number },
+  land: { x: number; z: number },
+  y: number,
+): SceneBody {
+  const dx = sea.x - land.x
+  const dz = sea.z - land.z
+  return {
+    id,
+    name,
+    rank: 'element',
+    parentId: 'es-ridge-l',
+    kind: 'channel',
+    nested: {
+      x: (sea.x + land.x) / 2,
+      y,
+      z: (sea.z + land.z) / 2,
+    },
+    yaw: Math.atan2(dx, dz),
+    channelLength: Math.hypot(dx, dz),
+  }
+}
+
+/** World XZ of one end of a straight channel. `+1` is the seaward end. */
+function channelEndXZ(body: SceneBody, sign: 1 | -1): { x: number; z: number } {
+  const length = body.channelLength ?? 0
+  const yaw = body.yaw ?? 0
+  return {
+    x: body.nested.x + sign * (length / 2) * Math.sin(yaw),
+    z: body.nested.z + sign * (length / 2) * Math.cos(yaw),
+  }
+}
+
+/** Landward tip of the tidal-channel centreline, in world XZ. */
+function tidalLandwardTip(channel: SceneBody): { x: number; z: number } {
+  const frame = tidalChannelFrameAt(tidalChannelSpan().landZ)
+  return worldFromNested(channel, { x: frame.x, y: 0, z: frame.z })
+}
+
 /**
  * Half channel along the outer edge of the convex left-flank set.
  * The seaward end lines up with the most seaward ridge's outer tip. The run
- * goes landward to the most landward ridge's outer tip. The centreline sits
- * one radius outside that edge, so the inner side of the channel lies on it.
+ * keeps that heading and is twice the tip-to-tip length, the extra length
+ * landward. The centreline sits one radius outside the edge.
  */
 function leftHalfChannelBody(bodies: SceneBody[]): SceneBody {
   const channel = bodies.find((body) => body.id === 'e-channel')!
@@ -353,24 +394,72 @@ function leftHalfChannelBody(bodies: SceneBody[]): SceneBody {
   const outX = -edgeZ / edge
   const outZ = edgeX / edge
   const sea = { x: seaTip.x + outX * CHANNEL_RADIUS, z: seaTip.z + outZ * CHANNEL_RADIUS }
-  const land = { x: landTip.x + outX * CHANNEL_RADIUS, z: landTip.z + outZ * CHANNEL_RADIUS }
-  const dx = sea.x - land.x
-  const dz = sea.z - land.z
-  const length = Math.hypot(dx, dz)
-  return {
-    id: 'e-channel-l',
-    name: 'Half channel',
-    rank: 'element',
-    parentId: 'es-ridge-l',
-    kind: 'channel',
-    nested: {
-      x: (sea.x + land.x) / 2,
-      y: channel.nested.y,
-      z: (sea.z + land.z) / 2,
-    },
-    yaw: Math.atan2(dx, dz),
-    channelLength: length,
+  const edgeLand = { x: landTip.x + outX * CHANNEL_RADIUS, z: landTip.z + outZ * CHANNEL_RADIUS }
+  const land = {
+    x: sea.x + (edgeLand.x - sea.x) * 2,
+    z: sea.z + (edgeLand.z - sea.z) * 2,
   }
+  return straightChannel('e-channel-l', 'Half channel', sea, land, channel.nested.y)
+}
+
+/**
+ * Second half channel. Its seaward end meets the extended half channel's
+ * landward end. Its landward end is the tidal channel's landward tip, so the
+ * yaw is the heading between those two points.
+ */
+function leftHalfChannelJoin(half: SceneBody, bodies: SceneBody[]): SceneBody {
+  const channel = bodies.find((body) => body.id === 'e-channel')!
+  return straightChannel(
+    'e-channel-l-join',
+    'Half channel join',
+    channelEndXZ(half, -1),
+    tidalLandwardTip(channel),
+    half.nested.y,
+  )
+}
+
+function leftMouthId(id: string): string {
+  if (id === 'ec-mouth') return 'ec-mouth-l'
+  if (id === 'es-mouth') return 'es-mouth-l'
+  if (id.startsWith('e-mouth-prox-')) return `e-mouth-l-prox-${id.slice('e-mouth-prox-'.length)}`
+  return `e-mouth-l-${id.slice('e-mouth-'.length)}`
+}
+
+/**
+ * A second mouth-bar complex. Each body's offset from the Wf channel, and its
+ * yaw relative to that channel, is copied onto the left half channel.
+ */
+function leftMouthComplex(half: SceneBody): SceneBody[] {
+  const wf = wfSceneAt(0)
+  const wfChannel = wf.find((body) => body.id === 'e-channel')!
+  const yaw = half.yaw ?? 0
+  return wf
+    .filter((body) => body.id === 'ec-mouth' || body.id === 'es-mouth' || body.kind === 'mouth-bar')
+    .map((body) => {
+      const rotated = rotateYaw(
+        {
+          x: body.nested.x - wfChannel.nested.x,
+          y: body.nested.y - wfChannel.nested.y,
+          z: body.nested.z - wfChannel.nested.z,
+        },
+        yaw,
+      )
+      const name =
+        body.id === 'ec-mouth' ? 'Tfw-Mouth Bar left' : body.id === 'es-mouth' ? 'Mouth-bar set left' : body.name
+      const parentId = body.id === 'ec-mouth' ? 'ecs' : body.id === 'es-mouth' ? 'ec-mouth-l' : 'es-mouth-l'
+      return {
+        ...body,
+        id: leftMouthId(body.id),
+        name,
+        parentId,
+        nested: {
+          x: half.nested.x + rotated.x,
+          y: half.nested.y + rotated.y,
+          z: half.nested.z + rotated.z,
+        },
+        yaw: (body.yaw ?? 0) + yaw,
+      }
+    })
 }
 
 function explodePosition(body: SceneBody, spread: number): { x: number; y: number; z: number } {
@@ -390,8 +479,9 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * The right flank uses the asymmetric loft. The left flank uses the
  * convex-seaward bow, moved landward by half one mesh width, with each channel
  * end overlapping the left wall by 10% of the local channel width. A half
- * channel lines up with the most seaward left ridge and runs landward along
- * that set's outer edge.
+ * channel is twice the tip-to-tip length, the extra length landward, and a
+ * second section runs from that landward end to the tidal channel's landward
+ * tip. A mouth-bar complex copied from the Wf offsets sits on the half channel.
  * Mouth-bar positions are swung about the channel so the fan centreline
  * lies on the channel centreline, then each bar's channel-local X is scaled
  * with the local half-width so it keeps the same place between the margins.
@@ -415,7 +505,16 @@ export function sceneAt(explode: number): PlacedBody[] {
     }
   })
   const half = leftHalfChannelBody(rested)
-  const position = spread === 1 ? half.nested : explodePosition(half, spread)
-  placed.push({ ...half, position, showLabel: t > 2 / 3 })
+  const extras = [half, leftHalfChannelJoin(half, rested), ...leftMouthComplex(half)]
+  for (const body of extras) {
+    const position = spread === 1 ? body.nested : explodePosition(body, spread)
+    const showLabel =
+      body.rank === 'element-complex'
+        ? t > 0
+        : body.rank === 'element-set'
+          ? t > 1 / 3
+          : t > 2 / 3 && (body.id === 'e-channel-l' || body.id === 'e-channel-l-join' || body.id === 'e-mouth-l-0')
+    placed.push({ ...body, position, showLabel })
+  }
   return placed
 }

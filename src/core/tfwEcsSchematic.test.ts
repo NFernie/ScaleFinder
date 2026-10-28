@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { beachRidgeMesh, channelMesh } from './schematicScene'
-import { tidalChannelRadiusAt, tidalChannelSpan } from './tidalChannel'
+import { tidalChannelFrameAt, tidalChannelRadiusAt, tidalChannelSpan } from './tidalChannel'
 import { brConvexSwStations } from './brConvexSwPlan'
 import {
   TFW_CHANNEL_YAW_RAD,
@@ -28,7 +28,21 @@ describe('tfwEcsSchematic', () => {
     expect(TFW_ECS_ANCHOR).toEqual({ lat: -19.984295231442236, lng: 119.165775381814 })
     const tfw = tfwSceneAt(0)
     const wf = wfSceneAt(0)
-    expect(tfw.map((body) => body.id)).toEqual([...wf.map((body) => body.id), 'e-channel-l'])
+    const leftMouthIds = [
+      'ec-mouth-l',
+      'es-mouth-l',
+      ...wf.filter((body) => body.kind === 'mouth-bar').map((body) =>
+        body.id.startsWith('e-mouth-prox-')
+          ? `e-mouth-l-prox-${body.id.slice('e-mouth-prox-'.length)}`
+          : `e-mouth-l-${body.id.slice('e-mouth-'.length)}`,
+      ),
+    ]
+    expect(tfw.map((body) => body.id)).toEqual([
+      ...wf.map((body) => body.id),
+      'e-channel-l',
+      'e-channel-l-join',
+      ...leftMouthIds,
+    ])
     expect(tfw.find((body) => body.id === 'ecs')?.name).toBe('Tfw element complex set')
 
     const channel = tfw.find((body) => body.id === 'e-channel')!
@@ -89,8 +103,8 @@ describe('tfwEcsSchematic', () => {
     expect(leftSet.nested.x).toBeCloseTo(wfLeftSet.nested.x)
 
     for (const body of tfw) {
-      if (body.id === 'e-channel-l') continue
       const match = wf.find((item) => item.id === body.id)
+      if (!match) continue
       expect(body.parentId).toEqual(match?.parentId)
       expect(body.position.y).toBeCloseTo(match?.position.y ?? 0)
       const leftFlank = body.id === 'es-ridge-l' || body.id.startsWith('e-ridge-l-')
@@ -189,7 +203,6 @@ describe('tfwEcsSchematic', () => {
     const half = tfw.find((body) => body.id === 'e-channel-l')!
     expect(half.kind).toBe('channel')
     expect(half.parentId).toBe('es-ridge-l')
-    expect(half.channelLength).toBeGreaterThan(0)
     expect(half.position.y).toBeCloseTo(channel.position.y)
     const halfLen = half.channelLength ?? 0
     const halfEnd = (sign: 1 | -1) => ({
@@ -215,10 +228,50 @@ describe('tfwEcsSchematic', () => {
     const edge = Math.hypot(edgeX, edgeZ)
     const outX = -edgeZ / edge
     const outZ = edgeX / edge
-    expect(sea.x).toBeCloseTo(seaTip.x + outX * CHANNEL_RADIUS)
-    expect(sea.z).toBeCloseTo(seaTip.z + outZ * CHANNEL_RADIUS)
-    expect(landEnd.x).toBeCloseTo(landTip.x + outX * CHANNEL_RADIUS)
-    expect(landEnd.z).toBeCloseTo(landTip.z + outZ * CHANNEL_RADIUS)
+    const edgeSea = { x: seaTip.x + outX * CHANNEL_RADIUS, z: seaTip.z + outZ * CHANNEL_RADIUS }
+    const edgeLand = { x: landTip.x + outX * CHANNEL_RADIUS, z: landTip.z + outZ * CHANNEL_RADIUS }
+    expect(half.channelLength).toBeCloseTo(edge * 2, 5)
+    expect(sea.x).toBeCloseTo(edgeSea.x)
+    expect(sea.z).toBeCloseTo(edgeSea.z)
+    expect(landEnd.x).toBeCloseTo(edgeSea.x + (edgeLand.x - edgeSea.x) * 2)
+    expect(landEnd.z).toBeCloseTo(edgeSea.z + (edgeLand.z - edgeSea.z) * 2)
     expect(sea.x).toBeLessThan(seaTip.x)
+
+    const join = tfw.find((body) => body.id === 'e-channel-l-join')!
+    expect(join.kind).toBe('channel')
+    expect(join.parentId).toBe('es-ridge-l')
+    expect(join.position.y).toBeCloseTo(half.position.y)
+    const joinLen = join.channelLength ?? 0
+    const joinEnd = (sign: 1 | -1) => ({
+      x: join.nested.x + sign * (joinLen / 2) * Math.sin(join.yaw ?? 0),
+      z: join.nested.z + sign * (joinLen / 2) * Math.cos(join.yaw ?? 0),
+    })
+    expect(joinEnd(1).x).toBeCloseTo(landEnd.x)
+    expect(joinEnd(1).z).toBeCloseTo(landEnd.z)
+    const frame = tidalChannelFrameAt(tidalChannelSpan().landZ)
+    const channelYaw = channel.yaw ?? 0
+    const tip = {
+      x: channel.nested.x + frame.x * Math.cos(channelYaw) + frame.z * Math.sin(channelYaw),
+      z: channel.nested.z - frame.x * Math.sin(channelYaw) + frame.z * Math.cos(channelYaw),
+    }
+    expect(joinEnd(-1).x).toBeCloseTo(tip.x)
+    expect(joinEnd(-1).z).toBeCloseTo(tip.z)
+    expect(joinLen).toBeGreaterThan(0)
+
+    const wfChannel = wf.find((body) => body.id === 'e-channel')!
+    const copied = tfw.find((body) => body.id === 'e-mouth-l-1')!
+    const source = wf.find((body) => body.id === 'e-mouth-1')!
+    const dx = source.nested.x - wfChannel.nested.x
+    const dy = source.nested.y - wfChannel.nested.y
+    const dz = source.nested.z - wfChannel.nested.z
+    const halfYaw = half.yaw ?? 0
+    expect(copied.nested.x).toBeCloseTo(half.nested.x + dx * Math.cos(halfYaw) + dz * Math.sin(halfYaw))
+    expect(copied.nested.z).toBeCloseTo(half.nested.z - dx * Math.sin(halfYaw) + dz * Math.cos(halfYaw))
+    expect(copied.nested.y).toBeCloseTo(half.nested.y + dy)
+    expect(copied.yaw ?? 0).toBeCloseTo((source.yaw ?? 0) + halfYaw)
+    expect(copied.parentId).toBe('es-mouth-l')
+    expect(tfw.find((body) => body.id === 'ec-mouth-l')?.parentId).toBe('ecs')
+    expect(tfw.find((body) => body.id === 'es-mouth-l')?.parentId).toBe('ec-mouth-l')
+    expect(tfw.filter((body) => body.id.startsWith('e-mouth-l-')).length).toBe(18)
   })
 })

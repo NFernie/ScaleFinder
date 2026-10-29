@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Each beach-ridge set in the Wf, asymmetric, and Tfw scenes has a green swale between consecutive ridges (`e-swale-*`). The top follows the two crest lines of that pair, using the loft already on those ridges (symmetric, asymmetric, or convex-seaward). The base is the top of that scene’s water slab, and it moves with the slab.
+
 ### Fixed
 
 - The Wf schematic resize handle is a visible corner mark on the top-left of the view, with a resize cursor. Dragging it, or the arrow keys, still changes the view.

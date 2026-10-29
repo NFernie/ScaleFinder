@@ -11,7 +11,9 @@ describe('asymWfSchematic', () => {
     expect(asym.map((body) => body.id)).toEqual(wf.map((body) => body.id))
     for (const body of asym) {
       const match = wf.find((item) => item.id === body.id)
-      expect(body.position).toEqual(match?.position)
+      const leftSwale = body.kind === 'swale' && body.id.startsWith('e-swale-l-')
+      if (leftSwale) expect(body.position.z).not.toBeCloseTo(match?.position.z ?? 0, 2)
+      else expect(body.position).toEqual(match?.position)
       expect(body.yaw).toEqual(match?.yaw)
       expect(body.parentId).toEqual(match?.parentId)
     }

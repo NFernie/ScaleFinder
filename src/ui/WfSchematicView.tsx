@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { sceneAt as asymSceneAt } from '../core/asymWfSchematic'
 import { DELTA_PLAIN_COLOUR, deltaPlainShape } from '../core/deltaplain'
+import { swaleShape } from '../core/swale'
 import { beachRidgeMesh, channelMesh, ridgeFlankSide, type SchematicSceneId } from '../core/schematicScene'
 import { sceneAt as tfwSceneAt } from '../core/tfwEcsSchematic'
 import {
@@ -21,6 +22,7 @@ import { beachRidgeGeometry } from './beachRidgeGeometry'
 import { brConvexSwGeometry } from './brConvexSwgeometry'
 import { halfChannelGeometry } from './halfChannelGeometry'
 import { mouthBarGeometry } from './mouthBarGeometry'
+import { swaleGeometry } from './swalegeometry'
 import { TIDAL_CHANNEL_OPACITY, tidalChannelGeometry } from './tidalChannelGeometry'
 import { cssEaseOut } from '../core/cssEaseOut'
 import {
@@ -60,6 +62,7 @@ const COLOUR: Record<SolidKind, number> = {
   'mouth-bar': 0x4ade80,
   'beach-ridge': 0xeab308,
   'delta-plain': DELTA_PLAIN_COLOUR,
+  swale: DELTA_PLAIN_COLOUR,
   group: 0xe2e8f0,
 }
 
@@ -81,6 +84,7 @@ function geometryFor(scene: SchematicSceneId, body: PlacedBody): THREE.BufferGeo
   }
   if (body.kind === 'mouth-bar') return mouthBarGeometry()
   if (body.kind === 'delta-plain') return deltaPlainGeometry(deltaPlainShape(scene, layoutAt(scene, 0)))
+  if (body.kind === 'swale') return swaleGeometry(swaleShape(scene, layoutAt(scene, 0), body.id))
   if (body.kind === 'beach-ridge') {
     const index = Number(body.id.slice(body.id.lastIndexOf('-') + 1))
     const side = ridgeFlankSide(body.id)

@@ -1,4 +1,5 @@
 import { brConvexSwStations } from './brConvexSwPlan'
+import { swaleBodies } from './swale'
 import { DELTA_PLAIN_THICKNESS, deltaPlainShape } from './deltaplain'
 import { ridgeFlankSide } from './schematicScene'
 import { tidalChannelFrameAt, tidalChannelRadiusAt, tidalChannelSpan } from './tidalChannel'
@@ -498,7 +499,7 @@ function shiftedBody(body: SceneBody, bodiesForShift: SceneBody[]): SceneBody {
 }
 
 function sceneBodiesAtRest(): SceneBody[] {
-  const wf = wfSceneAt(0).filter((body) => !isDistalMouthId(body.id))
+  const wf = wfSceneAt(0).filter((body) => !isDistalMouthId(body.id) && body.kind !== 'swale')
   const yawed = alignMouthBarsToChannel(
     wf.map((body) => applyMouthBarXSpread(applyTfwYaw({ ...body, yaw: body.yaw }))),
   )
@@ -810,7 +811,8 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * the same offsets. The water slab grows to cover that extension. A delta
  * plain's top aligns with the crest of the most landward beach ridge, follows the
  * landward toe of each ridge set, stops at the channels, and runs to the
- * water slab's landward edge.
+ * water slab's landward edge. A green swale fills each gap between consecutive
+ * beach ridges, crest to crest, down to the water-slab top.
  * Mouth-bar positions are swung about the channel so the fan centreline
  * lies on the channel centreline, then each bar's channel-local X is scaled
  * with the local half-width so it keeps the same place between the margins.
@@ -827,7 +829,7 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
 export function sceneAt(explode: number): PlacedBody[] {
   const t = Math.min(1, Math.max(0, explode))
   const spread = 1 + (EXPLODE_SPREAD - 1) * t
-  const wfPlaced = wfSceneAt(t).filter((item) => !isDistalMouthId(item.id))
+  const wfPlaced = wfSceneAt(t).filter((item) => !isDistalMouthId(item.id) && item.kind !== 'swale')
   const rested = sceneBodiesAtRest()
   const half = leftHalfChannelBody(rested)
   const extras = [
@@ -891,5 +893,13 @@ export function sceneAt(explode: number): PlacedBody[] {
     position: spread === 1 ? plain.nested : explodePosition(plain, spread),
     showLabel: t > 2 / 3,
   })
+  const swaleSource = [ground, ...rested.filter((body) => body.kind !== 'ground'), ...extras]
+  for (const body of swaleBodies('tfw', swaleSource)) {
+    placed.push({
+      ...body,
+      position: spread === 1 ? body.nested : explodePosition(body, spread),
+      showLabel: false,
+    })
+  }
   return placed
 }

@@ -2,14 +2,28 @@ import { beachRidgeStations, type RidgeStation } from './wfSchematic'
 
 const BR_CONVEX_SW_STATIONS = 33
 
-const reference = beachRidgeStations('r', 0)
-const referenceTip = reference[reference.length - 1]
+let bowCache: number | undefined
 
 /**
  * Sagitta of the plan bow. A quarter of the alongshore span: half the
  * height of the previous semicircle, belly toward +Z.
+ * Read on demand so this module can load while `wfSchematic` is still initialising.
  */
-export const BR_CONVEX_SW_BOW = Math.abs(referenceTip.x - reference[0].x) / 4
+export function brConvexSwBow(): number {
+  if (bowCache === undefined) {
+    const reference = beachRidgeStations('r', 0)
+    const tip = reference[reference.length - 1]
+    bowCache = Math.abs(tip.x - reference[0].x) / 4
+  }
+  return bowCache
+}
+
+/**
+ * Same length as {@link brConvexSwBow}. The span is the symmetric ridge’s
+ * alongshore reach (outer 3.45 minus channel radius 0.1). Kept as a number so
+ * this module can load before `beachRidgeStations` exists.
+ */
+export const BR_CONVEX_SW_BOW = (3.45 - 0.1) / 4
 
 /**
  * Plan stations for one convex-seaward beach ridge (`BRconvexSW`).

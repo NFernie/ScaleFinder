@@ -5,13 +5,14 @@
  * stays at Sfântu Gheorghe.
  */
 import { asymmetricBeachRidgeStations } from './asymmetricBeachRidgePlan'
+import { swaleBodies } from './swale'
 import { layDistalMouthFan } from './wfSchematic'
 
 export const ASYM_WF_ANCHOR = { lat: 44.878674, lng: 29.515563 } as const
 
 export type Rank = 'element' | 'element-set' | 'element-complex' | 'element-complex-set'
 
-export type SolidKind = 'ground' | 'channel' | 'mouth-bar' | 'beach-ridge' | 'group'
+export type SolidKind = 'ground' | 'channel' | 'mouth-bar' | 'beach-ridge' | 'swale' | 'group'
 
 export interface SceneBody {
   id: string
@@ -581,7 +582,7 @@ const BODIES: SceneBody[] = [
 export function sceneAt(explode: number): PlacedBody[] {
   const t = Math.min(1, Math.max(0, explode))
   const spread = 1 + (EXPLODE_SPREAD - 1) * t
-  return BODIES.map((body) => {
+  const placed = BODIES.map((body) => {
     if (spread === 1) return { ...body, position: body.nested, showLabel: labelVisible(body, t) }
     const local = rotateYaw(localCenter(body), body.yaw ?? 0)
     const center = bodyCenter(body)
@@ -595,4 +596,19 @@ export function sceneAt(explode: number): PlacedBody[] {
       showLabel: labelVisible(body, t),
     }
   })
+  const swales: PlacedBody[] = swaleBodies('asym', BODIES).map((body) => ({
+    id: body.id,
+    name: body.name,
+    rank: 'element',
+    parentId: body.parentId,
+    kind: 'swale',
+    nested: body.nested,
+    position: {
+      x: body.nested.x * spread,
+      y: body.nested.y * spread,
+      z: body.nested.z * spread,
+    },
+    showLabel: false,
+  }))
+  return [...placed, ...swales]
 }

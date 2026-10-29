@@ -69,7 +69,7 @@ describe('tfwEcsSchematic', () => {
       'e-mouth-sea-8',
     ]
     expect(tfw.map((body) => body.id)).toEqual([
-      ...wf.map((body) => body.id).filter((id) => !isDistalMouthId(id)),
+      ...wf.map((body) => body.id).filter((id) => !isDistalMouthId(id) && !id.startsWith('e-swale-')),
       ...mouthExtraIds,
       'e-channel-l',
       'e-channel-l-join',
@@ -82,6 +82,18 @@ describe('tfwEcsSchematic', () => {
       'e-ridge-hl-3',
       'e-ridge-hl-4',
       'e-deltaplain',
+      'e-swale-l-0',
+      'e-swale-l-1',
+      'e-swale-l-2',
+      'e-swale-l-3',
+      'e-swale-r-0',
+      'e-swale-r-1',
+      'e-swale-r-2',
+      'e-swale-r-3',
+      'e-swale-hl-0',
+      'e-swale-hl-1',
+      'e-swale-hl-2',
+      'e-swale-hl-3',
     ])
     expect(tfw.find((body) => body.id === 'ecs')?.name).toBe('Tfw element complex set')
 
@@ -153,7 +165,7 @@ describe('tfwEcsSchematic', () => {
     for (const body of tfw) {
       const match = wf.find((item) => item.id === body.id)
       if (!match) continue
-      if (body.kind === 'mouth-bar' || body.id === 'ec-mouth' || body.id === 'es-mouth') continue
+      if (body.kind === 'mouth-bar' || body.kind === 'swale' || body.id === 'ec-mouth' || body.id === 'es-mouth') continue
       expect(body.parentId).toEqual(match?.parentId)
       expect(body.position.y).toBeCloseTo(match?.position.y ?? 0)
       const leftFlank = body.id === 'es-ridge-l' || body.id.startsWith('e-ridge-l-')

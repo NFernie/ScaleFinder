@@ -3,11 +3,13 @@
  * Stored as latitude 18.601312, longitude −92.674937. A latitude of −92.67
  * cannot be plotted; 18.6°N, 92.67°W is the pair that sits on the map.
  */
+import { swaleBodies } from './swale'
+
 export const WF_ANCHOR = { lat: 18.601312, lng: -92.674937 } as const
 
 export type Rank = 'element' | 'element-set' | 'element-complex' | 'element-complex-set'
 
-export type SolidKind = 'ground' | 'channel' | 'mouth-bar' | 'beach-ridge' | 'delta-plain' | 'group'
+export type SolidKind = 'ground' | 'channel' | 'mouth-bar' | 'beach-ridge' | 'delta-plain' | 'swale' | 'group'
 
 export interface SceneBody {
   id: string
@@ -635,7 +637,7 @@ const BODIES: SceneBody[] = [
 export function sceneAt(explode: number): PlacedBody[] {
   const t = Math.min(1, Math.max(0, explode))
   const spread = 1 + (EXPLODE_SPREAD - 1) * t
-  return BODIES.map((body) => {
+  const placed = BODIES.map((body) => {
     if (spread === 1) return { ...body, position: body.nested, showLabel: labelVisible(body, t) }
     const local = rotateYaw(localCenter(body), body.yaw ?? 0)
     const center = bodyCenter(body)
@@ -649,4 +651,18 @@ export function sceneAt(explode: number): PlacedBody[] {
       showLabel: labelVisible(body, t),
     }
   })
+  const travel = spread - 1
+  const swales = swaleBodies('wf', BODIES).map((body) => {
+    const center = bodyCenter(body)
+    return {
+      ...body,
+      position: {
+        x: body.nested.x + travel * center.x,
+        y: body.nested.y + travel * center.y,
+        z: body.nested.z + travel * center.z,
+      },
+      showLabel: false,
+    }
+  })
+  return [...placed, ...swales]
 }

@@ -65,6 +65,25 @@ describe('halfChannelGeometry', () => {
     geometry.dispose()
   })
 
+  it('winds every face outward from the channel interior', () => {
+    const geometry = halfChannelGeometry()
+    const index = geometry.getIndex()
+    const position = geometry.getAttribute('position')
+    if (!index) throw new Error('missing index')
+    const interior = new THREE.Vector3(0, -CHANNEL_RADIUS * 0.25, 0)
+    for (let triangle = 0; triangle < index.count / 3; triangle += 1) {
+      const normal = faceNormal(geometry, triangle)
+      const center = new THREE.Vector3()
+      for (let k = 0; k < 3; k += 1) {
+        center.add(new THREE.Vector3().fromBufferAttribute(position, index.getX(triangle * 3 + k)))
+      }
+      center.multiplyScalar(1 / 3)
+      const toInterior = interior.clone().sub(center)
+      expect(normal.dot(toInterior)).toBeLessThan(0.05)
+    }
+    geometry.dispose()
+  })
+
   it('stretches along Z when a longer length is passed', () => {
     const length = CHANNEL_LENGTH * 1.8
     const geometry = halfChannelGeometry(length)

@@ -3,7 +3,8 @@ import { CHANNEL_LENGTH, CHANNEL_RADIUS } from '../core/wfSchematic'
 
 /**
  * Half cylinder along +Z. The flat face is y = 0. The arc hangs to y = −radius.
- * CylinderGeometry leaves the diameter open, so the flat face is a separate quad.
+ * Arc rings share vertices with the end caps and the flat lid so every face
+ * winds outward and stays visible at grazing angles (no duplicate rim).
  * The mesh origin is the middle of that flat face.
  */
 export function halfChannelGeometry(length = CHANNEL_LENGTH): THREE.BufferGeometry {
@@ -21,34 +22,36 @@ export function halfChannelGeometry(length = CHANNEL_LENGTH): THREE.BufferGeomet
     }
     return start
   }
+
   const land = pushArc(-half)
   const sea = pushArc(half)
+
   for (let i = 0; i < segments; i += 1) {
-    const a = land + i
-    const b = land + i + 1
-    const c = sea + i + 1
-    const d = sea + i
-    indices.push(a, b, d, b, c, d)
+    const a0 = land + i
+    const a1 = land + i + 1
+    const b0 = sea + i
+    const b1 = sea + i + 1
+    indices.push(a0, a1, b0, a1, b1, b0)
   }
 
-  const cap = (z: number, outward: 1 | -1) => {
-    const start = positions.length / 3
+  const leftLand = land
+  const rightLand = land + segments
+  const leftSea = sea
+  const rightSea = sea + segments
+  indices.push(leftLand, rightLand, rightSea, leftLand, leftSea, rightSea)
+
+  const cap = (ringStart: number, z: number, outward: 1 | -1) => {
+    const center = positions.length / 3
     positions.push(0, 0, z)
-    for (let i = 0; i <= segments; i += 1) {
-      const theta = -Math.PI / 2 + (i / segments) * Math.PI
-      positions.push(radius * Math.sin(theta), -radius * Math.cos(theta), z)
-    }
     for (let i = 0; i < segments; i += 1) {
-      if (outward === 1) indices.push(start, start + i + 1, start + i + 2)
-      else indices.push(start, start + i + 2, start + i + 1)
+      const a = ringStart + i
+      const b = ringStart + i + 1
+      if (outward === 1) indices.push(center, a, b)
+      else indices.push(center, b, a)
     }
   }
-  cap(-half, -1)
-  cap(half, 1)
-
-  const flat = positions.length / 3
-  positions.push(-radius, 0, -half, radius, 0, -half, radius, 0, half, -radius, 0, half)
-  indices.push(flat, flat + 1, flat + 2, flat, flat + 3, flat + 2)
+  cap(land, -half, -1)
+  cap(sea, half, 1)
 
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))

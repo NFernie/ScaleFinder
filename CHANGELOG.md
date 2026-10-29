@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `features/elementmeshlist.md` records the E / ES / EC / ECS build for each scene (what each scale is created from, and how many elements sit inside it) and a Scale column on each mesh row. `.cursor/rules/elementmeshlist-sync.mdc` requires that taxonomy to stay in step with scene changes.
 - `features/elementmeshlist.md` tables the Wf schematic element meshes (geometry, scenes, and arrangement).
 - `.cursor/rules/elementmeshlist-sync.mdc` requires updating that file when new Wf schematic meshes or scene views are added or materially changed.
 

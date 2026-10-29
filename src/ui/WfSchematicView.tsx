@@ -18,7 +18,6 @@ import {
 import { asymmetricBeachRidgeGeometry } from './asymmetricBeachRidgeGeometry'
 import { deltaPlainGeometry } from './deltaplain'
 import { beachRidgeGeometry } from './beachRidgeGeometry'
-import { brConcaveSwGeometry } from './brConcaveSwgeometry'
 import { brConvexSwGeometry } from './brConvexSwgeometry'
 import { halfChannelGeometry } from './halfChannelGeometry'
 import { mouthBarGeometry } from './mouthBarGeometry'
@@ -87,7 +86,6 @@ function geometryFor(scene: SchematicSceneId, body: PlacedBody): THREE.BufferGeo
     const side = ridgeFlankSide(body.id)
     const ridgeIndex = Number.isFinite(index) ? index : 0
     const loft = beachRidgeMesh(scene, body.id)
-    if (loft === 'concave-sw') return brConcaveSwGeometry(side, ridgeIndex)
     if (loft === 'convex-sw') return brConvexSwGeometry(side, ridgeIndex)
     if (loft === 'asymmetric') return asymmetricBeachRidgeGeometry(side, ridgeIndex)
     return beachRidgeGeometry(side, ridgeIndex)

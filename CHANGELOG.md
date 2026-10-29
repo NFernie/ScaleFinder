@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The Tfw concave beach-ridge complex shifts landward. Each `e-ridge-cr-*` centreline at the channel end, the end nearest the asymmetric flank in X, meets the outer tip of `e-ridge-r-*`. The seaward ridge moves further landward than the landward ridge.
+- The Tfw complex to the right of the asymmetric flank is the symmetric beach-ridge mesh (`ec-ridge-sr`, `e-ridge-sr-*`). Each channel-end centreline sits on the outer tip of the asymmetric ridge beside it, so the landward pair and the seaward pair both meet. That tip position includes the tidal-channel yaw.
 - The half-channel mesh is lofted like the tidal channel: arc rings along its length, deck strips, and end caps with the same winding. The earlier single lid had one triangle facing down, so a top-down view hid half the channel.
 - The Tfw tidal complexes `ec-mouth` and `ec-mouth-sea` each move landward along the channel by one beach-ridge step (0.34) relative to the complex landward of them. That closes the gap the fifth ridge opened when the seaward fan followed the new channel tip, so each overlaps the landward complex by the centreline amount the Wf fans had before that ridge.
 - The symmetric Wf scene, the asymmetric scene, and the Tfw half channel gain a third mouth-bar complex at the seaward end of the existing mouth-bar complex (`ec-mouth-dist`, and `ec-mouth-l-dist` on the half channel). Its inner-pair overlap is half the source fan’s overlap (0.36 → 0.18), so the fan spreads wider in X. It is not drawn on the Tfw tidal channel.
@@ -41,11 +41,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `BRconcaveSW` (`src/ui/brConcaveSwgeometry.ts`) is a beach-ridge bow, concave toward seaward. It keeps the uniform channel-end section of `BRconvexSW` and inverts the bow in Z. The Tfw scene adds element complex `ec-ridge-cr` to the right of the asymmetric flank. The five ridges copy that flank’s Y, Z, and yaw, and the complex overlaps the flank by 5% of the flank’s alongshore span.
 - `deltaplain.ts` adds a green opaque delta plain to the Tfw scene. Its top aligns with the crest of the most landward beach ridge, above the water slab. Its seaward edge follows the landward toe of each beach-ridge set, channels are cut out, and it runs to the landward edge of the water slab.
 - `BRconvexSW` (`src/ui/brConvexSwgeometry.ts`) is a beach-ridge bow, convex toward seaward, with half the height of the earlier semicircular U and the same cross-section from tip to tip. The Tfw left flank (`e-ridge-l-*`) draws it. The right flank stays asymmetric.
 - A pin at latitude -19.984295231442236, longitude 119.165775381814 opens `TfwECSschematic`. The scene keeps the Wf element-complex stack. The channel is the tidal funnel. Both beach-ridge flanks use the asymmetric mesh, shifted so each channel end follows the funnel wall. Mouth bars keep the Wf arrangement.
 - `src/ui/tidalChannelGeometry.ts` builds a funnel tidal channel: half-cylinder cross-section (flat top, curved base), 1.5× the half-channel length. The Tfw scene uses it for the channel. The seaward opening and flare length are recorded under Changed.
+
+### Removed
+
+- `BRconcaveSW` is no longer in the Tfw scene. The complex to the right of the asymmetric flank uses the symmetric beach-ridge mesh.
 
 ### Docs
 

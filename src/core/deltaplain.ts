@@ -1,5 +1,4 @@
 import { asymmetricBeachRidgeStations } from './asymmetricBeachRidgePlan'
-import { brConcaveSwStations } from './brConcaveSwPlan'
 import { brConvexSwStations } from './brConvexSwPlan'
 import { beachRidgeMesh, channelMesh, ridgeFlankSide, type SchematicSceneId } from './schematicScene'
 import { tidalChannelFrameAt, tidalChannelRadiusAt, tidalChannelSpan } from './tidalChannel'
@@ -87,7 +86,6 @@ function stationsFor(scene: SchematicSceneId, body: SceneBody) {
   const side = ridgeSide(body.id)
   const index = ridgeIndexOf(body.id)
   const loft = beachRidgeMesh(scene, body.id)
-  if (loft === 'concave-sw') return brConcaveSwStations(side, index)
   if (loft === 'convex-sw') return brConvexSwStations(side, index)
   if (loft === 'asymmetric') return asymmetricBeachRidgeStations(side, index)
   return beachRidgeStations(side, index)

@@ -1,5 +1,4 @@
 import { asymmetricBeachRidgeStations } from './asymmetricBeachRidgePlan'
-import { brConcaveSwStations } from './brConcaveSwPlan'
 import { brConvexSwStations } from './brConvexSwPlan'
 import { DELTA_PLAIN_THICKNESS, deltaPlainShape } from './deltaplain'
 import { ridgeFlankSide } from './schematicScene'
@@ -650,122 +649,76 @@ function leftRidgeComplex(half: SceneBody): SceneBody[] {
     })
 }
 
-/**
- * Alongshore overlap of the concave inspection complex with the asymmetric
- * right flank, as a fraction of that flank's world X span.
- */
-export const TFW_CONCAVE_RIDGE_OVERLAP = 0.05
-
-function ridgeCornerXs(body: SceneBody, stations: { x: number; z: number; halfWidth: number; height: number }[]): number[] {
-  const xs: number[] = []
-  for (const station of stations) {
-    for (const corner of beachRidgeRing(station)) xs.push(worldFromNested(body, corner).x)
-  }
-  return xs
-}
-
-function centreWorld(body: SceneBody, station: { x: number; z: number }) {
-  return worldFromNested(body, { x: station.x, y: 0, z: station.z })
+function nestedMean(bodies: SceneBody[]): { x: number; y: number; z: number } {
+  const count = bodies.length
+  return bodies.reduce(
+    (total, body) => ({
+      x: total.x + body.nested.x / count,
+      y: total.y + body.nested.y / count,
+      z: total.z + body.nested.z / count,
+    }),
+    { x: 0, y: 0, z: 0 },
+  )
 }
 
 /**
- * Landward Z nudge so this concave ridge's channel-end centreline meets the
- * asymmetric ridge's outer-tip centreline. Those are the ends nearest each
- * other in X. The seaward ridge needs a larger nudge because its tip shears
- * further landward.
+ * Symmetric beach-ridge complex to the right of the asymmetric flank.
+ * Each ridge keeps that flank's Y and yaw. Its channel-end centreline sits on
+ * the asymmetric outer tip, so the landward pair and the seaward pair both
+ * meet. The tip's world position already includes the tidal-channel yaw: the
+ * right flank is shifted onto the yawed wall, and any ridge yaw rotates the
+ * station into that same frame.
  */
-function concaveLandwardNudge(asym: SceneBody, index: number, xShift: number): number {
-  const posed: SceneBody = { ...asym, nested: { ...asym.nested, x: asym.nested.x + xShift } }
-  const asymStations = asymmetricBeachRidgeStations('r', index)
-  const concaveStations = brConcaveSwStations('r', index)
-  let tip = asymStations[0]
-  let tipX = -Infinity
-  for (const station of asymStations) {
-    const x = centreWorld(asym, station).x
-    if (x > tipX) {
-      tipX = x
-      tip = station
-    }
-  }
-  let near = concaveStations[0]
-  let nearX = Infinity
-  for (const station of concaveStations) {
-    const x = centreWorld(posed, station).x
-    if (x < nearX) {
-      nearX = x
-      near = station
-    }
-  }
-  return centreWorld(asym, tip).z - centreWorld(posed, near).z
-}
-
-/**
- * Concave-seaward beach-ridge complex for inspection. Five ridges copy the
- * asymmetric right flank's Y and yaw. The whole complex sits to +X, overlapping
- * that flank by {@link TFW_CONCAVE_RIDGE_OVERLAP} of the flank's alongshore span.
- * Each ridge then shifts landward in Z so its channel end, the end proximal in
- * X to that flank, meets the flank's outer-tip centreline.
- */
-function rightConcaveComplex(bodies: SceneBody[]): SceneBody[] {
+function rightSymmetricComplex(bodies: SceneBody[]): SceneBody[] {
   const ridges = bodies
     .filter((body) => /^e-ridge-r-\d+$/.test(body.id))
     .sort((a, b) => ridgeIndex(a.id) - ridgeIndex(b.id))
   const set = bodies.find((body) => body.id === 'es-ridge-r')
   if (!set || ridges.length === 0) return []
 
-  let asymMin = Infinity
-  let asymMax = -Infinity
-  let concaveMin = Infinity
-  for (const ridge of ridges) {
+  const elements: SceneBody[] = ridges.map((ridge) => {
     const index = ridgeIndex(ridge.id)
-    for (const x of ridgeCornerXs(ridge, asymmetricBeachRidgeStations('r', index))) {
-      asymMin = Math.min(asymMin, x)
-      asymMax = Math.max(asymMax, x)
+    const stations = asymmetricBeachRidgeStations('r', index)
+    const tip = stations[stations.length - 1]
+    const channel = beachRidgeStations('r', index)[0]
+    const yaw = ridge.yaw ?? 0
+    const cos = Math.cos(yaw)
+    const sin = Math.sin(yaw)
+    const target = worldFromNested(ridge, { x: tip.x, y: 0, z: tip.z })
+    return {
+      ...ridge,
+      id: `e-ridge-sr-${index}`,
+      name: 'Beach ridge',
+      parentId: 'es-ridge-sr',
+      nested: {
+        x: target.x - (channel.x * cos + channel.z * sin),
+        y: ridge.nested.y,
+        z: target.z - (-channel.x * sin + channel.z * cos),
+      },
     }
-    for (const x of ridgeCornerXs(ridge, brConcaveSwStations('r', index))) {
-      concaveMin = Math.min(concaveMin, x)
-    }
-  }
-  const shift = asymMax - TFW_CONCAVE_RIDGE_OVERLAP * (asymMax - asymMin) - concaveMin
-  const nudges = ridges.map((ridge) => concaveLandwardNudge(ridge, ridgeIndex(ridge.id), shift))
-  const elements: SceneBody[] = ridges.map((ridge, index) => ({
-    ...ridge,
-    id: `e-ridge-cr-${ridgeIndex(ridge.id)}`,
-    name: 'Beach ridge',
-    parentId: 'es-ridge-cr',
-    nested: {
-      ...ridge.nested,
-      x: ridge.nested.x + shift,
-      z: ridge.nested.z + nudges[index],
-    },
-  }))
-  const meanNudge = nudges.reduce((total, nudge) => total + nudge, 0) / nudges.length
-  const centre = elements.reduce(
-    (total, ridge) => ({
-      x: total.x + ridge.nested.x,
-      y: total.y + ridge.nested.y,
-      z: total.z + ridge.nested.z,
-    }),
-    { x: 0, y: 0, z: 0 },
-  )
-  const count = elements.length
-  const nested = { x: centre.x / count, y: centre.y / count, z: centre.z / count }
+  })
+  const from = nestedMean(ridges)
+  const to = nestedMean(elements)
   return [
     {
-      id: 'ec-ridge-cr',
-      name: 'Concave beach-ridge complex',
+      id: 'ec-ridge-sr',
+      name: 'Symmetric beach-ridge complex',
       rank: 'element-complex',
       parentId: 'ecs',
       kind: 'group',
-      nested,
+      nested: to,
     },
     {
-      id: 'es-ridge-cr',
-      name: 'Beach-ridge set concave',
+      id: 'es-ridge-sr',
+      name: 'Beach-ridge set symmetric',
       rank: 'element-set',
-      parentId: 'ec-ridge-cr',
+      parentId: 'ec-ridge-sr',
       kind: 'group',
-      nested: { ...set.nested, x: set.nested.x + shift, z: set.nested.z + meanNudge },
+      nested: {
+        x: set.nested.x + (to.x - from.x),
+        y: set.nested.y + (to.y - from.y),
+        z: set.nested.z + (to.z - from.z),
+      },
     },
     ...elements,
   ]
@@ -792,9 +745,7 @@ function footprintXZ(body: SceneBody): { x: number; z: number }[] {
   if (body.kind === 'beach-ridge') {
     const side = ridgeFlankSide(body.id)
     const index = ridgeIndex(body.id)
-    const stations = body.id.startsWith('e-ridge-cr-')
-      ? brConcaveSwStations(side, index)
-      : beachRidgeStations(side, index)
+    const stations = beachRidgeStations(side, index)
     const points: { x: number; z: number }[] = []
     for (const station of stations) {
       for (const corner of beachRidgeRing(station)) {
@@ -932,10 +883,10 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * tip. A mouth-bar complex copied from the Wf offsets sits on the half channel,
  * plus the wider seaward complex copied from the Wf distal fan.
  * A symmetric beach-ridge complex sits on the left of that half channel with
- * the same offsets. A concave-seaward complex sits to the right of the
- * asymmetric flank, overlapping it by 5% of that flank's alongshore span.
- * Each concave ridge shifts landward so its channel-end centreline meets the
- * outer tip of the asymmetric ridge beside it. The water slab grows to cover that extension. A delta
+ * the same offsets. A symmetric beach-ridge complex sits to the right of the
+ * asymmetric flank. Each of its channel-end centrelines sits on that flank's
+ * outer tip, using the tip's world position so the tidal-channel yaw is included.
+ * The landward pair and the seaward pair both meet. The water slab grows to cover that extension. A delta
  * plain's top aligns with the crest of the most landward beach ridge, follows the
  * landward toe of each ridge set, stops at the channels, and runs to the
  * water slab's landward edge.
@@ -963,7 +914,7 @@ export function sceneAt(explode: number): PlacedBody[] {
     leftHalfChannelJoin(half, rested),
     ...leftMouthComplex(half),
     ...leftRidgeComplex(half),
-    ...rightConcaveComplex(rested),
+    ...rightSymmetricComplex(rested),
   ]
   const ground = extendWaterSlab(rested.find((body) => body.id === 'ecs')!, extras)
   const wfIds = new Set(wfSceneAt(0).map((body) => body.id))
@@ -1000,7 +951,7 @@ export function sceneAt(explode: number): PlacedBody[] {
               body.id === 'e-mouth-l-0' ||
               body.id === 'e-mouth-l-dist-0' ||
               body.id === 'e-ridge-hl-0' ||
-              body.id === 'e-ridge-cr-0')
+              body.id === 'e-ridge-sr-0')
     placed.push({ ...body, position, showLabel })
   }
   const shape = deltaPlainShape('tfw', [ground, ...rested.filter((body) => body.kind !== 'ground'), ...extras])

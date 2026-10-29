@@ -84,24 +84,19 @@ export function tidalChannelGeometry(): THREE.BufferGeometry {
     }
   }
 
-  const cap = (s: number, outward: 1 | -1) => {
-    const xRadius = tidalChannelRadiusAt(s)
-    const yRadius = tidalChannelDepthAt(s)
-    const start = positions.length / 3
+  const cap = (ringStart: number, s: number, outward: 1 | -1) => {
     const [cx, cy, cz] = place(s, 0, 0)
+    const center = positions.length / 3
     positions.push(cx, cy, cz)
-    for (let i = 0; i <= ARC_SEGMENTS; i += 1) {
-      const theta = -Math.PI / 2 + (i / ARC_SEGMENTS) * Math.PI
-      const [x, y, z] = place(s, xRadius * Math.sin(theta), -yRadius * Math.cos(theta))
-      positions.push(x, y, z)
-    }
     for (let i = 0; i < ARC_SEGMENTS; i += 1) {
-      if (outward === 1) indices.push(start, start + i + 1, start + i + 2)
-      else indices.push(start, start + i + 2, start + i + 1)
+      const a = ringStart + i
+      const b = ringStart + i + 1
+      if (outward === 1) indices.push(center, a, b)
+      else indices.push(center, b, a)
     }
   }
-  cap(stations[0], -1)
-  cap(stations[stations.length - 1], 1)
+  cap(ringStarts[0], stations[0], -1)
+  cap(ringStarts[ringStarts.length - 1], stations[stations.length - 1], 1)
 
   for (let ring = 0; ring < stations.length - 1; ring += 1) {
     const left = ringStarts[ring]

@@ -62,6 +62,20 @@ describe('halfChannelGeometry', () => {
     expect(flatUp).toBe(true)
     expect(sea).toBe(true)
     expect(land).toBe(true)
+
+    let deck = 0
+    for (let triangle = 0; triangle < index.count / 3; triangle += 1) {
+      const normal = faceNormal(geometry, triangle)
+      const center = new THREE.Vector3()
+      for (let k = 0; k < 3; k += 1) {
+        center.add(new THREE.Vector3().fromBufferAttribute(position, index.getX(triangle * 3 + k)))
+      }
+      center.multiplyScalar(1 / 3)
+      if (Math.abs(center.y) > 1e-4) continue
+      expect(normal.y).toBeGreaterThan(0.9)
+      deck += 1
+    }
+    expect(deck).toBe(32)
     geometry.dispose()
   })
 

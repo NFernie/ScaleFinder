@@ -23,7 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The Tfw complex to the right of the asymmetric flank is the symmetric beach-ridge mesh (`ec-ridge-sr`, `e-ridge-sr-*`). Each channel-end centreline sits on the outer tip of the asymmetric ridge beside it, so the landward pair and the seaward pair both meet. That tip position includes the tidal-channel yaw.
 - The half-channel mesh is lofted like the tidal channel: arc rings along its length, deck strips, and end caps with the same winding. The earlier single lid had one triangle facing down, so a top-down view hid half the channel.
 - The Tfw tidal complexes `ec-mouth` and `ec-mouth-sea` each move landward along the channel by one beach-ridge step (0.34) relative to the complex landward of them. That closes the gap the fifth ridge opened when the seaward fan followed the new channel tip, so each overlaps the landward complex by the centreline amount the Wf fans had before that ridge.
 - The symmetric Wf scene, the asymmetric scene, and the Tfw half channel gain a third mouth-bar complex at the seaward end of the existing mouth-bar complex (`ec-mouth-dist`, and `ec-mouth-l-dist` on the half channel). Its inner-pair overlap is half the source fan’s overlap (0.36 → 0.18), so the fan spreads wider in X. It is not drawn on the Tfw tidal channel.
@@ -48,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- `BRconcaveSW` is no longer in the Tfw scene. The complex to the right of the asymmetric flank uses the symmetric beach-ridge mesh.
+- The symmetric beach-ridge complex to the right of the Tfw asymmetric flank (`ec-ridge-sr`, `e-ridge-sr-*`) is no longer in the scene. `BRconcaveSW` is not drawn either.
 
 ### Docs
 

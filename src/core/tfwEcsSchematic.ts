@@ -1,4 +1,3 @@
-import { asymmetricBeachRidgeStations } from './asymmetricBeachRidgePlan'
 import { brConvexSwStations } from './brConvexSwPlan'
 import { DELTA_PLAIN_THICKNESS, deltaPlainShape } from './deltaplain'
 import { ridgeFlankSide } from './schematicScene'
@@ -649,81 +648,6 @@ function leftRidgeComplex(half: SceneBody): SceneBody[] {
     })
 }
 
-function nestedMean(bodies: SceneBody[]): { x: number; y: number; z: number } {
-  const count = bodies.length
-  return bodies.reduce(
-    (total, body) => ({
-      x: total.x + body.nested.x / count,
-      y: total.y + body.nested.y / count,
-      z: total.z + body.nested.z / count,
-    }),
-    { x: 0, y: 0, z: 0 },
-  )
-}
-
-/**
- * Symmetric beach-ridge complex to the right of the asymmetric flank.
- * Each ridge keeps that flank's Y and yaw. Its channel-end centreline sits on
- * the asymmetric outer tip, so the landward pair and the seaward pair both
- * meet. The tip's world position already includes the tidal-channel yaw: the
- * right flank is shifted onto the yawed wall, and any ridge yaw rotates the
- * station into that same frame.
- */
-function rightSymmetricComplex(bodies: SceneBody[]): SceneBody[] {
-  const ridges = bodies
-    .filter((body) => /^e-ridge-r-\d+$/.test(body.id))
-    .sort((a, b) => ridgeIndex(a.id) - ridgeIndex(b.id))
-  const set = bodies.find((body) => body.id === 'es-ridge-r')
-  if (!set || ridges.length === 0) return []
-
-  const elements: SceneBody[] = ridges.map((ridge) => {
-    const index = ridgeIndex(ridge.id)
-    const stations = asymmetricBeachRidgeStations('r', index)
-    const tip = stations[stations.length - 1]
-    const channel = beachRidgeStations('r', index)[0]
-    const yaw = ridge.yaw ?? 0
-    const cos = Math.cos(yaw)
-    const sin = Math.sin(yaw)
-    const target = worldFromNested(ridge, { x: tip.x, y: 0, z: tip.z })
-    return {
-      ...ridge,
-      id: `e-ridge-sr-${index}`,
-      name: 'Beach ridge',
-      parentId: 'es-ridge-sr',
-      nested: {
-        x: target.x - (channel.x * cos + channel.z * sin),
-        y: ridge.nested.y,
-        z: target.z - (-channel.x * sin + channel.z * cos),
-      },
-    }
-  })
-  const from = nestedMean(ridges)
-  const to = nestedMean(elements)
-  return [
-    {
-      id: 'ec-ridge-sr',
-      name: 'Symmetric beach-ridge complex',
-      rank: 'element-complex',
-      parentId: 'ecs',
-      kind: 'group',
-      nested: to,
-    },
-    {
-      id: 'es-ridge-sr',
-      name: 'Beach-ridge set symmetric',
-      rank: 'element-set',
-      parentId: 'ec-ridge-sr',
-      kind: 'group',
-      nested: {
-        x: set.nested.x + (to.x - from.x),
-        y: set.nested.y + (to.y - from.y),
-        z: set.nested.z + (to.z - from.z),
-      },
-    },
-    ...elements,
-  ]
-}
-
 /** Margin past the union so meshes are not flush with the water edge. */
 const WATER_SLAB_PAD = 0.4
 
@@ -883,10 +807,7 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * tip. A mouth-bar complex copied from the Wf offsets sits on the half channel,
  * plus the wider seaward complex copied from the Wf distal fan.
  * A symmetric beach-ridge complex sits on the left of that half channel with
- * the same offsets. A symmetric beach-ridge complex sits to the right of the
- * asymmetric flank. Each of its channel-end centrelines sits on that flank's
- * outer tip, using the tip's world position so the tidal-channel yaw is included.
- * The landward pair and the seaward pair both meet. The water slab grows to cover that extension. A delta
+ * the same offsets. The water slab grows to cover that extension. A delta
  * plain's top aligns with the crest of the most landward beach ridge, follows the
  * landward toe of each ridge set, stops at the channels, and runs to the
  * water slab's landward edge.
@@ -914,7 +835,6 @@ export function sceneAt(explode: number): PlacedBody[] {
     leftHalfChannelJoin(half, rested),
     ...leftMouthComplex(half),
     ...leftRidgeComplex(half),
-    ...rightSymmetricComplex(rested),
   ]
   const ground = extendWaterSlab(rested.find((body) => body.id === 'ecs')!, extras)
   const wfIds = new Set(wfSceneAt(0).map((body) => body.id))
@@ -950,8 +870,7 @@ export function sceneAt(explode: number): PlacedBody[] {
               body.id === 'e-channel-l-join' ||
               body.id === 'e-mouth-l-0' ||
               body.id === 'e-mouth-l-dist-0' ||
-              body.id === 'e-ridge-hl-0' ||
-              body.id === 'e-ridge-sr-0')
+              body.id === 'e-ridge-hl-0')
     placed.push({ ...body, position, showLabel })
   }
   const shape = deltaPlainShape('tfw', [ground, ...rested.filter((body) => body.kind !== 'ground'), ...extras])

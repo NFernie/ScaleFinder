@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { beachRidgeMesh, channelMesh } from './schematicScene'
 import { tidalChannelFrameAt, tidalChannelRadiusAt, tidalChannelSpan } from './tidalChannel'
-import { asymmetricBeachRidgeStations } from './asymmetricBeachRidgePlan'
 import { brConvexSwStations } from './brConvexSwPlan'
 import {
   TFW_CHANNEL_YAW_RAD,
@@ -82,13 +81,6 @@ describe('tfwEcsSchematic', () => {
       'e-ridge-hl-2',
       'e-ridge-hl-3',
       'e-ridge-hl-4',
-      'ec-ridge-sr',
-      'es-ridge-sr',
-      'e-ridge-sr-0',
-      'e-ridge-sr-1',
-      'e-ridge-sr-2',
-      'e-ridge-sr-3',
-      'e-ridge-sr-4',
       'e-deltaplain',
     ])
     expect(tfw.find((body) => body.id === 'ecs')?.name).toBe('Tfw element complex set')
@@ -260,7 +252,6 @@ describe('tfwEcsSchematic', () => {
     expect(beachRidgeMesh('tfw', 'e-ridge-hl-2')).toBe('symmetric')
     expect(beachRidgeMesh('tfw', 'e-ridge-l-2')).toBe('convex-sw')
     expect(beachRidgeMesh('tfw', 'e-ridge-r-2')).toBe('asymmetric')
-    expect(beachRidgeMesh('tfw', 'e-ridge-sr-2')).toBe('symmetric')
     expect(beachRidgeMesh('wf', 'e-ridge-r-2')).toBe('symmetric')
     expect(beachRidgeMesh('asym', 'e-ridge-r-2')).toBe('symmetric')
 
@@ -401,7 +392,7 @@ describe('tfwEcsSchematic', () => {
     const wfRidgeDrop =
       wf.find((body) => body.id === 'e-ridge-r-0')!.nested.y -
       wf.find((body) => body.id === 'e-ridge-r-1')!.nested.y
-    for (const prefix of ['e-ridge-l-', 'e-ridge-r-', 'e-ridge-hl-', 'e-ridge-sr-']) {
+    for (const prefix of ['e-ridge-l-', 'e-ridge-r-', 'e-ridge-hl-']) {
       const land = tfw.find((body) => body.id === `${prefix}0`)!
       const next = tfw.find((body) => body.id === `${prefix}1`)!
       expect(land.nested.y - next.nested.y).toBeCloseTo(wfRidgeDrop)
@@ -436,43 +427,5 @@ describe('tfwEcsSchematic', () => {
     }
     onSlab(copiedRidge, 0)
     onSlab(tfw.find((body) => body.id === 'e-ridge-hl-4')!, 4)
-  })
-
-  it('seats a symmetric complex on the asymmetric outer tips, including the channel yaw', () => {
-    const tfw = tfwSceneAt(0)
-    const channel = tfw.find((body) => body.id === 'e-channel')!
-    expect(channel.yaw).toBeCloseTo(TFW_CHANNEL_YAW_RAD)
-    const centre = (body: (typeof tfw)[number], station: { x: number; z: number }) => {
-      const yaw = body.yaw ?? 0
-      return {
-        x: body.nested.x + station.x * Math.cos(yaw) + station.z * Math.sin(yaw),
-        z: body.nested.z - station.x * Math.sin(yaw) + station.z * Math.cos(yaw),
-      }
-    }
-    for (let index = 0; index < 5; index += 1) {
-      const asym = tfw.find((body) => body.id === `e-ridge-r-${index}`)!
-      const symmetric = tfw.find((body) => body.id === `e-ridge-sr-${index}`)!
-      expect(symmetric.kind).toBe('beach-ridge')
-      expect(symmetric.parentId).toBe('es-ridge-sr')
-      expect(symmetric.nested.y).toBeCloseTo(asym.nested.y)
-      expect(symmetric.yaw ?? 0).toBeCloseTo(asym.yaw ?? 0)
-      const asymStations = asymmetricBeachRidgeStations('r', index)
-      const tip = asymStations[asymStations.length - 1]
-      const channelEnd = beachRidgeStations('r', index)[0]
-      const joined = centre(symmetric, channelEnd)
-      const target = centre(asym, tip)
-      expect(joined.x).toBeCloseTo(target.x)
-      expect(joined.z).toBeCloseTo(target.z)
-      expect(joined.x).toBeGreaterThan(centre(asym, asymStations[0]).x)
-    }
-    const rightSet = tfw.find((body) => body.id === 'es-ridge-r')!
-    const symmetricSet = tfw.find((body) => body.id === 'es-ridge-sr')!
-    expect(symmetricSet.parentId).toBe('ec-ridge-sr')
-    expect(symmetricSet.nested.y).toBeCloseTo(rightSet.nested.y)
-    expect(symmetricSet.nested.x).toBeGreaterThan(rightSet.nested.x)
-    const complex = tfw.find((body) => body.id === 'ec-ridge-sr')!
-    expect(complex.parentId).toBe('ecs')
-    expect(complex.rank).toBe('element-complex')
-    expect(complex.kind).toBe('group')
   })
 })

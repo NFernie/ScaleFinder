@@ -5,16 +5,16 @@ export function beachRidgeMesh(
   scene: SchematicSceneId,
   bodyId: string,
 ): 'symmetric' | 'asymmetric' | 'convex-sw' {
-  if (scene === 'tfw' && (bodyId.startsWith('e-ridge-sr-') || bodyId.startsWith('e-ridge-hl-'))) return 'symmetric'
+  if (scene === 'tfw' && bodyId.startsWith('e-ridge-hl-')) return 'symmetric'
   if (scene === 'tfw' && bodyId.startsWith('e-ridge-l-')) return 'convex-sw'
   if (scene === 'tfw' && bodyId.startsWith('e-ridge-')) return 'asymmetric'
   if (scene === 'asym' && bodyId.startsWith('e-ridge-') && !bodyId.includes('-r-')) return 'asymmetric'
   return 'symmetric'
 }
 
-/** Alongshore side of a beach-ridge body. The right-hand symmetric complex faces +X. */
+/** Alongshore side of a beach-ridge body. */
 export function ridgeFlankSide(bodyId: string): 'l' | 'r' {
-  if (bodyId.includes('-sr-') || bodyId.includes('-r-')) return 'r'
+  if (bodyId.includes('-r-')) return 'r'
   return 'l'
 }
 

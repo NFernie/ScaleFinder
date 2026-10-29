@@ -22,7 +22,7 @@ describe('delta plain', () => {
     const minX = ground.nested.x - ground.groundSpan!.width / 2
     const maxX = ground.nested.x + ground.groundSpan!.width / 2
 
-    expect(shape.heightSourceId).toBe('e-ridge-sr-0')
+    expect(shape.heightSourceId).toBe('e-ridge-hl-0')
     const crest = beachRidgeCrestY('tfw', source)
     expect(crest).toBeGreaterThan(waterlineY())
     expect(shape.y).toBeCloseTo(crest)

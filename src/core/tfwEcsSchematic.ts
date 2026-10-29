@@ -664,10 +664,47 @@ function ridgeCornerXs(body: SceneBody, stations: { x: number; z: number; halfWi
   return xs
 }
 
+function centreWorld(body: SceneBody, station: { x: number; z: number }) {
+  return worldFromNested(body, { x: station.x, y: 0, z: station.z })
+}
+
+/**
+ * Landward Z nudge so this concave ridge's channel-end centreline meets the
+ * asymmetric ridge's outer-tip centreline. Those are the ends nearest each
+ * other in X. The seaward ridge needs a larger nudge because its tip shears
+ * further landward.
+ */
+function concaveLandwardNudge(asym: SceneBody, index: number, xShift: number): number {
+  const posed: SceneBody = { ...asym, nested: { ...asym.nested, x: asym.nested.x + xShift } }
+  const asymStations = asymmetricBeachRidgeStations('r', index)
+  const concaveStations = brConcaveSwStations('r', index)
+  let tip = asymStations[0]
+  let tipX = -Infinity
+  for (const station of asymStations) {
+    const x = centreWorld(asym, station).x
+    if (x > tipX) {
+      tipX = x
+      tip = station
+    }
+  }
+  let near = concaveStations[0]
+  let nearX = Infinity
+  for (const station of concaveStations) {
+    const x = centreWorld(posed, station).x
+    if (x < nearX) {
+      nearX = x
+      near = station
+    }
+  }
+  return centreWorld(asym, tip).z - centreWorld(posed, near).z
+}
+
 /**
  * Concave-seaward beach-ridge complex for inspection. Five ridges copy the
- * asymmetric right flank's Y, Z, and yaw. The whole complex sits to +X, overlapping
+ * asymmetric right flank's Y and yaw. The whole complex sits to +X, overlapping
  * that flank by {@link TFW_CONCAVE_RIDGE_OVERLAP} of the flank's alongshore span.
+ * Each ridge then shifts landward in Z so its channel end, the end proximal in
+ * X to that flank, meets the flank's outer-tip centreline.
  */
 function rightConcaveComplex(bodies: SceneBody[]): SceneBody[] {
   const ridges = bodies
@@ -690,13 +727,19 @@ function rightConcaveComplex(bodies: SceneBody[]): SceneBody[] {
     }
   }
   const shift = asymMax - TFW_CONCAVE_RIDGE_OVERLAP * (asymMax - asymMin) - concaveMin
-  const elements: SceneBody[] = ridges.map((ridge) => ({
+  const nudges = ridges.map((ridge) => concaveLandwardNudge(ridge, ridgeIndex(ridge.id), shift))
+  const elements: SceneBody[] = ridges.map((ridge, index) => ({
     ...ridge,
     id: `e-ridge-cr-${ridgeIndex(ridge.id)}`,
     name: 'Beach ridge',
     parentId: 'es-ridge-cr',
-    nested: { ...ridge.nested, x: ridge.nested.x + shift },
+    nested: {
+      ...ridge.nested,
+      x: ridge.nested.x + shift,
+      z: ridge.nested.z + nudges[index],
+    },
   }))
+  const meanNudge = nudges.reduce((total, nudge) => total + nudge, 0) / nudges.length
   const centre = elements.reduce(
     (total, ridge) => ({
       x: total.x + ridge.nested.x,
@@ -722,7 +765,7 @@ function rightConcaveComplex(bodies: SceneBody[]): SceneBody[] {
       rank: 'element-set',
       parentId: 'ec-ridge-cr',
       kind: 'group',
-      nested: { ...set.nested, x: set.nested.x + shift },
+      nested: { ...set.nested, x: set.nested.x + shift, z: set.nested.z + meanNudge },
     },
     ...elements,
   ]
@@ -890,8 +933,9 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * plus the wider seaward complex copied from the Wf distal fan.
  * A symmetric beach-ridge complex sits on the left of that half channel with
  * the same offsets. A concave-seaward complex sits to the right of the
- * asymmetric flank, overlapping it by 5% of that flank's alongshore span,
- * with the same five-ridge Y and Z stack. The water slab grows to cover that extension. A delta
+ * asymmetric flank, overlapping it by 5% of that flank's alongshore span.
+ * Each concave ridge shifts landward so its channel-end centreline meets the
+ * outer tip of the asymmetric ridge beside it. The water slab grows to cover that extension. A delta
  * plain's top aligns with the crest of the most landward beach ridge, follows the
  * landward toe of each ridge set, stops at the channels, and runs to the
  * water slab's landward edge.

@@ -441,7 +441,7 @@ describe('tfwEcsSchematic', () => {
     onSlab(tfw.find((body) => body.id === 'e-ridge-hl-4')!, 4)
   })
 
-  it('seats a concave complex 5% over the asymmetric right flank, with that flank’s Y, Z, and yaw', () => {
+  it('seats a concave complex 5% over the asymmetric right flank and lines up the proximal ends', () => {
     const tfw = tfwSceneAt(0)
     const worldXs = (
       body: (typeof tfw)[number],
@@ -463,18 +463,34 @@ describe('tfwEcsSchematic', () => {
     let concaveMin = Infinity
     let concaveMax = -Infinity
     let shift = 0
+    const nudges: number[] = []
+    const centre = (body: (typeof tfw)[number], station: { x: number; z: number }) => {
+      const yaw = body.yaw ?? 0
+      return {
+        x: body.nested.x + station.x * Math.cos(yaw) + station.z * Math.sin(yaw),
+        z: body.nested.z - station.x * Math.sin(yaw) + station.z * Math.cos(yaw),
+      }
+    }
     for (let index = 0; index < 5; index += 1) {
       const asym = tfw.find((body) => body.id === `e-ridge-r-${index}`)!
       const concave = tfw.find((body) => body.id === `e-ridge-cr-${index}`)!
       expect(concave.kind).toBe('beach-ridge')
       expect(concave.parentId).toBe('es-ridge-cr')
       expect(concave.nested.y).toBeCloseTo(asym.nested.y)
-      expect(concave.nested.z).toBeCloseTo(asym.nested.z)
+      expect(concave.nested.z).toBeLessThan(asym.nested.z)
       expect(concave.yaw ?? 0).toBeCloseTo(asym.yaw ?? 0)
       const dx = concave.nested.x - asym.nested.x
       if (index === 0) shift = dx
       expect(dx).toBeCloseTo(shift)
       expect(dx).toBeGreaterThan(0)
+      nudges.push(concave.nested.z - asym.nested.z)
+      const asymStations = asymmetricBeachRidgeStations('r', index)
+      const concaveStations = brConcaveSwStations('r', index)
+      const tip = asymStations.reduce((best, station) => (centre(asym, station).x > centre(asym, best).x ? station : best))
+      const near = concaveStations.reduce((best, station) =>
+        centre(concave, station).x < centre(concave, best).x ? station : best,
+      )
+      expect(centre(concave, near).z).toBeCloseTo(centre(asym, tip).z)
       for (const x of worldXs(asym, asymmetricBeachRidgeStations('r', index))) {
         asymMin = Math.min(asymMin, x)
         asymMax = Math.max(asymMax, x)
@@ -488,13 +504,15 @@ describe('tfwEcsSchematic', () => {
     expect(asymMax - concaveMin).toBeCloseTo(TFW_CONCAVE_RIDGE_OVERLAP * width)
     expect(concaveMax).toBeGreaterThan(asymMax)
     expect(concaveMin).toBeGreaterThan(asymMin)
+    expect(nudges[4]).toBeLessThan(nudges[0])
 
     const rightSet = tfw.find((body) => body.id === 'es-ridge-r')!
     const concaveSet = tfw.find((body) => body.id === 'es-ridge-cr')!
+    const meanNudge = nudges.reduce((total, nudge) => total + nudge, 0) / nudges.length
     expect(concaveSet.parentId).toBe('ec-ridge-cr')
     expect(concaveSet.nested.x).toBeCloseTo(rightSet.nested.x + shift)
     expect(concaveSet.nested.y).toBeCloseTo(rightSet.nested.y)
-    expect(concaveSet.nested.z).toBeCloseTo(rightSet.nested.z)
+    expect(concaveSet.nested.z).toBeCloseTo(rightSet.nested.z + meanNudge)
     const complex = tfw.find((body) => body.id === 'ec-ridge-cr')!
     expect(complex.parentId).toBe('ecs')
     expect(complex.rank).toBe('element-complex')

@@ -77,6 +77,31 @@ export function mouthFanReferenceGap(): number {
 }
 
 /**
+ * Alongshore overlap of the fan's inner pair after `MOUTH_FAN_X_SCALE`.
+ * Bar width minus the scaled centre gap. The shipped fan is **0.36**.
+ */
+export function mouthFanInnerOverlap(): number {
+  return MOUTH_BAR_SCALE.x - mouthFanReferenceGap() * MOUTH_FAN_X_SCALE
+}
+
+/**
+ * The third mouth-bar complex keeps this fraction of the source fan's
+ * inner-pair overlap, so its centre gap grows and the fan spreads in X.
+ */
+export const MOUTH_DISTAL_OVERLAP_FRACTION = 0.5
+
+/** Scale on an already `MOUTH_FAN_X_SCALE`d X. Half the source overlap. */
+export function mouthDistalXScale(): number {
+  const gap = mouthFanReferenceGap() * MOUTH_FAN_X_SCALE
+  const distalGap = MOUTH_BAR_SCALE.x - mouthFanInnerOverlap() * MOUTH_DISTAL_OVERLAP_FRACTION
+  return distalGap / gap
+}
+
+export function isDistalMouthId(id: string): boolean {
+  return id === 'ec-mouth-dist' || id === 'es-mouth-dist' || id.startsWith('e-mouth-dist-')
+}
+
+/**
  * Filled V in front of the channel. The apex is the centre bar.
  * The next row is one left and one right. Each of those then adds an
  * outer bar, a bar back toward the opposite side of the axis, and one
@@ -202,7 +227,7 @@ const RIDGE_COUNT = 5
 const RIDGE_INNER = CHANNEL_RADIUS
 const RIDGE_OUTER = 3.45
 const RIDGE_Z_BASE = -0.55
-const RIDGE_Z_STEP = 0.34
+export const RIDGE_Z_STEP = 0.34
 const RIDGE_BOW = 0.85
 /** Seaward swing added along the outer half of the centreline. */
 const RIDGE_TIP_TURN = 0.7
@@ -448,6 +473,27 @@ function layMouthFan(originZ: number, yLand: number): Array<{ x: number; y: numb
   })
 }
 
+/**
+ * Third mouth-bar complex, one land→sea step beyond the seaward fan.
+ * X is widened so the inner-pair overlap is half the source fan's overlap.
+ * Y drops by the same step as the proximal→seaward pair.
+ */
+export function layDistalMouthFan<T extends { x: number; y: number; z: number; yaw: number }>(
+  seaward: T[],
+  proximalApex: { y: number; z: number },
+  seawardApex: { y: number; z: number },
+): T[] {
+  const dz = seawardApex.z - proximalApex.z
+  const dy = proximalApex.y - seawardApex.y
+  const xScale = mouthDistalXScale()
+  return seaward.map((point) => ({
+    ...point,
+    x: point.x * xScale,
+    y: point.y - dy,
+    z: point.z + dz,
+  }))
+}
+
 function mouthFans(): { seaward: ReturnType<typeof layMouthFan>; proximal: ReturnType<typeof layMouthFan> } {
   const span = channelSpan()
   const halfZ = MOUTH_BAR_SCALE.z / 2
@@ -490,9 +536,12 @@ function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
 }
 
 const FANS = mouthFans()
+const DISTAL = layDistalMouthFan(FANS.seaward, FANS.proximal[0], FANS.seaward[0])
 const MOUTH_BARS = [...FANS.seaward, ...FANS.proximal]
 const MOUTH_FAN_Z = MOUTH_BARS.reduce((sum, bar) => sum + bar.z, 0) / MOUTH_BARS.length
 const MOUTH_FAN_Y = MOUTH_BARS.reduce((sum, bar) => sum + bar.y, 0) / MOUTH_BARS.length
+const DISTAL_Z = DISTAL.reduce((sum, bar) => sum + bar.z, 0) / DISTAL.length
+const DISTAL_Y = DISTAL.reduce((sum, bar) => sum + bar.y, 0) / DISTAL.length
 const CHANNEL = channelSpan()
 
 const BODIES: SceneBody[] = [
@@ -556,6 +605,31 @@ const BODIES: SceneBody[] = [
     kind: 'channel',
     nested: { x: 0, y: CHANNEL.flatY, z: CHANNEL.centerZ },
   },
+  {
+    id: 'ec-mouth-dist',
+    name: 'Wf-Mouth Bar seaward',
+    rank: 'element-complex',
+    parentId: 'ecs',
+    kind: 'group',
+    nested: { x: 0, y: DISTAL_Y + 0.2, z: DISTAL_Z },
+  },
+  {
+    id: 'es-mouth-dist',
+    name: 'Mouth-bar set seaward',
+    rank: 'element-set',
+    parentId: 'ec-mouth-dist',
+    kind: 'group',
+    nested: { x: 0, y: DISTAL_Y + 0.2, z: DISTAL_Z },
+  },
+  ...DISTAL.map((point, index) => ({
+    id: `e-mouth-dist-${index}`,
+    name: 'Mouth bar',
+    rank: 'element' as const,
+    parentId: 'es-mouth-dist',
+    kind: 'mouth-bar' as const,
+    nested: { x: point.x, y: point.y, z: point.z },
+    yaw: point.yaw,
+  })),
 ]
 
 export function sceneAt(explode: number): PlacedBody[] {

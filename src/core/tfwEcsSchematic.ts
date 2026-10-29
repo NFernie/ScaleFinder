@@ -9,9 +9,11 @@ import {
   CHANNEL_LENGTH,
   CHANNEL_RADIUS,
   EXPLODE_SPREAD,
+  isDistalMouthId,
   MOUTH_BAR_SCALE,
   MOUTH_FAN_X_SCALE,
   mouthFanReferenceGap,
+  RIDGE_Z_STEP,
   sceneAt as wfSceneAt,
   WATER_SLAB_DEPTH,
   WATER_SLAB_WIDTH,
@@ -92,6 +94,15 @@ export function tfwConvexSwMeshWidth(): number {
  * halving, so overlap lands at roughly **0.276** when Wf inner overlap is **0.36**.
  */
 export const TFW_MOUTH_SEAWARD_OVERLAP_TIGHTEN = 0.3
+
+/**
+ * Landward shift along the channel for each seaward tidal mouth complex.
+ * The fifth beach ridge moved the channel tip, and the seaward fan with it,
+ * by one {@link RIDGE_Z_STEP}. That opened a gap between mouth complexes.
+ * Each complex moves back by this much relative to the one landward of it,
+ * so the overlap matches the Wf fans before that ridge.
+ */
+export const TFW_MOUTH_COMPLEX_Z_PULL = RIDGE_Z_STEP
 
 export function tfwMouthBarXSpread(): number {
   const gap = mouthFanReferenceGap() * MOUTH_FAN_X_SCALE
@@ -216,6 +227,7 @@ function splitTfwMouthComplexes(bodies: SceneBody[]): SceneBody[] {
   if (proxBars.length === 0 || midBars.length === 0) return bodies
 
   const step = mouthComplexLandSeaStep()
+  const pull = TFW_MOUTH_COMPLEX_Z_PULL
   const proxComplex: SceneBody = {
     ...ecMouth,
     id: 'ec-mouth-prox',
@@ -233,15 +245,17 @@ function splitTfwMouthComplexes(bodies: SceneBody[]): SceneBody[] {
   }
   const proxReparented = proxBars.map((bar) => ({ ...bar, parentId: 'es-mouth-prox' }))
 
-  const midReparented = midBars.map((bar) => ({ ...bar, parentId: 'es-mouth' }))
-  const midSet: SceneBody = { ...esMouth, nested: mouthSetNested(midBars) }
-  const midComplex: SceneBody = { ...ecMouth, name: NAMES['ec-mouth'], nested: mouthSetNested(midBars) }
+  const midReparented = midBars.map((bar) =>
+    advanceMouthBarAlongChannel({ ...bar, parentId: 'es-mouth' }, channel, -pull, 0),
+  )
+  const midSet: SceneBody = { ...esMouth, nested: mouthSetNested(midReparented) }
+  const midComplex: SceneBody = { ...ecMouth, name: NAMES['ec-mouth'], nested: mouthSetNested(midReparented) }
 
   const seaBars = midReparented.map((bar, index) =>
     advanceMouthBarAlongChannel(
       { ...bar, id: `e-mouth-sea-${index}`, parentId: 'es-mouth-sea' },
       channel,
-      step.localDz,
+      step.localDz - pull,
       step.dy,
     ),
   )
@@ -483,7 +497,7 @@ function shiftedBody(body: SceneBody, bodiesForShift: SceneBody[]): SceneBody {
 }
 
 function sceneBodiesAtRest(): SceneBody[] {
-  const wf = wfSceneAt(0)
+  const wf = wfSceneAt(0).filter((body) => !isDistalMouthId(body.id))
   const yawed = alignMouthBarsToChannel(
     wf.map((body) => applyMouthBarXSpread(applyTfwYaw({ ...body, yaw: body.yaw }))),
   )
@@ -705,8 +719,27 @@ function extendWaterSlab(ecs: SceneBody, extras: SceneBody[]): SceneBody {
 function leftMouthId(id: string): string {
   if (id === 'ec-mouth') return 'ec-mouth-l'
   if (id === 'es-mouth') return 'es-mouth-l'
+  if (id === 'ec-mouth-dist') return 'ec-mouth-l-dist'
+  if (id === 'es-mouth-dist') return 'es-mouth-l-dist'
+  if (id.startsWith('e-mouth-dist-')) return `e-mouth-l-dist-${id.slice('e-mouth-dist-'.length)}`
   if (id.startsWith('e-mouth-prox-')) return `e-mouth-l-prox-${id.slice('e-mouth-prox-'.length)}`
   return `e-mouth-l-${id.slice('e-mouth-'.length)}`
+}
+
+function leftMouthParent(id: string): string {
+  if (id === 'ec-mouth' || id === 'ec-mouth-dist') return 'ecs'
+  if (id === 'es-mouth') return 'ec-mouth-l'
+  if (id === 'es-mouth-dist') return 'ec-mouth-l-dist'
+  if (id.startsWith('e-mouth-dist-')) return 'es-mouth-l-dist'
+  return 'es-mouth-l'
+}
+
+function leftMouthName(id: string, fallback: string): string {
+  if (id === 'ec-mouth') return 'Tfw-Mouth Bar left'
+  if (id === 'ec-mouth-dist') return 'Tfw-Mouth Bar left seaward'
+  if (id === 'es-mouth') return 'Mouth-bar set left'
+  if (id === 'es-mouth-dist') return 'Mouth-bar set left seaward'
+  return fallback
 }
 
 /**
@@ -718,7 +751,13 @@ function leftMouthComplex(half: SceneBody): SceneBody[] {
   const wfChannel = wf.find((body) => body.id === 'e-channel')!
   const yaw = half.yaw ?? 0
   return wf
-    .filter((body) => body.id === 'ec-mouth' || body.id === 'es-mouth' || body.kind === 'mouth-bar')
+    .filter(
+      (body) =>
+        body.id === 'ec-mouth' ||
+        body.id === 'es-mouth' ||
+        isDistalMouthId(body.id) ||
+        body.kind === 'mouth-bar',
+    )
     .map((body) => {
       const rotated = rotateYaw(
         {
@@ -728,14 +767,11 @@ function leftMouthComplex(half: SceneBody): SceneBody[] {
         },
         yaw,
       )
-      const name =
-        body.id === 'ec-mouth' ? 'Tfw-Mouth Bar left' : body.id === 'es-mouth' ? 'Mouth-bar set left' : body.name
-      const parentId = body.id === 'ec-mouth' ? 'ecs' : body.id === 'es-mouth' ? 'ec-mouth-l' : 'es-mouth-l'
       return {
         ...body,
         id: leftMouthId(body.id),
-        name,
-        parentId,
+        name: leftMouthName(body.id, body.name),
+        parentId: leftMouthParent(body.id),
         nested: {
           x: half.nested.x + rotated.x,
           y: half.nested.y + rotated.y,
@@ -765,7 +801,8 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * end overlapping the left wall by 10% of the local channel width. A half
  * channel is twice the tip-to-tip length, the extra length landward, and a
  * second section runs from that landward end to the tidal channel's landward
- * tip. A mouth-bar complex copied from the Wf offsets sits on the half channel.
+ * tip. A mouth-bar complex copied from the Wf offsets sits on the half channel,
+ * plus the wider seaward complex copied from the Wf distal fan.
  * A symmetric beach-ridge complex sits on the left of that half channel with
  * the same offsets. The water slab grows to cover that extension. A delta
  * plain's top aligns with the crest of the most landward beach ridge, follows the
@@ -778,13 +815,16 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * Wf offset (doubled on each bar), plus up to 10° outward (0 on the axis).
  * Three mouth-bar element complexes on the tidal channel: proximal, middle
  * seaward (half the Wf overlap, then the inner-pair centre gap shrinks 30%), and a third seaward
- * fan copied from the middle with the same land→sea Y/Z step. The landward
- * fan keeps the Wf overlap.
+ * fan copied from the middle. `ec-mouth` and `ec-mouth-sea` each sit one beach-ridge
+ * step further landward than the Wf seaward fan, so they overlap the complex
+ * landward of them by the amount the Wf fans had before the fifth ridge.
+ * The landward fan keeps the Wf overlap. The Wf distal complex is not drawn on
+ * this channel; the half channel carries that wider third complex instead.
  */
 export function sceneAt(explode: number): PlacedBody[] {
   const t = Math.min(1, Math.max(0, explode))
   const spread = 1 + (EXPLODE_SPREAD - 1) * t
-  const wfPlaced = wfSceneAt(t)
+  const wfPlaced = wfSceneAt(t).filter((item) => !isDistalMouthId(item.id))
   const rested = sceneBodiesAtRest()
   const half = leftHalfChannelBody(rested)
   const extras = [
@@ -826,6 +866,7 @@ export function sceneAt(explode: number): PlacedBody[] {
             (body.id === 'e-channel-l' ||
               body.id === 'e-channel-l-join' ||
               body.id === 'e-mouth-l-0' ||
+              body.id === 'e-mouth-l-dist-0' ||
               body.id === 'e-ridge-hl-0')
     placed.push({ ...body, position, showLabel })
   }

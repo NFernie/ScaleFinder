@@ -5,6 +5,7 @@
  * stays at Sfântu Gheorghe.
  */
 import { asymmetricBeachRidgeStations } from './asymmetricBeachRidgePlan'
+import { layDistalMouthFan } from './wfSchematic'
 
 export const ASYM_WF_ANCHOR = { lat: 44.878674, lng: 29.515563 } as const
 
@@ -481,9 +482,12 @@ function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
 }
 
 const FANS = mouthFans()
+const DISTAL = layDistalMouthFan(FANS.seaward, FANS.proximal[0], FANS.seaward[0])
 const MOUTH_BARS = [...FANS.seaward, ...FANS.proximal]
 const MOUTH_FAN_Z = MOUTH_BARS.reduce((sum, bar) => sum + bar.z, 0) / MOUTH_BARS.length
 const MOUTH_FAN_Y = MOUTH_BARS.reduce((sum, bar) => sum + bar.y, 0) / MOUTH_BARS.length
+const DISTAL_Z = DISTAL.reduce((sum, bar) => sum + bar.z, 0) / DISTAL.length
+const DISTAL_Y = DISTAL.reduce((sum, bar) => sum + bar.y, 0) / DISTAL.length
 const CHANNEL = channelSpan()
 
 const BODIES: SceneBody[] = [
@@ -547,6 +551,31 @@ const BODIES: SceneBody[] = [
     kind: 'channel',
     nested: { x: 0, y: CHANNEL.flatY, z: CHANNEL.centerZ },
   },
+  {
+    id: 'ec-mouth-dist',
+    name: 'Wf-Mouth Bar seaward',
+    rank: 'element-complex',
+    parentId: 'ecs',
+    kind: 'group',
+    nested: { x: 0, y: DISTAL_Y + 0.2, z: DISTAL_Z },
+  },
+  {
+    id: 'es-mouth-dist',
+    name: 'Mouth-bar set seaward',
+    rank: 'element-set',
+    parentId: 'ec-mouth-dist',
+    kind: 'group',
+    nested: { x: 0, y: DISTAL_Y + 0.2, z: DISTAL_Z },
+  },
+  ...DISTAL.map((point, index) => ({
+    id: `e-mouth-dist-${index}`,
+    name: 'Mouth bar',
+    rank: 'element' as const,
+    parentId: 'es-mouth-dist',
+    kind: 'mouth-bar' as const,
+    nested: { x: point.x, y: point.y, z: point.z },
+    yaw: point.yaw,
+  })),
 ]
 
 export function sceneAt(explode: number): PlacedBody[] {

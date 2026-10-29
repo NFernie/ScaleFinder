@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The Tfw tidal complexes `ec-mouth` and `ec-mouth-sea` each move landward along the channel by one beach-ridge step (0.34) relative to the complex landward of them. That closes the gap the fifth ridge opened when the seaward fan followed the new channel tip, so each overlaps the landward complex by the centreline amount the Wf fans had before that ridge.
+- The symmetric Wf scene, the asymmetric scene, and the Tfw half channel gain a third mouth-bar complex at the seaward end of the existing mouth-bar complex (`ec-mouth-dist`, and `ec-mouth-l-dist` on the half channel). Its inner-pair overlap is half the source fan’s overlap (0.36 → 0.18), so the fan spreads wider in X. It is not drawn on the Tfw tidal channel.
 - Beach-ridge faces in the Wf, asymmetric, and Tfw scenes are twice as long along the seaward hypotenuse. The crest stays put. The base drops by one crest height and moves seaward on the same angle. The base Z thickness does not change.
 - Beach-ridge complexes in the Wf, asymmetric, and Tfw scenes have five ridges per flank. The landward ridge stays at nested Y 0.04. Each more seaward ridge drops at the mouth-bar fan’s dy/dz (about 0.0114 per 0.34 channel-end step). Index 4 is the deepest and most seaward.
 - The Tfw tidal channel has three mouth-bar element complexes (proximal, middle seaward, and a third seaward fan copied from the middle with the same land→sea Y/Z step). The middle fan starts at half the Wf alongshore overlap, then the inner-pair centre gap shrinks **30%** (~**0.276** overlap). Outer bar yaws double toward ±X and taper to the channel axis at the centre; the Wf fan yaw on each bar doubles as well.

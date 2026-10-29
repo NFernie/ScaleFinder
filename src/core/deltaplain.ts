@@ -1,6 +1,7 @@
 import { asymmetricBeachRidgeStations } from './asymmetricBeachRidgePlan'
+import { brConcaveSwStations } from './brConcaveSwPlan'
 import { brConvexSwStations } from './brConvexSwPlan'
-import { beachRidgeMesh, channelMesh, type SchematicSceneId } from './schematicScene'
+import { beachRidgeMesh, channelMesh, ridgeFlankSide, type SchematicSceneId } from './schematicScene'
 import { tidalChannelFrameAt, tidalChannelRadiusAt, tidalChannelSpan } from './tidalChannel'
 import {
   beachRidgeRing,
@@ -74,7 +75,7 @@ function worldXZ(body: SceneBody, x: number, z: number): DeltaPlainPoint {
 }
 
 function ridgeSide(id: string): 'l' | 'r' {
-  return id.includes('-r-') ? 'r' : 'l'
+  return ridgeFlankSide(id)
 }
 
 function ridgeIndexOf(id: string): number {
@@ -86,6 +87,7 @@ function stationsFor(scene: SchematicSceneId, body: SceneBody) {
   const side = ridgeSide(body.id)
   const index = ridgeIndexOf(body.id)
   const loft = beachRidgeMesh(scene, body.id)
+  if (loft === 'concave-sw') return brConcaveSwStations(side, index)
   if (loft === 'convex-sw') return brConvexSwStations(side, index)
   if (loft === 'asymmetric') return asymmetricBeachRidgeStations(side, index)
   return beachRidgeStations(side, index)

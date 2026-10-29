@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { sceneAt as asymSceneAt } from '../core/asymWfSchematic'
 import { DELTA_PLAIN_COLOUR, deltaPlainShape } from '../core/deltaplain'
-import { beachRidgeMesh, channelMesh, type SchematicSceneId } from '../core/schematicScene'
+import { beachRidgeMesh, channelMesh, ridgeFlankSide, type SchematicSceneId } from '../core/schematicScene'
 import { sceneAt as tfwSceneAt } from '../core/tfwEcsSchematic'
 import {
   GROUND_THICKNESS,
@@ -18,6 +18,7 @@ import {
 import { asymmetricBeachRidgeGeometry } from './asymmetricBeachRidgeGeometry'
 import { deltaPlainGeometry } from './deltaplain'
 import { beachRidgeGeometry } from './beachRidgeGeometry'
+import { brConcaveSwGeometry } from './brConcaveSwgeometry'
 import { brConvexSwGeometry } from './brConvexSwgeometry'
 import { halfChannelGeometry } from './halfChannelGeometry'
 import { mouthBarGeometry } from './mouthBarGeometry'
@@ -83,9 +84,10 @@ function geometryFor(scene: SchematicSceneId, body: PlacedBody): THREE.BufferGeo
   if (body.kind === 'delta-plain') return deltaPlainGeometry(deltaPlainShape(scene, layoutAt(scene, 0)))
   if (body.kind === 'beach-ridge') {
     const index = Number(body.id.slice(body.id.lastIndexOf('-') + 1))
-    const side = body.id.includes('-r-') ? 'r' : 'l'
+    const side = ridgeFlankSide(body.id)
     const ridgeIndex = Number.isFinite(index) ? index : 0
     const loft = beachRidgeMesh(scene, body.id)
+    if (loft === 'concave-sw') return brConcaveSwGeometry(side, ridgeIndex)
     if (loft === 'convex-sw') return brConvexSwGeometry(side, ridgeIndex)
     if (loft === 'asymmetric') return asymmetricBeachRidgeGeometry(side, ridgeIndex)
     return beachRidgeGeometry(side, ridgeIndex)

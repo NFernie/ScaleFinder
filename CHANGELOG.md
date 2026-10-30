@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Each beach-ridge set in the Wf, asymmetric, and Tfw scenes has a green swale between consecutive ridges (`e-swale-*`). The top follows the two crest lines of that pair, using the loft already on those ridges (symmetric, asymmetric, or convex-seaward). The base is the top of that scene’s water slab, and it moves with the slab.
+- Each beach-ridge set in the Wf, asymmetric, and Tfw scenes has a green swale between consecutive ridges (`e-swale-*`). The top follows the two crest lines of that pair, using the loft already on those ridges (symmetric, asymmetric, or convex-seaward). The sides follow the facing hypotenuses and stop where those faces meet.
 
 ### Fixed
 
@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The swale no longer uses the water-slab top as its floor. It fills only the open gap between consecutive beach ridges: the crest edge follows the ridge step-down, the sides trace the facing hypotenuses, and a horizontal inset keeps the wedge out of both ridge meshes.
 - The half-channel mesh is lofted like the tidal channel: arc rings along its length, deck strips, and end caps with the same winding. The earlier single lid had one triangle facing down, so a top-down view hid half the channel.
 - The Tfw tidal complexes `ec-mouth` and `ec-mouth-sea` each move landward along the channel by one beach-ridge step (0.34) relative to the complex landward of them. That closes the gap the fifth ridge opened when the seaward fan followed the new channel tip, so each overlaps the landward complex by the centreline amount the Wf fans had before that ridge.
 - The symmetric Wf scene, the asymmetric scene, and the Tfw half channel gain a third mouth-bar complex at the seaward end of the existing mouth-bar complex (`ec-mouth-dist`, and `ec-mouth-l-dist` on the half channel). Its inner-pair overlap is half the source fan’s overlap (0.36 → 0.18), so the fan spreads wider in X. It is not drawn on the Tfw tidal channel.

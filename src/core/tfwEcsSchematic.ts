@@ -811,8 +811,9 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  * the same offsets. The water slab grows to cover that extension. A delta
  * plain's top aligns with the crest of the most landward beach ridge, follows the
  * landward toe of each ridge set, stops at the channels, and runs to the
- * water slab's landward edge. A green swale fills each gap between consecutive
- * beach ridges, crest to crest, down to the water-slab top.
+ * water slab's landward edge. A green swale fills each open gap between consecutive
+ * beach ridges. The top joins the facing crests and the sides follow the facing
+ * hypotenuses until those faces meet, clear of both ridge meshes.
  * Mouth-bar positions are swung about the channel so the fan centreline
  * lies on the channel centreline, then each bar's channel-local X is scaled
  * with the local half-width so it keeps the same place between the margins.

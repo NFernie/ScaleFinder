@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
-import { swaleShape } from '../core/swale'
+import { SWALE_ALONG, SWALE_FACE, swaleShape } from '../core/swale'
 import { sceneAt } from '../core/wfSchematic'
 import { swaleGeometry } from './swalegeometry'
 
@@ -18,15 +18,24 @@ function faceNormalY(geometry: THREE.BufferGeometry, triangle: number): number {
 }
 
 describe('swaleGeometry', () => {
-  it('builds a closed wedge whose top faces up', () => {
+  it('builds a closed wedge whose crest edge faces up', () => {
     const shape = swaleShape('wf', sceneAt(0), 'e-swale-l-0')
     const geometry = swaleGeometry(shape)
     const position = geometry.getAttribute('position')
     const index = geometry.getIndex()
-    expect(position.count).toBe(shape.landCrest.length * 4)
+    const ring = SWALE_FACE * 2
+    expect(position.count).toBe(SWALE_ALONG * ring)
     expect(index?.count).toBe(shape.indices.length)
-    expect(faceNormalY(geometry, 0)).toBeGreaterThan(0)
-    const normal = geometry.getAttribute('normal')
-    expect(normal.count).toBe(position.count)
+    let top = -1
+    for (let triangle = 0; triangle < (index?.count ?? 0) / 3; triangle += 1) {
+      const ids = [0, 1, 2].map((offset) => index!.getX(triangle * 3 + offset))
+      if (ids.includes(0) && ids.includes(ring - 1)) {
+        top = triangle
+        break
+      }
+    }
+    expect(top).toBeGreaterThanOrEqual(0)
+    expect(faceNormalY(geometry, top)).toBeGreaterThan(0)
+    expect(geometry.getAttribute('normal').count).toBe(position.count)
   })
 })

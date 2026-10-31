@@ -69,7 +69,7 @@ Ranks (Wf taxonomy):
 3. **element-set** — `es-ridge-l`, `es-ridge-r`, `es-mouth` (groups).
 4. **element** — four beach ridges per flank (`e-ridge-{l\|r}-0..3`), nine seaward mouth bars (`e-mouth-0..8`), nine proximal mouth bars (`e-mouth-prox-0..8`), one channel (`e-channel`).
 
-**Kinds** (`SolidKind`): `ground` | `channel` | `mouth-bar` | `beach-ridge` | `group`.
+**Kinds** (`SolidKind`): `ground` | `channel` | `mouth-bar` | `beach-ridge` | `delta-plain` | `swale` | `shale` | `group`.
 
 - **`group`** — no mesh in the view; label sprite only (tiny placeholder box is **not** used for groups; mesh branch is skipped).
 - **`ground`** — `BoxGeometry(8, GROUND_THICKNESS, 6)` in the view.

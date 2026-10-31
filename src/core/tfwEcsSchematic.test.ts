@@ -11,6 +11,7 @@ import {
   TFW_CONVEX_CHANNEL_OVERLAP,
   tfwConvexSwMeshWidth,
   tfwMouthBarMarginScale,
+  TFW_MOUTH_COMPLEX_Z_PULL,
   tfwMouthBarXSpread,
   tfwRidgeShift,
 } from './tfwEcsSchematic'
@@ -19,8 +20,12 @@ import {
   GROUND_THICKNESS,
   MOUTH_BAR_SCALE,
   beachRidgeStations,
+  isDistalMouthId,
+  mouthDistalXScale,
+  mouthFanInnerOverlap,
   mouthFanReferenceGap,
   MOUTH_FAN_X_SCALE,
+  RIDGE_Z_STEP,
   sceneAt as wfSceneAt,
   WATER_SLAB_DEPTH,
   WATER_SLAB_WIDTH,
@@ -35,11 +40,18 @@ describe('tfwEcsSchematic', () => {
     const leftMouthIds = [
       'ec-mouth-l',
       'es-mouth-l',
-      ...wf.filter((body) => body.kind === 'mouth-bar').map((body) =>
-        body.id.startsWith('e-mouth-prox-')
-          ? `e-mouth-l-prox-${body.id.slice('e-mouth-prox-'.length)}`
-          : `e-mouth-l-${body.id.slice('e-mouth-'.length)}`,
-      ),
+      ...wf
+        .filter((body) => body.kind === 'mouth-bar' && !isDistalMouthId(body.id))
+        .map((body) =>
+          body.id.startsWith('e-mouth-prox-')
+            ? `e-mouth-l-prox-${body.id.slice('e-mouth-prox-'.length)}`
+            : `e-mouth-l-${body.id.slice('e-mouth-'.length)}`,
+        ),
+      'ec-mouth-l-dist',
+      'es-mouth-l-dist',
+      ...wf
+        .filter((body) => body.id.startsWith('e-mouth-dist-'))
+        .map((body) => `e-mouth-l-dist-${body.id.slice('e-mouth-dist-'.length)}`),
     ]
     const mouthExtraIds = [
       'ec-mouth-prox',
@@ -57,7 +69,9 @@ describe('tfwEcsSchematic', () => {
       'e-mouth-sea-8',
     ]
     expect(tfw.map((body) => body.id)).toEqual([
-      ...wf.map((body) => body.id),
+      ...wf
+        .map((body) => body.id)
+        .filter((id) => !isDistalMouthId(id) && !id.startsWith('e-swale-') && !id.startsWith('e-shale-')),
       ...mouthExtraIds,
       'e-channel-l',
       'e-channel-l-join',
@@ -70,6 +84,30 @@ describe('tfwEcsSchematic', () => {
       'e-ridge-hl-3',
       'e-ridge-hl-4',
       'e-deltaplain',
+      'e-swale-l-0',
+      'e-swale-l-1',
+      'e-swale-l-2',
+      'e-swale-l-3',
+      'e-swale-r-0',
+      'e-swale-r-1',
+      'e-swale-r-2',
+      'e-swale-r-3',
+      'e-swale-hl-0',
+      'e-swale-hl-1',
+      'e-swale-hl-2',
+      'e-swale-hl-3',
+      'e-shale-l-0',
+      'e-shale-l-1',
+      'e-shale-l-2',
+      'e-shale-l-3',
+      'e-shale-r-0',
+      'e-shale-r-1',
+      'e-shale-r-2',
+      'e-shale-r-3',
+      'e-shale-hl-0',
+      'e-shale-hl-1',
+      'e-shale-hl-2',
+      'e-shale-hl-3',
     ])
     expect(tfw.find((body) => body.id === 'ecs')?.name).toBe('Tfw element complex set')
 
@@ -92,20 +130,25 @@ describe('tfwEcsSchematic', () => {
     const wfOverlap = MOUTH_BAR_SCALE.x - referenceGap
     const halfSpread = (MOUTH_BAR_SCALE.x - wfOverlap * 0.5) / referenceGap
     expect(spread / halfSpread).toBeCloseTo(1 - 0.3)
-    const onChannel = (wfBody: (typeof wf)[number], tfwBody: (typeof tfw)[number], localX: number) => {
+    const onChannel = (
+      wfBody: (typeof wf)[number],
+      tfwBody: (typeof tfw)[number],
+      localX: number,
+      along = 0,
+    ) => {
       const yaw = TFW_CHANNEL_YAW_RAD
       const dz = wfBody.nested.z - channel.nested.z
       const seatedX = localX * tfwMouthBarMarginScale(dz)
       const cos = Math.cos(yaw)
       const sin = Math.sin(yaw)
-      expect(tfwBody.nested.x).toBeCloseTo(channel.nested.x + seatedX * cos + dz * sin)
-      expect(tfwBody.nested.z).toBeCloseTo(channel.nested.z - seatedX * sin + dz * cos)
+      expect(tfwBody.nested.x).toBeCloseTo(channel.nested.x + seatedX * cos + dz * sin + along * sin)
+      expect(tfwBody.nested.z).toBeCloseTo(channel.nested.z - seatedX * sin + dz * cos + along * cos)
       const templateX = wfBody.nested.x / MOUTH_FAN_X_SCALE
       expect(tfwBody.yaw).toBeCloseTo(tfwMouthBarYaw((wfBody.yaw ?? 0) * 2, templateX))
     }
     const wfOffAxis = wf.find((body) => body.id === 'e-mouth-1')!
     const tfwOffAxis = tfw.find((body) => body.id === 'e-mouth-1')!
-    onChannel(wfOffAxis, tfwOffAxis, wfOffAxis.nested.x * spread)
+    onChannel(wfOffAxis, tfwOffAxis, wfOffAxis.nested.x * spread, -TFW_MOUTH_COMPLEX_Z_PULL)
     const wfLandward = wf.find((body) => body.id === 'e-mouth-prox-1')!
     const tfwLandward = tfw.find((body) => body.id === 'e-mouth-prox-1')!
     onChannel(wfLandward, tfwLandward, wfLandward.nested.x)
@@ -136,12 +179,13 @@ describe('tfwEcsSchematic', () => {
     for (const body of tfw) {
       const match = wf.find((item) => item.id === body.id)
       if (!match) continue
-      if (body.kind === 'mouth-bar' || body.id === 'ec-mouth' || body.id === 'es-mouth') continue
+      if (body.kind === 'mouth-bar' || body.kind === 'swale' || body.kind === 'shale' || body.id === 'ec-mouth' || body.id === 'es-mouth') continue
       expect(body.parentId).toEqual(match?.parentId)
       expect(body.position.y).toBeCloseTo(match?.position.y ?? 0)
       const leftFlank = body.id === 'es-ridge-l' || body.id.startsWith('e-ridge-l-')
       if (
         !leftFlank &&
+        body.id !== 'ecs' &&
         body.id !== 'e-channel' &&
         body.id !== 'ec-mouth' &&
         body.id !== 'es-mouth' &&
@@ -309,7 +353,31 @@ describe('tfwEcsSchematic', () => {
     expect(copied.parentId).toBe('es-mouth-l')
     expect(tfw.find((body) => body.id === 'ec-mouth-l')?.parentId).toBe('ecs')
     expect(tfw.find((body) => body.id === 'es-mouth-l')?.parentId).toBe('ec-mouth-l')
-    expect(tfw.filter((body) => body.id.startsWith('e-mouth-l-')).length).toBe(18)
+    expect(tfw.filter((body) => /^e-mouth-l-\d+$/.test(body.id) || body.id.startsWith('e-mouth-l-prox-'))).toHaveLength(18)
+    expect(tfw.filter((body) => body.id.startsWith('e-mouth-l-dist-'))).toHaveLength(9)
+    const distSource = wf.find((body) => body.id === 'e-mouth-dist-1')!
+    const distCopy = tfw.find((body) => body.id === 'e-mouth-l-dist-1')!
+    const distDx = distSource.nested.x - wfChannel.nested.x
+    const distDy = distSource.nested.y - wfChannel.nested.y
+    const distDz = distSource.nested.z - wfChannel.nested.z
+    expect(distCopy.nested.x).toBeCloseTo(half.nested.x + distDx * Math.cos(halfYaw) + distDz * Math.sin(halfYaw))
+    expect(distCopy.nested.z).toBeCloseTo(half.nested.z - distDx * Math.sin(halfYaw) + distDz * Math.cos(halfYaw))
+    expect(distCopy.nested.y).toBeCloseTo(half.nested.y + distDy)
+    expect(distCopy.parentId).toBe('es-mouth-l-dist')
+    expect(tfw.find((body) => body.id === 'ec-mouth-l-dist')?.parentId).toBe('ecs')
+    expect(tfw.find((body) => body.id === 'es-mouth-l-dist')?.parentId).toBe('ec-mouth-l-dist')
+    const halfLocalX = (body: (typeof tfw)[number]) => {
+      const dx = body.nested.x - half.nested.x
+      const dz = body.nested.z - half.nested.z
+      return dx * Math.cos(halfYaw) - dz * Math.sin(halfYaw)
+    }
+    const distalInner = 0.16 * MOUTH_FAN_X_SCALE * mouthDistalXScale()
+    const leftInner = tfw.filter(
+      (body) => body.id.startsWith('e-mouth-l-dist-') && Math.abs(Math.abs(halfLocalX(body)) - distalInner) < 1e-4,
+    )
+    expect(leftInner).toHaveLength(2)
+    const leftGap = Math.abs(halfLocalX(leftInner[0]) - halfLocalX(leftInner[1]))
+    expect(MOUTH_BAR_SCALE.x - leftGap).toBeCloseTo(mouthFanInnerOverlap() * 0.5)
 
     expect(tfw.find((body) => body.id === 'ec-mouth-prox')?.parentId).toBe('ecs')
     expect(tfw.find((body) => body.id === 'ec-mouth-sea')?.parentId).toBe('ecs')
@@ -318,8 +386,26 @@ describe('tfwEcsSchematic', () => {
     expect(tfw.find((body) => body.id === 'e-mouth-sea-0')?.parentId).toBe('es-mouth-sea')
     const mid0 = tfw.find((body) => body.id === 'e-mouth-0')!
     const sea0 = tfw.find((body) => body.id === 'e-mouth-sea-0')!
+    const prox0 = tfw.find((body) => body.id === 'e-mouth-prox-0')!
     expect(sea0.nested.y).toBeLessThan(mid0.nested.y)
     expect(sea0.nested.z).toBeGreaterThan(mid0.nested.z)
+    const channelLocalZ = (body: (typeof tfw)[number]) => {
+      const dx = body.nested.x - channel.nested.x
+      const dz = body.nested.z - channel.nested.z
+      const yaw = channel.yaw ?? 0
+      return dx * Math.sin(yaw) + dz * Math.cos(yaw)
+    }
+    const wfStep =
+      wf.find((body) => body.id === 'e-mouth-0')!.nested.z -
+      wf.find((body) => body.id === 'e-mouth-prox-0')!.nested.z
+    expect(TFW_MOUTH_COMPLEX_Z_PULL).toBe(RIDGE_Z_STEP)
+    expect(channelLocalZ(mid0) - channelLocalZ(prox0)).toBeCloseTo(wfStep - TFW_MOUTH_COMPLEX_Z_PULL)
+    expect(channelLocalZ(sea0) - channelLocalZ(mid0)).toBeCloseTo(wfStep - TFW_MOUTH_COMPLEX_Z_PULL)
+    const halfBar = MOUTH_BAR_SCALE.z / 2
+    const restoredOverlap = halfBar * 2 - (wfStep - TFW_MOUTH_COMPLEX_Z_PULL)
+    expect(restoredOverlap).toBeGreaterThan(0)
+    expect(channelLocalZ(prox0) + halfBar - (channelLocalZ(mid0) - halfBar)).toBeCloseTo(restoredOverlap)
+    expect(channelLocalZ(mid0) + halfBar - (channelLocalZ(sea0) - halfBar)).toBeCloseTo(restoredOverlap)
 
     const copiedRidge = tfw.find((body) => body.id === 'e-ridge-hl-0')!
     const sourceRidge = wf.find((body) => body.id === 'e-ridge-l-0')!

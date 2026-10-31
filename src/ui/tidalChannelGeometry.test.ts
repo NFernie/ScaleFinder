@@ -110,12 +110,14 @@ describe('tidalChannelGeometry', () => {
       let bottom = 0
       let best = Infinity
       for (let i = 0; i < position.count; i += 1) {
+        const y = position.getY(i)
+        if (y > -1e-4) continue
         const dx = position.getX(i) - x
         const dz = position.getZ(i) - z
         const dist = dx * dx + dz * dz
         if (dist > best) continue
         best = dist
-        bottom = position.getY(i)
+        bottom = y
       }
       return bottom
     }

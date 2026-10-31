@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Each beach-ridge set in the Wf, asymmetric, and Tfw scenes has a stone shale under each swale (`e-shale-*`, `BRShaleGeometry.ts`). The sides follow the same facing hypotenuses as the swale. The wedge fills from just under the swale down to the ridge bases, and stops where those faces meet, so a tapering loft is thin beside the channel and thick at the tip. A uniform convex loft meets just under the swale along the whole arc, so that shale runs from the bases up to the meeting.
+- Each beach-ridge set in the Wf, asymmetric, and Tfw scenes has a green swale between consecutive ridges (`e-swale-*`). The top follows the two crest lines of that pair, using the loft already on those ridges (symmetric, asymmetric, or convex-seaward). The sides follow the facing hypotenuses down to the top of the water slab.
+
 ### Fixed
 
 - The Wf schematic resize handle is a visible corner mark on the top-left of the view, with a resize cursor. Dragging it, or the arrow keys, still changes the view.
@@ -23,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The swale fills only the open gap above the water slab. The crest edge follows the ridge step-down, the sides trace the facing hypotenuses down to the slab top, and any connector that would enter a beach-ridge mesh is left out.
+- The half-channel mesh is lofted like the tidal channel: arc rings along its length, deck strips, and end caps with the same winding. The earlier single lid had one triangle facing down, so a top-down view hid half the channel.
+- The Tfw tidal complexes `ec-mouth` and `ec-mouth-sea` each move landward along the channel by one beach-ridge step (0.34) relative to the complex landward of them. That closes the gap the fifth ridge opened when the seaward fan followed the new channel tip, so each overlaps the landward complex by the centreline amount the Wf fans had before that ridge.
+- The symmetric Wf scene, the asymmetric scene, and the Tfw half channel gain a third mouth-bar complex at the seaward end of the existing mouth-bar complex (`ec-mouth-dist`, and `ec-mouth-l-dist` on the half channel). Its inner-pair overlap is half the source fan’s overlap (0.36 → 0.18), so the fan spreads wider in X. It is not drawn on the Tfw tidal channel.
+- Beach-ridge faces in the Wf, asymmetric, and Tfw scenes are twice as long along the seaward hypotenuse. The crest stays put. The base drops by one crest height and moves seaward on the same angle. The base Z thickness does not change.
 - Beach-ridge complexes in the Wf, asymmetric, and Tfw scenes have five ridges per flank. The landward ridge stays at nested Y 0.04. Each more seaward ridge drops at the mouth-bar fan’s dy/dz (about 0.0114 per 0.34 channel-end step). Index 4 is the deepest and most seaward.
 - The Tfw tidal channel has three mouth-bar element complexes (proximal, middle seaward, and a third seaward fan copied from the middle with the same land→sea Y/Z step). The middle fan starts at half the Wf alongshore overlap, then the inner-pair centre gap shrinks **30%** (~**0.276** overlap). Outer bar yaws double toward ±X and taper to the channel axis at the centre; the Wf fan yaw on each bar doubles as well.
 - The Tfw scene adds a symmetric beach-ridge complex on the left of the half channel, copying the Wf left-flank offsets and yaw. The Tfw water slab grows to cover that extended section, and still covers the original 8×6 slab. The Wf and asymmetric slabs stay 8×6.
@@ -41,8 +51,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A pin at latitude -19.984295231442236, longitude 119.165775381814 opens `TfwECSschematic`. The scene keeps the Wf element-complex stack. The channel is the tidal funnel. Both beach-ridge flanks use the asymmetric mesh, shifted so each channel end follows the funnel wall. Mouth bars keep the Wf arrangement.
 - `src/ui/tidalChannelGeometry.ts` builds a funnel tidal channel: half-cylinder cross-section (flat top, curved base), 1.5× the half-channel length. The Tfw scene uses it for the channel. The seaward opening and flare length are recorded under Changed.
 
+### Removed
+
+- The symmetric beach-ridge complex to the right of the Tfw asymmetric flank (`ec-ridge-sr`, `e-ridge-sr-*`) is no longer in the scene. `BRconcaveSW` is not drawn either.
+
 ### Docs
 
+- `features/elementmeshlist.md` records the E / ES / EC / ECS build for each scene (what each scale is created from, and how many elements sit inside it) and a Scale column on each mesh row. `.cursor/rules/elementmeshlist-sync.mdc` requires that taxonomy to stay in step with scene changes.
 - `features/elementmeshlist.md` tables the Wf schematic element meshes (geometry, scenes, and arrangement).
 - `.cursor/rules/elementmeshlist-sync.mdc` requires updating that file when new Wf schematic meshes or scene views are added or materially changed.
 

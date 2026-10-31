@@ -12,6 +12,12 @@ export function beachRidgeMesh(
   return 'symmetric'
 }
 
+/** Alongshore side of a beach-ridge body. */
+export function ridgeFlankSide(bodyId: string): 'l' | 'r' {
+  if (bodyId.includes('-r-')) return 'r'
+  return 'l'
+}
+
 /** Which channel loft a scene draws. */
 export function channelMesh(scene: SchematicSceneId): 'half' | 'tidal' {
   return scene === 'tfw' ? 'tidal' : 'half'

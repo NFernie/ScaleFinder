@@ -5,6 +5,7 @@
  * stays at Sfântu Gheorghe.
  */
 import { asymmetricBeachRidgeStations } from './asymmetricBeachRidgePlan'
+import { shaleBodies } from './shale'
 import { swaleBodies } from './swale'
 import { layDistalMouthFan } from './wfSchematic'
 
@@ -12,7 +13,7 @@ export const ASYM_WF_ANCHOR = { lat: 44.878674, lng: 29.515563 } as const
 
 export type Rank = 'element' | 'element-set' | 'element-complex' | 'element-complex-set'
 
-export type SolidKind = 'ground' | 'channel' | 'mouth-bar' | 'beach-ridge' | 'swale' | 'group'
+export type SolidKind = 'ground' | 'channel' | 'mouth-bar' | 'beach-ridge' | 'swale' | 'shale' | 'group'
 
 export interface SceneBody {
   id: string
@@ -596,12 +597,12 @@ export function sceneAt(explode: number): PlacedBody[] {
       showLabel: labelVisible(body, t),
     }
   })
-  const swales: PlacedBody[] = swaleBodies('asym', BODIES).map((body) => ({
+  const placedFill = (kind: 'swale' | 'shale') => (body: ReturnType<typeof swaleBodies>[number]): PlacedBody => ({
     id: body.id,
     name: body.name,
     rank: 'element',
     parentId: body.parentId,
-    kind: 'swale',
+    kind,
     nested: body.nested,
     position: {
       x: body.nested.x * spread,
@@ -609,6 +610,8 @@ export function sceneAt(explode: number): PlacedBody[] {
       z: body.nested.z * spread,
     },
     showLabel: false,
-  }))
-  return [...placed, ...swales]
+  })
+  const swales: PlacedBody[] = swaleBodies('asym', BODIES).map(placedFill('swale'))
+  const shales: PlacedBody[] = shaleBodies('asym', BODIES).map(placedFill('shale'))
+  return [...placed, ...swales, ...shales]
 }

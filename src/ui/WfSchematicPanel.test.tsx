@@ -49,6 +49,7 @@ it('lists the Wf bodies when the panel is open', async () => {
   expect(within(dialog).getByText('Wf-Mouth Bar')).toBeInTheDocument()
   expect(within(dialog).getAllByText('Beach ridge').length).toBeGreaterThan(0)
   expect(within(dialog).getAllByText('Swale')).toHaveLength(8)
+  expect(within(dialog).getAllByText('Shale')).toHaveLength(8)
   expect(within(dialog).getAllByText('Mouth bar').length).toBeGreaterThan(0)
   expect(within(dialog).getByText('Channel fill')).toBeInTheDocument()
   expect(within(dialog).queryByRole('button', { name: 'Zoom in' })).not.toBeInTheDocument()

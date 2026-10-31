@@ -3,13 +3,14 @@
  * Stored as latitude 18.601312, longitude −92.674937. A latitude of −92.67
  * cannot be plotted; 18.6°N, 92.67°W is the pair that sits on the map.
  */
+import { shaleBodies } from './shale'
 import { swaleBodies } from './swale'
 
 export const WF_ANCHOR = { lat: 18.601312, lng: -92.674937 } as const
 
 export type Rank = 'element' | 'element-set' | 'element-complex' | 'element-complex-set'
 
-export type SolidKind = 'ground' | 'channel' | 'mouth-bar' | 'beach-ridge' | 'delta-plain' | 'swale' | 'group'
+export type SolidKind = 'ground' | 'channel' | 'mouth-bar' | 'beach-ridge' | 'delta-plain' | 'swale' | 'shale' | 'group'
 
 export interface SceneBody {
   id: string
@@ -652,7 +653,7 @@ export function sceneAt(explode: number): PlacedBody[] {
     }
   })
   const travel = spread - 1
-  const swales = swaleBodies('wf', BODIES).map((body) => {
+  const fill = (body: SceneBody) => {
     const center = bodyCenter(body)
     return {
       ...body,
@@ -663,6 +664,8 @@ export function sceneAt(explode: number): PlacedBody[] {
       },
       showLabel: false,
     }
-  })
-  return [...placed, ...swales]
+  }
+  const swales = swaleBodies('wf', BODIES).map(fill)
+  const shales = shaleBodies('wf', BODIES).map(fill)
+  return [...placed, ...swales, ...shales]
 }

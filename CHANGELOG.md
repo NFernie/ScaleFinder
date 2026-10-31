@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Each beach-ridge set in the Wf, asymmetric, and Tfw scenes has a stone shale under each swale (`e-shale-*`, `BRShaleGeometry.ts`). The sides follow the same facing hypotenuses as the swale. The wedge fills from just under the swale down to the ridge bases, and stops where those faces meet, so a tapering loft is thin beside the channel and thick at the tip. A uniform convex loft meets just under the swale along the whole arc, so that shale runs from the bases up to the meeting.
 - Each beach-ridge set in the Wf, asymmetric, and Tfw scenes has a green swale between consecutive ridges (`e-swale-*`). The top follows the two crest lines of that pair, using the loft already on those ridges (symmetric, asymmetric, or convex-seaward). The sides follow the facing hypotenuses down to the top of the water slab.
 
 ### Fixed

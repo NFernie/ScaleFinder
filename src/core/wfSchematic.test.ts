@@ -185,6 +185,7 @@ describe('wfSchematic', () => {
   it('overlaps beach ridges seaward of the channel and tapers them off both flanks', () => {
     const nested = sceneAt(0)
     expect(nested.filter((body) => body.kind === 'swale')).toHaveLength(8)
+    expect(nested.filter((body) => body.kind === 'shale')).toHaveLength(8)
     for (const side of ['l', 'r'] as const) {
       const ridges = nested
         .filter((body) => body.id.startsWith(`e-ridge-${side}-`))

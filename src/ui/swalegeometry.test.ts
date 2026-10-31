@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
-import { SWALE_ALONG, SWALE_FACE, swaleShape } from '../core/swale'
+import { swaleShape } from '../core/swale'
 import { sceneAt } from '../core/wfSchematic'
 import { swaleGeometry } from './swalegeometry'
 
@@ -23,18 +23,18 @@ describe('swaleGeometry', () => {
     const geometry = swaleGeometry(shape)
     const position = geometry.getAttribute('position')
     const index = geometry.getIndex()
-    const ring = SWALE_FACE * 2
-    expect(position.count).toBe(SWALE_ALONG * ring)
+    expect(position.count).toBe(shape.positions.length / 3)
     expect(index?.count).toBe(shape.indices.length)
-    let top = -1
+    let top = 0
+    let topY = -Infinity
     for (let triangle = 0; triangle < (index?.count ?? 0) / 3; triangle += 1) {
       const ids = [0, 1, 2].map((offset) => index!.getX(triangle * 3 + offset))
-      if (ids.includes(0) && ids.includes(ring - 1)) {
+      const average = ids.reduce((sum, id) => sum + position.getY(id), 0) / 3
+      if (average > topY) {
+        topY = average
         top = triangle
-        break
       }
     }
-    expect(top).toBeGreaterThanOrEqual(0)
     expect(faceNormalY(geometry, top)).toBeGreaterThan(0)
     expect(geometry.getAttribute('normal').count).toBe(position.count)
   })

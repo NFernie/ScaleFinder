@@ -4,28 +4,20 @@ import { beachRidgeMesh, ridgeFlankSide, type SchematicSceneId } from './schemat
 import {
   beachRidgeRing,
   beachRidgeStations,
+  GROUND_THICKNESS,
+  waterlineY,
   type RidgeCorner,
   type RidgeStation,
   type SceneBody,
 } from './wfSchematic'
 
-/** Alongshore samples. Both ridges share this parameter, even when station counts differ. */
-export const SWALE_ALONG = 16
-
-/** Samples down each facing hypotenuse, from the crest to where the faces meet. */
-export const SWALE_FACE = 8
-
 /**
- * Horizontal clearance kept inside the gap, as a fraction of the local opening,
- * and a hard cap. The wedge traces the hypotenuses and stays out of both ridges.
+ * Horizontal inset off each facing hypotenuse. One shift for every vertex, so
+ * each swale edge stays parallel to the beach-ridge edge it traces.
  */
-const SWALE_CLEARANCE = 0.008
-const SWALE_CLEARANCE_FRACTION = 0.2
-/**
- * Extra seaward probe past the inset. The matched-t gap can be wider than the
- * true 3D opening when the next ridge is offset alongshore, so the inset is
- * stopped while this margin is still clear of the other solid.
- */
+const SWALE_CLEARANCE = 0.012
+
+/** Extra probe past the inset, so a vertex is not left sitting on the ridge surface. */
 const SWALE_SURFACE_GAP = 0.002
 
 export interface SwalePoint {
@@ -39,7 +31,7 @@ export interface SwaleShape {
   parentId: string | null
   /** World centroid. The mesh is stored around this origin so explode can move the solid. */
   origin: SwalePoint
-  /** Local positions. World = origin + position. Ring layout is {@link SWALE_FACE} × 2 per alongshore sample. */
+  /** Local positions. World = origin + position. */
   positions: number[]
   indices: number[]
   /** Seaward crown of the landward ridge, channel end to tip, before the clearance inset. */
@@ -50,8 +42,15 @@ export interface SwaleShape {
 
 const shapeCache = new Map<string, SwaleShape[]>()
 
+/** World Y of the water-slab top. The swale floor never goes below this. */
+export function swaleFloorY(bodies: SceneBody[]): number {
+  const ground = bodies.find((body) => body.kind === 'ground')
+  if (!ground) return waterlineY()
+  return ground.nested.y + GROUND_THICKNESS / 2
+}
+
 function cacheKey(scene: SchematicSceneId, bodies: SceneBody[]): string {
-  const parts: string[] = [scene]
+  const parts: string[] = [scene, String(swaleFloorY(bodies))]
   for (const body of bodies) {
     if (body.kind !== 'beach-ridge') continue
     parts.push(
@@ -119,31 +118,28 @@ function seawardOf(yaw: number, point: SwalePoint): number {
   return point.x * Math.sin(yaw) + point.z * Math.cos(yaw)
 }
 
-/**
- * Outer silhouette of one cross-section, crest to base.
- * `seaward` is the maximum local Z at each height (the seaward hypotenuse, then
- * whatever outline is further seaward). `landward` is the minimum local Z (the
- * landward hypotenuse while that edge is the outline). The doubled face folds
- * past the straight landward chord, so the chord alone would sit inside the mesh.
- */
-function silhouette(ring: RidgeCorner[], edge: 'seaward' | 'landward'): RidgeCorner[] {
-  const hi = Math.max(...ring.map((point) => point.y))
-  const lo = Math.min(...ring.map((point) => point.y))
-  const samples = 32
-  const out: RidgeCorner[] = []
-  for (let i = 0; i < samples; i += 1) {
-    const y = hi + ((lo - hi) * i) / (samples - 1)
-    let best = edge === 'seaward' ? -Infinity : Infinity
-    for (let e = 0; e < ring.length; e += 1) {
-      const a = ring[e]
-      const b = ring[(e + 1) % ring.length]
-      if (Math.abs(a.y - b.y) < 1e-12) continue
-      const u = (a.y - y) / (a.y - b.y)
-      if (u < -1e-6 || u > 1 + 1e-6) continue
-      const z = a.z + (b.z - a.z) * u
-      if (edge === 'seaward' ? z > best : z < best) best = z
-    }
-    if (Number.isFinite(best)) out.push({ x: ring[0].x, y, z: best })
+/** Seaward hypotenuse: crest, down the face corners, to the seaward base. */
+function seawardCorners(ring: RidgeCorner[]): RidgeCorner[] {
+  const crest = ring.length - 2
+  const face: RidgeCorner[] = [ring[crest]]
+  for (let i = crest - 1; i >= 1; i -= 1) face.push(ring[i])
+  return face
+}
+
+/** Landward hypotenuse: crest to the landward base. */
+function landwardCorners(ring: RidgeCorner[]): RidgeCorner[] {
+  return [ring[ring.length - 1], ring[0]]
+}
+
+/** Station parameters of both lofts, so a swale edge never skips a ridge vertex. */
+function parameterSamples(a: number, b: number): number[] {
+  const raw: number[] = []
+  for (let i = 0; i < a; i += 1) raw.push(a === 1 ? 0 : i / (a - 1))
+  for (let i = 0; i < b; i += 1) raw.push(b === 1 ? 0 : i / (b - 1))
+  raw.sort((left, right) => left - right)
+  const out: number[] = []
+  for (const value of raw) {
+    if (out.length === 0 || value - out[out.length - 1] > 1e-6) out.push(value)
   }
   return out
 }
@@ -196,32 +192,9 @@ function clipDown(poly: SwalePoint[], yCut: number): SwalePoint[] {
   return out
 }
 
-function resample(points: SwalePoint[], count: number): SwalePoint[] {
-  if (points.length === 0) return []
-  if (count <= 1) return [{ ...points[0] }]
-  const lengths = [0]
-  for (let i = 1; i < points.length; i += 1) {
-    const dx = points[i].x - points[i - 1].x
-    const dy = points[i].y - points[i - 1].y
-    const dz = points[i].z - points[i - 1].z
-    lengths.push(lengths[i - 1] + Math.hypot(dx, dy, dz))
-  }
-  const total = lengths[lengths.length - 1]
-  const out: SwalePoint[] = []
-  for (let i = 0; i < count; i += 1) {
-    const target = total * (i / (count - 1))
-    let seg = 1
-    while (seg < lengths.length - 1 && lengths[seg] < target) seg += 1
-    const span = lengths[seg] - lengths[seg - 1]
-    const u = span === 0 ? 0 : (target - lengths[seg - 1]) / span
-    out.push(lerp(points[seg - 1], points[seg], u))
-  }
-  return out
-}
-
 /**
- * First Y, walking down from the lower crest, where the opening has closed to
- * the clearance. Below that the faces occupy the same ground, so the swale stops.
+ * First Y, walking down from the lower crest, where the opening can no longer
+ * hold the inset. Below that the faces occupy the same ground, so the swale stops.
  */
 function meetingY(
   scene: SchematicSceneId,
@@ -236,12 +209,9 @@ function meetingY(
   const gap = (y: number) => seawardOf(yaw, pointAtY(seaFace, y)) - seawardOf(yaw, pointAtY(landFace, y))
   const crestGap = gap(hi)
   if (crestGap <= 1e-6) return hi
-  const limit = Math.min(SWALE_CLEARANCE, crestGap * SWALE_CLEARANCE_FRACTION)
+  const probe = SWALE_CLEARANCE + SWALE_SURFACE_GAP
   const blocked = (y: number) => {
-    if (gap(y) <= limit) return true
-    const opening = gap(y)
-    const shift = Math.max(0, Math.min(SWALE_CLEARANCE, opening * SWALE_CLEARANCE_FRACTION))
-    const probe = shift + SWALE_SURFACE_GAP
+    if (gap(y) <= probe * 2) return true
     const landPoint = nudge(pointAtY(landFace, y), yaw, probe)
     const seaPoint = nudge(pointAtY(seaFace, y), yaw, -probe)
     return pointInsideRidge(scene, seaBody, landPoint) || pointInsideRidge(scene, landBody, seaPoint)
@@ -266,55 +236,23 @@ function meetingY(
   return lo
 }
 
-/**
- * Move each side into the opening along the seaward axis, at constant height.
- * A downward nudge from the crest would enter the ridge; a horizontal one does not.
- */
-function insetPair(
-  land: SwalePoint[],
-  sea: SwalePoint[],
-  yaw: number,
-): { land: SwalePoint[]; sea: SwalePoint[] } {
-  const axis = { x: Math.sin(yaw), y: 0, z: Math.cos(yaw) }
-  const nextLand: SwalePoint[] = []
-  const nextSea: SwalePoint[] = []
-  for (let i = 0; i < land.length; i += 1) {
-    const gap = seawardOf(yaw, sea[i]) - seawardOf(yaw, land[i])
-    const shift = Math.max(0, Math.min(SWALE_CLEARANCE, gap * SWALE_CLEARANCE_FRACTION))
-    nextLand.push({
-      x: land[i].x + axis.x * shift,
-      y: land[i].y,
-      z: land[i].z + axis.z * shift,
-    })
-    nextSea.push({
-      x: sea[i].x - axis.x * shift,
-      y: sea[i].y,
-      z: sea[i].z - axis.z * shift,
-    })
-  }
-  return { land: nextLand, sea: nextSea }
-}
-
 function sectionAt(
   scene: SchematicSceneId,
   landBody: SceneBody,
   seaBody: SceneBody,
   landRing: RidgeCorner[],
   seaRing: RidgeCorner[],
-): { land: SwalePoint[]; sea: SwalePoint[]; landCrest: SwalePoint; seaCrest: SwalePoint } {
+  floorY: number,
+): { land: SwalePoint[]; sea: SwalePoint[]; landCrest: SwalePoint; seaCrest: SwalePoint } | null {
   const yaw = landBody.yaw ?? 0
-  const landFace = silhouette(landRing, 'seaward').map((point) => worldFromBody(landBody, point))
-  const seaFace = silhouette(seaRing, 'landward').map((point) => worldFromBody(seaBody, point))
-  const yCut = meetingY(scene, landBody, seaBody, landFace, seaFace, yaw)
-  const land = resample(clipDown(landFace, yCut), SWALE_FACE)
-  const sea = resample(clipDown(seaFace, yCut), SWALE_FACE)
-  const fitted = insetPair(land, sea, yaw)
-  return {
-    land: fitted.land,
-    sea: fitted.sea,
-    landCrest: landFace[0],
-    seaCrest: seaFace[0],
-  }
+  const landFace = seawardCorners(landRing).map((point) => worldFromBody(landBody, point))
+  const seaFace = landwardCorners(seaRing).map((point) => worldFromBody(seaBody, point))
+  const yCut = Math.max(meetingY(scene, landBody, seaBody, landFace, seaFace, yaw), floorY)
+  const land = clipDown(landFace, yCut).map((point) => nudge(point, yaw, SWALE_CLEARANCE))
+  const sea = clipDown(seaFace, yCut).map((point) => nudge(point, yaw, -SWALE_CLEARANCE))
+  if (land.length < 2 || sea.length < 2) return null
+  if (land[0].y < floorY - 1e-6 || sea[0].y < floorY - 1e-6) return null
+  return { land, sea, landCrest: landFace[0], seaCrest: seaFace[0] }
 }
 
 function outward(positions: number[], a: number, b: number, c: number): boolean {
@@ -334,6 +272,7 @@ function outward(positions: number[], a: number, b: number, c: number): boolean 
 }
 
 function pushTri(indices: number[], positions: number[], a: number, b: number, c: number) {
+  if (a === b || b === c || a === c) return
   if (outward(positions, a, b, c)) indices.push(a, b, c)
   else indices.push(a, c, b)
 }
@@ -343,19 +282,143 @@ function pushQuad(indices: number[], positions: number[], a: number, b: number, 
   pushTri(indices, positions, a, c, d)
 }
 
-function buildMesh(sections: { land: SwalePoint[]; sea: SwalePoint[] }[]): {
+/** Triangles between two crest-to-foot polylines. Edges along each polyline stay on that face. */
+function zipper(indices: number[], positions: number[], left: number[], right: number[]) {
+  let i = 0
+  let j = 0
+  while (i < left.length - 1 || j < right.length - 1) {
+    const nextLeft = i < left.length - 1
+    const nextRight = j < right.length - 1
+    const stepLeft =
+      nextLeft &&
+      (!nextRight || positions[left[i + 1] * 3 + 1] >= positions[right[j + 1] * 3 + 1])
+    if (stepLeft) {
+      pushTri(indices, positions, left[i], left[i + 1], right[j])
+      i += 1
+    } else {
+      pushTri(indices, positions, left[i], right[j + 1], right[j])
+      j += 1
+    }
+  }
+}
+
+function worldAt(positions: number[], index: number, origin: SwalePoint): SwalePoint {
+  return {
+    x: positions[index * 3] + origin.x,
+    y: positions[index * 3 + 1] + origin.y,
+    z: positions[index * 3 + 2] + origin.z,
+  }
+}
+
+function triangleHitsRidge(
+  scene: SchematicSceneId,
+  land: SceneBody,
+  sea: SceneBody,
+  positions: number[],
+  origin: SwalePoint,
+  a: number,
+  b: number,
+  c: number,
+): boolean {
+  const pa = worldAt(positions, a, origin)
+  const pb = worldAt(positions, b, origin)
+  const pc = worldAt(positions, c, origin)
+  const mid = (p: SwalePoint, q: SwalePoint): SwalePoint => ({
+    x: (p.x + q.x) / 2,
+    y: (p.y + q.y) / 2,
+    z: (p.z + q.z) / 2,
+  })
+  const samples = [
+    pa,
+    pb,
+    pc,
+    mid(pa, pb),
+    mid(pb, pc),
+    mid(pc, pa),
+    { x: (pa.x + pb.x + pc.x) / 3, y: (pa.y + pb.y + pc.y) / 3, z: (pa.z + pb.z + pc.z) / 3 },
+  ]
+  return samples.some((point) => pointInsideRidge(scene, land, point) || pointInsideRidge(scene, sea, point))
+}
+
+/**
+ * Split triangles that still cross a ridge. The convex plan can bow into a
+ * straight connector even when the face corners themselves sit in the gap.
+ * Pieces that remain inside the ridge are left out.
+ */
+function trimOverlap(
+  scene: SchematicSceneId,
+  land: SceneBody,
+  sea: SceneBody,
+  positions: number[],
+  indices: number[],
+  origin: SwalePoint,
+): number[] {
+  const midpoint = (i: number, j: number) => {
+    const id = positions.length / 3
+    positions.push(
+      (positions[i * 3] + positions[j * 3]) / 2,
+      (positions[i * 3 + 1] + positions[j * 3 + 1]) / 2,
+      (positions[i * 3 + 2] + positions[j * 3 + 2]) / 2,
+    )
+    return id
+  }
+  const out: number[] = []
+  const emit = (a: number, b: number, c: number, depth: number) => {
+    if (!triangleHitsRidge(scene, land, sea, positions, origin, a, b, c)) {
+      out.push(a, b, c)
+      return
+    }
+    if (depth === 0) return
+    const ab = midpoint(a, b)
+    const bc = midpoint(b, c)
+    const ca = midpoint(c, a)
+    emit(a, ab, ca, depth - 1)
+    emit(ab, b, bc, depth - 1)
+    emit(ca, bc, c, depth - 1)
+    emit(ab, bc, ca, depth - 1)
+  }
+  for (let t = 0; t < indices.length; t += 3) emit(indices[t], indices[t + 1], indices[t + 2], 4)
+  const used = new Map<number, number>()
+  const packed: number[] = []
+  const remapped: number[] = []
+  for (const index of out) {
+    let id = used.get(index)
+    if (id === undefined) {
+      id = packed.length / 3
+      used.set(index, id)
+      packed.push(positions[index * 3], positions[index * 3 + 1], positions[index * 3 + 2])
+    }
+    remapped.push(id)
+  }
+  positions.length = 0
+  positions.push(...packed)
+  return remapped
+}
+
+function buildMesh(
+  scene: SchematicSceneId,
+  landBody: SceneBody,
+  seaBody: SceneBody,
+  sections: { land: SwalePoint[]; sea: SwalePoint[] }[],
+): {
   positions: number[]
   indices: number[]
   origin: SwalePoint
 } {
-  const ring = SWALE_FACE * 2
   const positions: number[] = []
+  const landIds: number[][] = []
+  const seaIds: number[][] = []
   for (const section of sections) {
-    for (const point of section.land) positions.push(point.x, point.y, point.z)
-    for (let i = section.sea.length - 1; i >= 0; i -= 1) {
-      const point = section.sea[i]
+    landIds.push(section.land.map((point) => {
+      const id = positions.length / 3
       positions.push(point.x, point.y, point.z)
-    }
+      return id
+    }))
+    seaIds.push(section.sea.map((point) => {
+      const id = positions.length / 3
+      positions.push(point.x, point.y, point.z)
+      return id
+    }))
   }
   let sx = 0
   let sy = 0
@@ -373,33 +436,44 @@ function buildMesh(sections: { land: SwalePoint[]; sea: SwalePoint[] }[]): {
     positions[i + 2] -= origin.z
   }
   const indices: number[] = []
-  const samples = sections.length
-  for (let s = 0; s < samples - 1; s += 1) {
-    for (let i = 0; i < ring; i += 1) {
-      const next = (i + 1) % ring
-      pushQuad(indices, positions, s * ring + i, (s + 1) * ring + i, (s + 1) * ring + next, s * ring + next)
-    }
+  for (let s = 0; s < sections.length - 1; s += 1) {
+    zipper(indices, positions, landIds[s], landIds[s + 1])
+    zipper(indices, positions, seaIds[s], seaIds[s + 1])
+    pushQuad(indices, positions, landIds[s][0], landIds[s + 1][0], seaIds[s + 1][0], seaIds[s][0])
+    const landFoot = landIds[s][landIds[s].length - 1]
+    const landNext = landIds[s + 1][landIds[s + 1].length - 1]
+    const seaFoot = seaIds[s][seaIds[s].length - 1]
+    const seaNext = seaIds[s + 1][seaIds[s + 1].length - 1]
+    pushQuad(indices, positions, landFoot, seaFoot, seaNext, landNext)
   }
-  for (let i = 1; i < ring - 1; i += 1) pushTri(indices, positions, 0, i + 1, i)
-  const tip = (samples - 1) * ring
-  for (let i = 1; i < ring - 1; i += 1) pushTri(indices, positions, tip, tip + i, tip + i + 1)
-  return { positions, indices, origin }
+  zipper(indices, positions, landIds[0], seaIds[0])
+  const last = sections.length - 1
+  zipper(indices, positions, landIds[last], seaIds[last])
+  return { positions, indices: trimOverlap(scene, landBody, seaBody, positions, indices, origin), origin }
 }
 
-function shapeBetween(scene: SchematicSceneId, land: SceneBody, sea: SceneBody): SwaleShape {
+function shapeBetween(scene: SchematicSceneId, land: SceneBody, sea: SceneBody, floorY: number): SwaleShape {
   const landStations = stationsFor(scene, land)
   const seaStations = stationsFor(scene, sea)
   const sections: { land: SwalePoint[]; sea: SwalePoint[] }[] = []
   const landCrest: SwalePoint[] = []
   const seaCrest: SwalePoint[] = []
-  for (let i = 0; i < SWALE_ALONG; i += 1) {
-    const t = i / (SWALE_ALONG - 1)
-    const section = sectionAt(scene, land, sea, loftedRing(landStations, t), loftedRing(seaStations, t))
+  for (const t of parameterSamples(landStations.length, seaStations.length)) {
+    const section = sectionAt(
+      scene,
+      land,
+      sea,
+      loftedRing(landStations, t),
+      loftedRing(seaStations, t),
+      floorY,
+    )
+    if (!section) continue
     sections.push(section)
     landCrest.push(section.landCrest)
     seaCrest.push(section.seaCrest)
   }
-  const mesh = buildMesh(sections)
+  if (sections.length < 2) throw new Error(`Swale between ${land.id} and ${sea.id} is below the water slab`)
+  const mesh = buildMesh(scene, land, sea, sections)
   return {
     id: land.id.replace(/^e-ridge-/, 'e-swale-'),
     parentId: land.parentId,
@@ -414,13 +488,14 @@ function shapeBetween(scene: SchematicSceneId, land: SceneBody, sea: SceneBody):
 /**
  * One swale for each gap in a beach-ridge set. The sides follow that pair’s
  * lofts (symmetric, asymmetric, or convex-seaward). The top joins the facing
- * crests, so it steps down seaward with the ridges. The floor is where the
- * two hypotenuses meet.
+ * crests, so it steps down seaward with the ridges. The floor is the higher of
+ * the water-slab top and the meeting of the two hypotenuses.
  */
 export function swaleShapes(scene: SchematicSceneId, bodies: SceneBody[]): SwaleShape[] {
   const key = cacheKey(scene, bodies)
   const hit = shapeCache.get(key)
   if (hit) return hit
+  const floorY = swaleFloorY(bodies)
   const groups = new Map<string, SceneBody[]>()
   for (const body of bodies) {
     if (body.kind !== 'beach-ridge') continue
@@ -432,7 +507,7 @@ export function swaleShapes(scene: SchematicSceneId, bodies: SceneBody[]): Swale
   const shapes: SwaleShape[] = []
   for (const ridges of groups.values()) {
     const sorted = [...ridges].sort((a, b) => ridgeIndex(a.id) - ridgeIndex(b.id))
-    for (let i = 0; i < sorted.length - 1; i += 1) shapes.push(shapeBetween(scene, sorted[i], sorted[i + 1]))
+    for (let i = 0; i < sorted.length - 1; i += 1) shapes.push(shapeBetween(scene, sorted[i], sorted[i + 1], floorY))
   }
   shapeCache.set(key, shapes)
   return shapes
@@ -455,6 +530,8 @@ export function swaleBodies(scene: SchematicSceneId, bodies: SceneBody[]): Scene
     nested: shape.origin,
   }))
 }
+
+const sectionCache = new Map<string, RidgeCorner[] | null>()
 
 function ringAt(stations: RidgeStation[], x: number): RidgeCorner[] | null {
   const minX = Math.min(stations[0].x, stations[stations.length - 1].x)
@@ -493,7 +570,12 @@ function ringContains(ring: RidgeCorner[], y: number, z: number): boolean {
 /** True when `world` sits in the interior of this beach-ridge loft. */
 export function pointInsideRidge(scene: SchematicSceneId, ridge: SceneBody, world: SwalePoint): boolean {
   const local = localFromBody(ridge, world)
-  const ring = ringAt(stationsFor(scene, ridge), local.x)
+  const key = `${scene}:${ridge.id}:${Math.round(local.x * 1e4)}`
+  let ring = sectionCache.get(key)
+  if (ring === undefined) {
+    ring = ringAt(stationsFor(scene, ridge), local.x)
+    sectionCache.set(key, ring)
+  }
   if (!ring) return false
   return ringContains(ring, local.y, local.z)
 }

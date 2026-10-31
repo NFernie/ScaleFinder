@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { sceneAt as asymSceneAt } from './asymWfSchematic'
 import { sceneAt as tfwSceneAt } from './tfwEcsSchematic'
-import { sceneAt as wfSceneAt, type SceneBody } from './wfSchematic'
-import { pointInsideRidge, SWALE_ALONG, SWALE_FACE, swaleShape } from './swale'
+import { sceneAt as wfSceneAt, waterlineY, type SceneBody } from './wfSchematic'
+import { pointInsideRidge, swaleFloorY, swaleShape } from './swale'
 
 function worldVertex(shape: ReturnType<typeof swaleShape>, index: number) {
   return {
@@ -49,10 +49,10 @@ describe('swale', () => {
   it('joins the facing crests on a slight seaward step and stops where the faces meet', () => {
     const bodies = wfSceneAt(0)
     const shape = swaleShape('wf', bodies, 'e-swale-r-1')
-    expect(shape.landCrest).toHaveLength(SWALE_ALONG)
-    expect(shape.seaCrest).toHaveLength(SWALE_ALONG)
+    expect(shape.landCrest.length).toBe(shape.seaCrest.length)
+    expect(shape.landCrest.length).toBeGreaterThan(4)
     const channel = topAngleDeg(shape.landCrest[0], shape.seaCrest[0])
-    const tip = topAngleDeg(shape.landCrest[SWALE_ALONG - 1], shape.seaCrest[SWALE_ALONG - 1])
+    const tip = topAngleDeg(shape.landCrest[shape.landCrest.length - 1], shape.seaCrest[shape.seaCrest.length - 1])
     expect(channel).toBeGreaterThan(2)
     expect(channel).toBeLessThan(3)
     expect(tip).toBeGreaterThan(channel)
@@ -60,15 +60,24 @@ describe('swale', () => {
     expect(shape.seaCrest[0].y).toBeLessThan(shape.landCrest[0].y)
     expect(shape.seaCrest[0].z).toBeGreaterThan(shape.landCrest[0].z)
 
-    const ring = SWALE_FACE * 2
-    const crest = worldVertex(shape, 0)
-    const foot = worldVertex(shape, SWALE_FACE - 1)
+    const count = shape.positions.length / 3
+    const vertices = Array.from({ length: count }, (_, index) => worldVertex(shape, index))
+    const nearest = (target: { x: number; y: number; z: number }) =>
+      vertices.reduce((best, point) => {
+        const score = Math.hypot(point.x - target.x, point.y - target.y, point.z - target.z)
+        const bestScore = Math.hypot(best.x - target.x, best.y - target.y, best.z - target.z)
+        return score < bestScore ? point : best
+      })
+    const crest = nearest(shape.landCrest[0])
+    const seaCrest = nearest(shape.seaCrest[0])
+    const channelFoot = vertices.filter((point) => Math.abs(point.x - shape.landCrest[0].x) < 0.05)
+    const foot = channelFoot.reduce((best, point) => (point.y < best.y ? point : best))
     expect(Math.hypot(crest.x - shape.landCrest[0].x, crest.y - shape.landCrest[0].y, crest.z - shape.landCrest[0].z)).toBeLessThan(
-      0.01,
+      0.02,
     )
+    expect(foot.y).toBeGreaterThanOrEqual(swaleFloorY(bodies) - 1e-6)
     expect(foot.y).toBeLessThan(crest.y - 0.1)
     expect(foot.z).toBeGreaterThan(crest.z)
-    const seaCrest = worldVertex(shape, ring - 1)
     expect(seaCrest.z).toBeGreaterThan(crest.z)
     expect(seaCrest.y).toBeLessThan(crest.y)
   })
@@ -85,14 +94,41 @@ describe('swale', () => {
       const shape = swaleShape(check.scene, check.bodies, check.swale)
       const land = check.bodies.find((body) => body.id === check.land)!
       const sea = check.bodies.find((body) => body.id === check.sea)!
+      const floor = swaleFloorY(check.bodies)
       const count = shape.positions.length / 3
-      for (let i = 0; i < count; i += 1) {
-        const point = worldVertex(shape, i)
-        if (pointInsideRidge(check.scene, land, point) || pointInsideRidge(check.scene, sea, point)) {
-          throw new Error(`${check.swale} vertex ${i} ${JSON.stringify(point)} land=${pointInsideRidge(check.scene, land, point)} sea=${pointInsideRidge(check.scene, sea, point)}`)
+      const samples: Array<{ label: string; point: { x: number; y: number; z: number } }> = []
+      for (let i = 0; i < count; i += 1) samples.push({ label: `vertex ${i}`, point: worldVertex(shape, i) })
+      for (let t = 0; t < shape.indices.length; t += 3) {
+        const tri = [0, 1, 2].map((offset) => worldVertex(shape, shape.indices[t + offset]))
+        const mid = (a: (typeof tri)[number], b: (typeof tri)[number]) => ({
+          x: (a.x + b.x) / 2,
+          y: (a.y + b.y) / 2,
+          z: (a.z + b.z) / 2,
+        })
+        samples.push({ label: `edge ${t}`, point: mid(tri[0], tri[1]) })
+        samples.push({ label: `edge ${t + 1}`, point: mid(tri[1], tri[2]) })
+        samples.push({ label: `edge ${t + 2}`, point: mid(tri[2], tri[0]) })
+        samples.push({
+          label: `centroid ${t}`,
+          point: {
+            x: (tri[0].x + tri[1].x + tri[2].x) / 3,
+            y: (tri[0].y + tri[1].y + tri[2].y) / 3,
+            z: (tri[0].z + tri[1].z + tri[2].z) / 3,
+          },
+        })
+      }
+      for (const sample of samples) {
+        expect(sample.point.y).toBeGreaterThanOrEqual(floor - 1e-6)
+        const insideLand = pointInsideRidge(check.scene, land, sample.point)
+        const insideSea = pointInsideRidge(check.scene, sea, sample.point)
+        if (insideLand || insideSea) {
+          throw new Error(
+            `${check.swale} ${sample.label} ${JSON.stringify(sample.point)} land=${insideLand} sea=${insideSea}`,
+          )
         }
       }
     }
+    expect(swaleFloorY(wfSceneAt(0))).toBeCloseTo(waterlineY())
   })
 
   it('uses the asymmetric crest on the asymmetric flank and the convex crest on Tfw', () => {
@@ -100,7 +136,7 @@ describe('swale', () => {
     const wf = wfSceneAt(0)
     const asymSwale = swaleShape('asym', asym, 'e-swale-l-2')
     const wfSwale = swaleShape('wf', wf, 'e-swale-l-2')
-    const mid = Math.floor(SWALE_ALONG / 3)
+    const mid = Math.floor(asymSwale.landCrest.length / 3)
     expect(asymSwale.landCrest[mid].z).not.toBeCloseTo(wfSwale.landCrest[mid].z, 2)
 
     const tfw = tfwSceneAt(0)

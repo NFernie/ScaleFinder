@@ -100,19 +100,6 @@ function worldFromBody(body: SceneBody, local: RidgeCorner): SwalePoint {
   }
 }
 
-function localFromBody(body: SceneBody, world: SwalePoint): SwalePoint {
-  const yaw = body.yaw ?? 0
-  const cos = Math.cos(yaw)
-  const sin = Math.sin(yaw)
-  const dx = world.x - body.nested.x
-  const dz = world.z - body.nested.z
-  return {
-    x: dx * cos - dz * sin,
-    y: world.y - body.nested.y,
-    z: dx * sin + dz * cos,
-  }
-}
-
 /** +local Z after yaw. Larger means further seaward. */
 function seawardOf(yaw: number, point: SwalePoint): number {
   return point.x * Math.sin(yaw) + point.z * Math.cos(yaw)
@@ -531,56 +518,298 @@ export function swaleBodies(scene: SchematicSceneId, bodies: SceneBody[]): Scene
   }))
 }
 
-const sectionCache = new Map<string, RidgeCorner[] | null>()
-
-function ringAt(stations: RidgeStation[], x: number): RidgeCorner[] | null {
-  const minX = Math.min(stations[0].x, stations[stations.length - 1].x)
-  const maxX = Math.max(stations[0].x, stations[stations.length - 1].x)
-  if (x < minX - 1e-4 || x > maxX + 1e-4) return null
-  let bestT = 0
-  let best = Infinity
-  const steps = (stations.length - 1) * 4
-  for (let i = 0; i <= steps; i += 1) {
-    const t = i / steps
-    const ringX = loftedRing(stations, t)[0].x
-    const delta = Math.abs(ringX - x)
-    if (delta < best) {
-      best = delta
-      bestT = t
-    }
-  }
-  if (best > 1e-3) return null
-  return loftedRing(stations, bestT)
+interface SectionSample {
+  x: number
+  minY: number
+  maxY: number
+  minZ: number
+  maxZ: number
+  /** Packed local y, z pairs for the cross-section ring. */
+  yz: Float64Array
 }
 
-function ringContains(ring: RidgeCorner[], y: number, z: number): boolean {
+/**
+ * One beach ridge, ready for overlap tests. Sections are built once. A later
+ * sample only looks up the nearest of those sections.
+ */
+export interface RidgeProbe {
+  minX: number
+  minY: number
+  minZ: number
+  maxX: number
+  maxY: number
+  maxZ: number
+  contains(x: number, y: number, z: number): boolean
+  /** Lattice in this ridge's local frame. World points are already transformed. */
+  hitsLocalLattice(
+    ax: number,
+    ay: number,
+    az: number,
+    bx: number,
+    by: number,
+    bz: number,
+    cx: number,
+    cy: number,
+    cz: number,
+    steps: number,
+  ): boolean
+}
+
+const probeCache = new WeakMap<SceneBody, Map<SchematicSceneId, RidgeProbe>>()
+
+function ringContains(yz: Float64Array, y: number, z: number): boolean {
+  const n = yz.length
   let inside = false
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
-    const yi = ring[i].y
-    const zi = ring[i].z
-    const yj = ring[j].y
-    const zj = ring[j].z
+  let yj = yz[n - 2]
+  let zj = yz[n - 1]
+  for (let i = 0; i < n; i += 2) {
+    const yi = yz[i]
+    const zi = yz[i + 1]
     const crosses = yi > y !== yj > y
-    const atZ = zi + ((zj - zi) * (y - yi)) / (yj - yi)
-    if (crosses && z < atZ) inside = !inside
+    if (crosses && z < zi + ((zj - zi) * (y - yi)) / (yj - yi)) inside = !inside
+    yj = yi
+    zj = zi
   }
   return inside
 }
 
-function sectionAtX(scene: SchematicSceneId, ridge: SceneBody, x: number): RidgeCorner[] | null {
-  const key = `${scene}:${ridge.id}:${Math.round(x * 1e4)}`
-  let ring = sectionCache.get(key)
-  if (ring === undefined) {
-    ring = ringAt(stationsFor(scene, ridge), x)
-    sectionCache.set(key, ring)
+/** Nearest sample when alongshore X is linear in the sample index. Ties keep the earlier sample. */
+function nearestLinear(x0: number, span: number, count: number, x: number): number {
+  const last = count - 1
+  if (last <= 0) return 0
+  const t = (x - x0) / span
+  if (t <= 0) return 0
+  if (t >= 1) return last
+  const scaled = t * last
+  const lower = Math.floor(scaled)
+  if (lower >= last) return last
+  return scaled - lower <= 0.5 ? lower : lower + 1
+}
+
+/** Nearest sample on a monotonic run. Ties keep the earlier sample. */
+function nearestMonotonic(samples: SectionSample[], x: number, ascending: boolean): number {
+  const last = samples.length - 1
+  let lo = 0
+  let hi = last
+  if (ascending) {
+    if (x <= samples[0].x) return 0
+    if (x >= samples[last].x) return last
+    while (lo + 1 < hi) {
+      const mid = (lo + hi) >>> 1
+      if (samples[mid].x <= x) lo = mid
+      else hi = mid
+    }
+  } else {
+    if (x >= samples[0].x) return 0
+    if (x <= samples[last].x) return last
+    while (lo + 1 < hi) {
+      const mid = (lo + hi) >>> 1
+      if (samples[mid].x >= x) lo = mid
+      else hi = mid
+    }
   }
-  return ring
+  return Math.abs(samples[lo].x - x) <= Math.abs(samples[hi].x - x) ? lo : hi
+}
+
+/** Distance to the nearest sample when X is linear in the sample index. */
+function sectionDistance(x0: number, span: number, count: number, localX: number): number {
+  const last = count - 1
+  if (last <= 0 || span === 0) return Math.abs(localX - x0)
+  const t = (localX - x0) / span
+  if (t <= 0) return Math.abs(localX - x0)
+  if (t >= 1) return Math.abs(localX - x0 - span)
+  const scaled = t * last
+  const frac = scaled - Math.floor(scaled)
+  const spacing = Math.abs(span) / last
+  return (frac <= 0.5 ? frac : 1 - frac) * spacing
+}
+
+function nearestScan(samples: SectionSample[], x: number): number {
+  let best = 0
+  let bestDistance = Math.abs(samples[0].x - x)
+  for (let i = 1; i < samples.length; i += 1) {
+    const distance = Math.abs(samples[i].x - x)
+    if (distance < bestDistance) {
+      bestDistance = distance
+      best = i
+    }
+  }
+  return best
+}
+
+function buildProbe(scene: SchematicSceneId, ridge: SceneBody): RidgeProbe {
+  const stations = stationsFor(scene, ridge)
+  const steps = (stations.length - 1) * 4
+  const samples: SectionSample[] = []
+  let minX = Infinity
+  let minY = Infinity
+  let minZ = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  let maxZ = -Infinity
+  for (let i = 0; i <= steps; i += 1) {
+    const ring = loftedRing(stations, steps === 0 ? 0 : i / steps)
+    let sampleMinY = Infinity
+    let sampleMaxY = -Infinity
+    let sampleMinZ = Infinity
+    let sampleMaxZ = -Infinity
+    for (const corner of ring) {
+      if (corner.y < sampleMinY) sampleMinY = corner.y
+      if (corner.y > sampleMaxY) sampleMaxY = corner.y
+      if (corner.z < sampleMinZ) sampleMinZ = corner.z
+      if (corner.z > sampleMaxZ) sampleMaxZ = corner.z
+      const world = worldFromBody(ridge, corner)
+      if (world.x < minX) minX = world.x
+      if (world.y < minY) minY = world.y
+      if (world.z < minZ) minZ = world.z
+      if (world.x > maxX) maxX = world.x
+      if (world.y > maxY) maxY = world.y
+      if (world.z > maxZ) maxZ = world.z
+    }
+    const yz = new Float64Array(ring.length * 2)
+    for (let corner = 0; corner < ring.length; corner += 1) {
+      yz[corner * 2] = ring[corner].y
+      yz[corner * 2 + 1] = ring[corner].z
+    }
+    samples.push({
+      x: ring[0].x,
+      minY: sampleMinY,
+      maxY: sampleMaxY,
+      minZ: sampleMinZ,
+      maxZ: sampleMaxZ,
+      yz,
+    })
+  }
+  const x0 = samples[0].x
+  const span = samples[samples.length - 1].x - x0
+  let linear = Math.abs(span) > 1e-9
+  if (linear) {
+    const last = samples.length - 1
+    for (let i = 1; i < samples.length; i += 1) {
+      if (Math.abs(samples[i].x - (x0 + (span * i) / last)) > 1e-6) {
+        linear = false
+        break
+      }
+    }
+  }
+  const ascending = span >= 0
+  let monotonic = linear
+  if (!monotonic) {
+    monotonic = true
+    for (let i = 1; i < samples.length; i += 1) {
+      const delta = samples[i].x - samples[i - 1].x
+      if (ascending ? delta < -1e-9 : delta > 1e-9) {
+        monotonic = false
+        break
+      }
+    }
+  }
+  const endMin = Math.min(x0, samples[samples.length - 1].x)
+  const endMax = Math.max(x0, samples[samples.length - 1].x)
+  const yaw = ridge.yaw ?? 0
+  const cos = Math.cos(yaw)
+  const sin = Math.sin(yaw)
+  const originX = ridge.nested.x
+  const originY = ridge.nested.y
+  const originZ = ridge.nested.z
+  const insideLocal = (localX: number, localY: number, localZ: number) => {
+    if (localX < endMin - 1e-4 || localX > endMax + 1e-4) return false
+    const index = linear
+      ? nearestLinear(x0, span, samples.length, localX)
+      : monotonic
+        ? nearestMonotonic(samples, localX, ascending)
+        : nearestScan(samples, localX)
+    const sample = samples[index]
+    if (Math.abs(sample.x - localX) > 1e-3) return false
+    if (localY < sample.minY || localY > sample.maxY || localZ < sample.minZ || localZ > sample.maxZ) return false
+    return ringContains(sample.yz, localY, localZ)
+  }
+  const hitsLocalLattice = (
+    ax: number,
+    ay: number,
+    az: number,
+    bx: number,
+    by: number,
+    bz: number,
+    cx: number,
+    cy: number,
+    cz: number,
+    steps: number,
+  ) => {
+    const adx = ax - originX
+    const adz = az - originZ
+    const alx = adx * cos - adz * sin
+    const alz = adx * sin + adz * cos
+    const bdx = bx - originX
+    const bdz = bz - originZ
+    const blx = bdx * cos - bdz * sin
+    const blz = bdx * sin + bdz * cos
+    const cdx = cx - originX
+    const cdz = cz - originZ
+    const clx = cdx * cos - cdz * sin
+    const clz = cdx * sin + cdz * cos
+    const slab = 1e-3 + 2e-6
+    for (let i = 0; i <= steps; i += 1) {
+      for (let j = 0; j <= steps - i; j += 1) {
+        const k = steps - i - j
+        const localX = (alx * i + blx * j + clx * k) / steps
+        if (linear) {
+          if (sectionDistance(x0, span, samples.length, localX) > slab) continue
+        } else {
+          const index = monotonic
+            ? nearestMonotonic(samples, localX, ascending)
+            : nearestScan(samples, localX)
+          if (Math.abs(samples[index].x - localX) > 1e-3) continue
+        }
+        const localY = (ay * i + by * j + cy * k) / steps - originY
+        const localZ = (alz * i + blz * j + clz * k) / steps
+        if (insideLocal(localX, localY, localZ)) return true
+      }
+    }
+    return false
+  }
+  return {
+    minX,
+    minY,
+    minZ,
+    maxX,
+    maxY,
+    maxZ,
+    hitsLocalLattice,
+    contains(x, y, z) {
+      if (
+        x < minX - 1e-4 ||
+        x > maxX + 1e-4 ||
+        y < minY - 1e-4 ||
+        y > maxY + 1e-4 ||
+        z < minZ - 1e-4 ||
+        z > maxZ + 1e-4
+      ) {
+        return false
+      }
+      const dx = x - originX
+      const dz = z - originZ
+      return insideLocal(dx * cos - dz * sin, y - originY, dx * sin + dz * cos)
+    },
+  }
+}
+
+/** Cached volume for this ridge in this scene. The same body keeps one probe. */
+export function ridgeProbe(scene: SchematicSceneId, ridge: SceneBody): RidgeProbe {
+  let byScene = probeCache.get(ridge)
+  if (!byScene) {
+    byScene = new Map()
+    probeCache.set(ridge, byScene)
+  }
+  let probe = byScene.get(scene)
+  if (!probe) {
+    probe = buildProbe(scene, ridge)
+    byScene.set(scene, probe)
+  }
+  return probe
 }
 
 /** True when `world` sits in the interior of this beach-ridge loft. */
 export function pointInsideRidge(scene: SchematicSceneId, ridge: SceneBody, world: SwalePoint): boolean {
-  const local = localFromBody(ridge, world)
-  const ring = sectionAtX(scene, ridge, local.x)
-  if (!ring) return false
-  return ringContains(ring, local.y, local.z)
+  return ridgeProbe(scene, ridge).contains(world.x, world.y, world.z)
 }

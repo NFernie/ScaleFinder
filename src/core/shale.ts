@@ -1,7 +1,7 @@
 import { asymmetricBeachRidgeStations } from './asymmetricBeachRidgePlan'
 import { brConvexSwStations } from './brConvexSwPlan'
 import { beachRidgeMesh, ridgeFlankSide, type SchematicSceneId } from './schematicScene'
-import { pointInsideRidge, swaleFloorY, type SwalePoint } from './swale'
+import { pointInsideRidge, ridgeProbe, swaleFloorY, type RidgeProbe, type SwalePoint } from './swale'
 import {
   beachRidgeRing,
   beachRidgeStations,
@@ -462,37 +462,44 @@ function pushQuad(indices: number[], positions: number[], a: number, b: number, 
   pushTri(indices, positions, a, c, d)
 }
 
-function worldAt(positions: number[], index: number, origin: SwalePoint): SwalePoint {
-  return {
-    x: positions[index * 3] + origin.x,
-    y: positions[index * 3 + 1] + origin.y,
-    z: positions[index * 3 + 2] + origin.z,
-  }
-}
-
 function triangleHitsRidge(
-  scene: SchematicSceneId,
-  ridges: SceneBody[],
+  probes: RidgeProbe[],
   positions: number[],
   origin: SwalePoint,
   a: number,
   b: number,
   c: number,
 ): boolean {
-  const pa = worldAt(positions, a, origin)
-  const pb = worldAt(positions, b, origin)
-  const pc = worldAt(positions, c, origin)
-  const steps = 8
-  for (let i = 0; i <= steps; i += 1) {
-    for (let j = 0; j <= steps - i; j += 1) {
-      const k = steps - i - j
-      const point = {
-        x: (pa.x * i + pb.x * j + pc.x * k) / steps,
-        y: (pa.y * i + pb.y * j + pc.y * k) / steps,
-        z: (pa.z * i + pb.z * j + pc.z * k) / steps,
-      }
-      if (!clearOf(scene, ridges, point)) return true
+  const ax = positions[a * 3] + origin.x
+  const ay = positions[a * 3 + 1] + origin.y
+  const az = positions[a * 3 + 2] + origin.z
+  const bx = positions[b * 3] + origin.x
+  const by = positions[b * 3 + 1] + origin.y
+  const bz = positions[b * 3 + 2] + origin.z
+  const cx = positions[c * 3] + origin.x
+  const cy = positions[c * 3 + 1] + origin.y
+  const cz = positions[c * 3 + 2] + origin.z
+  const minX = Math.min(ax, bx, cx)
+  const minY = Math.min(ay, by, cy)
+  const minZ = Math.min(az, bz, cz)
+  const maxX = Math.max(ax, bx, cx)
+  const maxY = Math.max(ay, by, cy)
+  const maxZ = Math.max(az, bz, cz)
+  // contains() still counts a point a hair outside the vertex box. A sliver
+  // sitting in that shell has to be tested or the split piece stays in the ridge.
+  const pad = 2e-4
+  for (const probe of probes) {
+    if (
+      probe.maxX + pad < minX ||
+      probe.minX - pad > maxX ||
+      probe.maxY + pad < minY ||
+      probe.minY - pad > maxY ||
+      probe.maxZ + pad < minZ ||
+      probe.minZ - pad > maxZ
+    ) {
+      continue
     }
+    if (probe.hitsLocalLattice(ax, ay, az, bx, by, bz, cx, cy, cz, 8)) return true
   }
   return false
 }
@@ -504,6 +511,7 @@ function trimOverlap(
   indices: number[],
   origin: SwalePoint,
 ): number[] {
+  const probes = ridges.map((ridge) => ridgeProbe(scene, ridge))
   const midpoint = (i: number, j: number) => {
     const id = positions.length / 3
     positions.push(
@@ -515,7 +523,7 @@ function trimOverlap(
   }
   const out: number[] = []
   const emit = (a: number, b: number, c: number, depth: number) => {
-    if (!triangleHitsRidge(scene, ridges, positions, origin, a, b, c)) {
+    if (!triangleHitsRidge(probes, positions, origin, a, b, c)) {
       out.push(a, b, c)
       return
     }
@@ -683,9 +691,10 @@ function buildMesh(
   const indices: number[] = []
   for (const wall of walls) quilt(indices, positions, wall.left, wall.right)
   for (const quad of quads) pushQuad(indices, positions, quad.a, quad.b, quad.c, quad.d)
+  const trimmed = trimOverlap(scene, ridges, positions, indices, origin)
   return {
     positions,
-    indices: trimOverlap(scene, ridges, positions, indices, origin),
+    indices: trimmed,
     origin,
   }
 }

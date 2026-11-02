@@ -18,6 +18,19 @@ function span(top: { y: number }, foot: { y: number }) {
 }
 
 describe('shale', () => {
+  // First in the file so the scene caches are still cold.
+  it('builds the Tfw scene without a multi-second stall', () => {
+    const start = performance.now()
+    const bodies = tfwSceneAt(0)
+    const first = performance.now() - start
+    const again = performance.now()
+    tfwSceneAt(0)
+    const second = performance.now() - again
+    expect(bodies.filter((body) => body.kind === 'shale')).toHaveLength(12)
+    expect(first).toBeLessThan(2000)
+    expect(second).toBeLessThan(50)
+  })
+
   it('adds one wedge per gap on every beach-ridge set', () => {
     const wf = wfSceneAt(0).filter((body) => body.kind === 'shale')
     const asym = asymSceneAt(0).filter((body) => body.kind === 'shale')
@@ -88,7 +101,7 @@ describe('shale', () => {
       { scene: 'tfw', bodies: tfwSceneAt(0), shale: 'e-shale-r-0' },
       { scene: 'tfw', bodies: tfwSceneAt(0), shale: 'e-shale-hl-1' },
     ]
-    const steps = 4
+    const steps = 8
     for (const check of checks) {
       const shape = shaleShape(check.scene, check.bodies, check.shale)
       const ridges = check.bodies.filter((body) => body.kind === 'beach-ridge')

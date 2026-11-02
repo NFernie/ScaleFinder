@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Opening the Tfw schematic no longer freezes the page. The dialog paints before the scene is built, and the beach-ridge overlap check reuses each ridge’s cross-sections instead of rebuilding them for every sample.
 - The shale stays in the open gap between a beach ridge and the next seaward ridge. Its sides follow that pair’s facing hypotenuses, and where any beach ridge crosses the gap the wedge stops at the mesh.
 - The Wf schematic resize handle is a visible corner mark on the top-left of the view, with a resize cursor. Dragging it, or the arrow keys, still changes the view.
 - Wf schematic resize minimum follows `initialSchematicFrame` after the map grows again, so the floor is not stuck at a width from when the map was smaller.

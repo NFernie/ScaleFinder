@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BR_CONVEX_SW_BOW } from '../core/brConvexSwPlan'
+import { BR_CONVEX_SW_BOW, brConvexSwBow } from '../core/brConvexSwPlan'
 import { beachRidgeRing, beachRidgeStations } from '../core/wfSchematic'
 import { brConvexSwGeometry, brConvexSwPlanSamples, brConvexSwStations } from './brConvexSwgeometry'
 
@@ -45,6 +45,7 @@ describe('brConvexSwGeometry', () => {
     expect(mid.x).toBeCloseTo(midX)
     expect(mid.z).toBeCloseTo(channel.z + bow)
     expect(bow).toBeCloseTo(BR_CONVEX_SW_BOW)
+    expect(brConvexSwBow()).toBeCloseTo(BR_CONVEX_SW_BOW)
     expect(mid.z).toBeGreaterThan(channel.z)
 
     for (const station of stations) {

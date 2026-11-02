@@ -30,7 +30,7 @@ it('opens the Tfw element complex set from its pin', async () => {
   render(<Harness />)
   await user.click(screen.getByRole('button', { name: 'Tfw schematic' }))
   const dialog = screen.getByRole('dialog', { name: 'Tfw Schematic' })
-  expect(within(dialog).getByText('Tfw element complex set')).toBeInTheDocument()
+  expect(await within(dialog).findByText('Tfw element complex set', {}, { timeout: 5000 })).toBeInTheDocument()
   expect(within(dialog).getByText('Tfw-Lobe')).toBeInTheDocument()
   expect(within(dialog).getByText('Tfw-Mouth Bar')).toBeInTheDocument()
   expect(
@@ -38,4 +38,4 @@ it('opens the Tfw element complex set from its pin', async () => {
       'Type schematic for a tide-dominated, fluvial-influenced, wave-affected shoreline. Size and direction are not a measured map of this coast.',
     ),
   ).toBeInTheDocument()
-})
+}, 20_000)

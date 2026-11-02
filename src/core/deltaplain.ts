@@ -1,6 +1,6 @@
 import { asymmetricBeachRidgeStations } from './asymmetricBeachRidgePlan'
 import { brConvexSwStations } from './brConvexSwPlan'
-import { beachRidgeMesh, channelMesh, type SchematicSceneId } from './schematicScene'
+import { beachRidgeMesh, channelMesh, ridgeFlankSide, type SchematicSceneId } from './schematicScene'
 import { tidalChannelFrameAt, tidalChannelRadiusAt, tidalChannelSpan } from './tidalChannel'
 import {
   beachRidgeRing,
@@ -74,7 +74,7 @@ function worldXZ(body: SceneBody, x: number, z: number): DeltaPlainPoint {
 }
 
 function ridgeSide(id: string): 'l' | 'r' {
-  return id.includes('-r-') ? 'r' : 'l'
+  return ridgeFlankSide(id)
 }
 
 function ridgeIndexOf(id: string): number {
@@ -134,7 +134,7 @@ function adjacentRidges(scene: SchematicSceneId, ridges: SceneBody[]): SceneBody
   return chosen
 }
 
-/** Highest crest of one beach ridge. The cross-section crest is `station.height` above the base. */
+/** Highest crest of one beach ridge. The cross-section crest is `station.height` above the nested origin. */
 export function beachRidgeCrestY(scene: SchematicSceneId, body: SceneBody): number {
   let crest = 0
   for (const station of stationsFor(scene, body)) crest = Math.max(crest, station.height)

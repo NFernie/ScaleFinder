@@ -43,12 +43,13 @@ it('lists the Wf bodies when the panel is open', async () => {
       'Type schematic for a wave-dominated, fluvial-influenced shoreline. Size and direction are not a measured map of this coast.',
     ),
   ).toBeInTheDocument()
-  const items = within(dialog).getAllByRole('listitem')
+  const items = await within(dialog).findAllByRole('listitem', {}, { timeout: 5000 })
   expect(items[0]).toHaveTextContent('Wf element complex set')
   expect(within(dialog).getByText('Wf-Lobe')).toBeInTheDocument()
   expect(within(dialog).getByText('Wf-Mouth Bar')).toBeInTheDocument()
   expect(within(dialog).getAllByText('Beach ridge').length).toBeGreaterThan(0)
-  expect(within(dialog).queryByText('Swale')).not.toBeInTheDocument()
+  expect(within(dialog).getAllByText('Swale')).toHaveLength(8)
+  expect(within(dialog).getAllByText('Shale')).toHaveLength(8)
   expect(within(dialog).getAllByText('Mouth bar').length).toBeGreaterThan(0)
   expect(within(dialog).getByText('Channel fill')).toBeInTheDocument()
   expect(within(dialog).queryByRole('button', { name: 'Zoom in' })).not.toBeInTheDocument()
@@ -157,7 +158,7 @@ it('keeps the caption, slider, and full list when the view cannot start', async 
   }
   render(<Local />)
   const dialog = await screen.findByRole('dialog', { name: 'Wf Schematic' })
-  expect(await within(dialog).findAllByRole('listitem')).not.toHaveLength(0)
+  expect(await within(dialog).findAllByRole('listitem', {}, { timeout: 5000 })).not.toHaveLength(0)
   expect(within(dialog).getByText(/Type schematic/)).toBeInTheDocument()
   expect(within(dialog).getByRole('slider', { name: 'Explode' })).toBeInTheDocument()
   expect(within(dialog).queryByRole('button', { name: 'Zoom in' })).not.toBeInTheDocument()

@@ -87,6 +87,8 @@ function sortedBodies(scene: SchematicSceneId) {
   }))
 }
 
+type BodyRow = ReturnType<typeof sortedBodies>[number]
+
 function maxFrameDimensions(section: HTMLElement | null): { maxWidth: number; maxHeight: number } {
   const map = mapFrameElementFromPanel(section)
   if (!map) {
@@ -118,6 +120,7 @@ export default function WfSchematicPanel({
   const [explode, setExplode] = useState(0)
   const [viewFailed, setViewFailed] = useState(false)
   const [minWidth, setMinWidth] = useState(FRAME_START.width)
+  const [built, setBuilt] = useState<{ scene: SchematicSceneId; rows: BodyRow[] } | null>(null)
   const sectionRef = useRef<HTMLElement>(null)
   const cameraRef = useRef<SchematicCameraHandle>(null)
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null)
@@ -128,6 +131,19 @@ export default function WfSchematicPanel({
   useEffect(() => {
     if (open) setExplode(0)
     else setViewFailed(false)
+  }, [open, scene])
+
+  // The first scene build is heavy. Yield so the dialog can paint before it runs.
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      if (!cancelled) setBuilt({ scene, rows: sortedBodies(scene) })
+    }, 0)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
   }, [open, scene])
 
   useEffect(() => {
@@ -224,7 +240,7 @@ export default function WfSchematicPanel({
   const showText = !webglAvailable() || viewFailed
   const width = frame?.width ?? FRAME_START.width
   const height = frame?.height ?? FRAME_START.height
-  const rows = sortedBodies(scene)
+  const rows = built?.scene === scene ? built.rows : null
 
   return (
     <section
@@ -250,10 +266,11 @@ export default function WfSchematicPanel({
       <p className="mb-3 text-xs leading-relaxed text-slate-300">{caption}</p>
       <div
         data-testid="wf-schematic-frame"
+        aria-busy={rows === null}
         className="relative"
         style={{ width, height, touchAction: 'none' }}
       >
-        {!showText && (
+        {!showText && rows && (
           <div className="absolute right-2 top-2 z-10 flex flex-col rounded-[4px] bg-white shadow-[0_0_0_2px_rgb(0_0_0/0.1)]">
             <button
               type="button"
@@ -283,7 +300,7 @@ export default function WfSchematicPanel({
         )}
         {showText ? (
           <ul className="h-full min-h-0 space-y-1 overflow-auto text-xs text-slate-100">
-            {rows.map(({ body, parentName }) => (
+            {(rows ?? []).map(({ body, parentName }) => (
               <li key={body.id}>
                 <span>{body.name}</span>
                 {parentName ? ` · inside ${parentName}` : ''}
@@ -291,15 +308,17 @@ export default function WfSchematicPanel({
             ))}
           </ul>
         ) : (
-          <WfSchematicView
-            key={scene}
-            ref={cameraRef}
-            scene={scene}
-            explode={explode}
-            width={width}
-            height={height}
-            onUnavailable={onViewUnavailable}
-          />
+          rows && (
+            <WfSchematicView
+              key={scene}
+              ref={cameraRef}
+              scene={scene}
+              explode={explode}
+              width={width}
+              height={height}
+              onUnavailable={onViewUnavailable}
+            />
+          )
         )}
         <button
           type="button"

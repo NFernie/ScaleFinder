@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
 import { beachRidgeRing, beachRidgeStations } from '../core/wfSchematic'
-import { beachRidgeGeometry } from './beachRidgeGeometry'
+import { beachRidgeGeometry, ridgeCapLeavesSection } from './beachRidgeGeometry'
 
 function faceNormal(geometry: THREE.BufferGeometry, triangle: number): THREE.Vector3 {
   const index = geometry.getIndex()
@@ -62,5 +62,13 @@ describe('beachRidgeGeometry', () => {
 
     right.dispose()
     left.dispose()
+  })
+
+  it('keeps every end-cap triangle inside the section', () => {
+    for (let index = 0; index < 5; index += 1) {
+      for (const station of beachRidgeStations('r', index)) {
+        expect(ridgeCapLeavesSection(beachRidgeRing(station))).toBe(false)
+      }
+    }
   })
 })

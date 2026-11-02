@@ -61,7 +61,7 @@ describe('shale', () => {
     expect(SHALE_COLOUR).toBe(0x78716c)
   })
 
-  it('is thin beside the channel and thick at the tip, under the swale', () => {
+  it('is absent in the closed top set and thick from the swale down to the toe', () => {
     const bodies = wfSceneAt(0)
     const shape = shaleShape('wf', bodies, 'e-shale-r-0')
     const floor = swaleFloorY(bodies)
@@ -72,9 +72,10 @@ describe('shale', () => {
     const distal = Math.max(
       ...shape.topLand.slice(half).map((top, index) => span(top, shape.footLand[half + index])),
     )
-    expect(proximal).toBeLessThan(0.2)
-    expect(distal).toBeGreaterThan(proximal + 0.2)
-    expect(shape.footLand[0].y).toBeGreaterThan(0)
+    expect(shape.topLand[0].y).toBeLessThan(floor)
+    expect(proximal).toBeGreaterThan(0.2)
+    expect(distal).toBeGreaterThan(0.2)
+    expect(shape.footLand[0].y).toBeLessThan(0)
     const distalFoot = Math.min(...shape.footLand.slice(half).map((point) => point.y))
     expect(distalFoot).toBeLessThan(0)
     const count = shape.positions.length / 3

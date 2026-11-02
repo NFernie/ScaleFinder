@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Beach-ridge cross-sections keep their plan centreline and gain three Z sets. The top third is 30% thicker, the middle third is 15% thicker, and the toe is one third as thick as the mid set. End caps are ear-clipped so the diagonals stay inside the section. The swale still fills the open gap down to the water slab, stopping where the thicker top set closes it. The shale runs from that swale base to the ridge bases: thin or absent in the top set, thicker in the mid set, and thickest in the toe set.
 - The swale fills only the open gap above the water slab. The crest edge follows the ridge step-down, the sides trace the facing hypotenuses down to the slab top, and any connector that would enter a beach-ridge mesh is left out.
 - The half-channel mesh is lofted like the tidal channel: arc rings along its length, deck strips, and end caps with the same winding. The earlier single lid had one triangle facing down, so a top-down view hid half the channel.
 - The Tfw tidal complexes `ec-mouth` and `ec-mouth-sea` each move landward along the channel by one beach-ridge step (0.34) relative to the complex landward of them. That closes the gap the fifth ridge opened when the seaward fan followed the new channel tip, so each overlaps the landward complex by the centreline amount the Wf fans had before that ridge.

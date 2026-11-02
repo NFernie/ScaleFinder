@@ -376,63 +376,78 @@ function sectionSamples(pair: FacingPair, yFrom: number, yTo: number): number[] 
 }
 
 /**
- * Walk from `yFrom` toward `yTo` and keep the first contiguous open run.
- * The run stops where the gap closes, so a pinch is not bridged. The downward
- * walk does not skip a closed start: that would fall through the pinch into
- * the cavity below it and thicken the channel end.
+ * Every contiguous open run from just under the swale down to the bases.
+ * A closed band, such as the thickened top set, is left out. The walk continues
+ * below that pinch so the mid set and the toe set still fill the gap.
  */
-function sectionAlong(
-  scene: SchematicSceneId,
-  ridges: SceneBody[],
-  pair: FacingPair,
-  yFrom: number,
-  yTo: number,
-  skipClosedStart: boolean,
-): ShaleSection | null {
-  if (Math.abs(yFrom - yTo) < SHALE_MIN_THICKNESS) return null
-  const land: SwalePoint[] = []
-  const sea: SwalePoint[] = []
-  let started = false
-  for (const y of sectionSamples(pair, yFrom, yTo)) {
+function sectionRuns(scene: SchematicSceneId, ridges: SceneBody[], pair: FacingPair): ShaleSection[] {
+  if (pair.yCap - pair.yBase < SHALE_MIN_THICKNESS) return []
+  const runs: ShaleSection[] = []
+  let land: SwalePoint[] = []
+  let sea: SwalePoint[] = []
+  const flush = () => {
+    if (land.length < 2 || Math.abs(land[0].y - land[land.length - 1].y) < SHALE_MIN_THICKNESS) {
+      land = []
+      sea = []
+      return
+    }
+    const order = land[0].y >= land[land.length - 1].y ? land.map((_, index) => index) : [...land.keys()].reverse()
+    runs.push({
+      land: order.map((index) => land[index]),
+      sea: order.map((index) => sea[index]),
+    })
+    land = []
+    sea = []
+  }
+  for (const y of sectionSamples(pair, pair.yCap, pair.yBase)) {
     const ends = openEnds(scene, ridges, pointAtY(pair.landFace, y), pointAtY(pair.seaFace, y))
     if (!ends) {
-      if (started || !skipClosedStart) break
+      flush()
       continue
     }
-    started = true
     land.push(ends.land)
     sea.push(ends.sea)
   }
-  if (land.length < 2) return null
-  if (Math.abs(land[0].y - land[land.length - 1].y) < SHALE_MIN_THICKNESS) return null
-  const order = land[0].y >= land[land.length - 1].y ? land.map((_, index) => index) : [...land.keys()].reverse()
-  return {
-    land: order.map((index) => land[index]),
-    sea: order.map((index) => sea[index]),
+  flush()
+  return runs
+}
+
+function yOverlap(a: ShaleSection, b: ShaleSection): number {
+  const top = Math.min(a.land[0].y, b.land[0].y)
+  const foot = Math.max(a.land[a.land.length - 1].y, b.land[b.land.length - 1].y)
+  return top - foot
+}
+
+/** Group open runs that continue from one station to the next. A closed station ends that band. */
+function bandRuns(perStation: ShaleSection[][]): ShaleSection[][] {
+  const bands: Array<{ sections: ShaleSection[]; open: boolean }> = []
+  for (const runs of perStation) {
+    const used = new Set<number>()
+    for (const band of bands) {
+      if (!band.open) continue
+      const prev = band.sections[band.sections.length - 1]
+      let best = -1
+      let bestOverlap = 0
+      for (let i = 0; i < runs.length; i += 1) {
+        if (used.has(i)) continue
+        const overlap = yOverlap(prev, runs[i])
+        if (overlap > bestOverlap) {
+          best = i
+          bestOverlap = overlap
+        }
+      }
+      if (best >= 0 && bestOverlap > SHALE_MIN_THICKNESS) {
+        band.sections.push(runs[best])
+        used.add(best)
+      } else {
+        band.open = false
+      }
+    }
+    for (let i = 0; i < runs.length; i += 1) {
+      if (!used.has(i)) bands.push({ sections: [runs[i]], open: true })
+    }
   }
-}
-
-/** Open gap directly under the swale, down to the first meeting of the two faces. */
-function sectionUnderSwale(
-  scene: SchematicSceneId,
-  ridges: SceneBody[],
-  pair: FacingPair,
-): ShaleSection | null {
-  if (pair.yCap - pair.yBase < SHALE_MIN_THICKNESS) return null
-  return sectionAlong(scene, ridges, pair, pair.yCap, pair.yBase, false)
-}
-
-/**
- * Open gap above the bases, up to the meeting of the two faces. Used when the
- * band directly under the swale is already closed, as on a uniform convex loft.
- */
-function sectionAboveBases(
-  scene: SchematicSceneId,
-  ridges: SceneBody[],
-  pair: FacingPair,
-): ShaleSection | null {
-  if (pair.yCap - pair.yBase < SHALE_MIN_THICKNESS) return null
-  return sectionAlong(scene, ridges, pair, pair.yBase, pair.yCap, true)
+  return bands.map((band) => band.sections).filter((sections) => sections.length >= 2)
 }
 
 function outward(positions: number[], a: number, b: number, c: number): boolean {
@@ -717,37 +732,65 @@ function shapeBetween(
   const pairs = dense.map((t) =>
     facingPair(scene, land, sea, loftedRing(landStations, t), loftedRing(seaStations, t), floorY),
   )
-  let sections = pairs
-    .map((pair) => sectionUnderSwale(scene, [land, sea], pair))
-    .filter((section): section is ShaleSection => section != null)
-  if (sections.length < 2) {
-    sections = pairs
-      .map((pair) => sectionAboveBases(scene, [land, sea], pair))
-      .filter((section): section is ShaleSection => section != null)
-  }
-  if (sections.length < 2) return null
-  const mesh = buildMesh(scene, ridges, sections)
+  const bands = bandRuns(pairs.map((pair) => sectionRuns(scene, [land, sea], pair)))
+  if (bands.length === 0) return null
+  const parts = bands.map((sections) => ({ sections, mesh: buildMesh(scene, ridges, sections) }))
+  const mesh = mergeMeshes(parts.map((part) => part.mesh))
+  const band = parts.reduce((best, part) => (part.sections.length > best.sections.length ? part : best))
   return {
     id: land.id.replace(/^e-ridge-/, 'e-shale-'),
     parentId: land.parentId,
     origin: mesh.origin,
     positions: mesh.positions,
     indices: mesh.indices,
-    topLand: sections.map((section) => section.land[0]),
-    topSea: sections.map((section) => section.sea[0]),
-    footLand: sections.map((section) => section.land[section.land.length - 1]),
-    footSea: sections.map((section) => section.sea[section.sea.length - 1]),
+    topLand: band.sections.map((section) => section.land[0]),
+    topSea: band.sections.map((section) => section.sea[0]),
+    footLand: band.sections.map((section) => section.land[section.land.length - 1]),
+    footSea: band.sections.map((section) => section.sea[section.sea.length - 1]),
   }
+}
+
+function mergeMeshes(
+  parts: Array<{ positions: number[]; indices: number[]; origin: SwalePoint }>,
+): { positions: number[]; indices: number[]; origin: SwalePoint } {
+  const positions: number[] = []
+  const indices: number[] = []
+  for (const part of parts) {
+    const base = positions.length / 3
+    for (let i = 0; i < part.positions.length; i += 3) {
+      positions.push(
+        part.positions[i] + part.origin.x,
+        part.positions[i + 1] + part.origin.y,
+        part.positions[i + 2] + part.origin.z,
+      )
+    }
+    for (const index of part.indices) indices.push(base + index)
+  }
+  if (positions.length === 0) return { positions, indices, origin: { x: 0, y: 0, z: 0 } }
+  let sx = 0
+  let sy = 0
+  let sz = 0
+  const count = positions.length / 3
+  for (let i = 0; i < positions.length; i += 3) {
+    sx += positions[i]
+    sy += positions[i + 1]
+    sz += positions[i + 2]
+  }
+  const origin = { x: sx / count, y: sy / count, z: sz / count }
+  for (let i = 0; i < positions.length; i += 3) {
+    positions[i] -= origin.x
+    positions[i + 1] -= origin.y
+    positions[i + 2] -= origin.z
+  }
+  return { positions, indices, origin }
 }
 
 /**
  * One shale for each gap in a beach-ridge set. The sides follow that pair’s
- * lofts. The wedge fills the open band under the swale, down to the bases or
- * to the first meeting of the facing hypotenuses. Beside the channel that
- * meeting sits near the swale, so the wedge is thin; toward the tip the gap
- * stays open and the wedge runs down to the bases. A uniform convex loft meets
- * along its whole length just under the swale, so that wedge instead fills
- * from the bases up to the meeting.
+ * lofts. The wedge starts at the base of the swale and runs to the ridge bases.
+ * It is thin or absent where the top set closes the gap, then thickens through
+ * the mid set and is thickest in the toe set. A piece that would enter a beach
+ * ridge is left out.
  */
 export function shaleShapes(scene: SchematicSceneId, bodies: SceneBody[]): ShaleShape[] {
   const key = cacheKey(scene, bodies)

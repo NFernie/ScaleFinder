@@ -76,7 +76,9 @@ describe('swale', () => {
       0.02,
     )
     expect(foot.y).toBeGreaterThanOrEqual(swaleFloorY(bodies) - 1e-6)
-    expect(foot.y).toBeLessThan(crest.y - 0.1)
+    expect(foot.y).toBeLessThan(crest.y)
+    const deepest = vertices.reduce((best, point) => (point.y < best.y ? point : best))
+    expect(deepest.y).toBeCloseTo(swaleFloorY(bodies), 2)
     expect(foot.z).toBeGreaterThan(crest.z)
     expect(seaCrest.z).toBeGreaterThan(crest.z)
     expect(seaCrest.y).toBeLessThan(crest.y)

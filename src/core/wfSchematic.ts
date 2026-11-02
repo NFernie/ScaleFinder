@@ -3,11 +3,14 @@
  * Stored as latitude 18.601312, longitude −92.674937. A latitude of −92.67
  * cannot be plotted; 18.6°N, 92.67°W is the pair that sits on the map.
  */
+import { shaleBodies } from './shale'
+import { swaleBodies } from './swale'
+
 export const WF_ANCHOR = { lat: 18.601312, lng: -92.674937 } as const
 
 export type Rank = 'element' | 'element-set' | 'element-complex' | 'element-complex-set'
 
-export type SolidKind = 'ground' | 'channel' | 'mouth-bar' | 'beach-ridge' | 'delta-plain' | 'group'
+export type SolidKind = 'ground' | 'channel' | 'mouth-bar' | 'beach-ridge' | 'delta-plain' | 'swale' | 'shale' | 'group'
 
 export interface SceneBody {
   id: string
@@ -77,6 +80,31 @@ export function mouthFanReferenceGap(): number {
 }
 
 /**
+ * Alongshore overlap of the fan's inner pair after `MOUTH_FAN_X_SCALE`.
+ * Bar width minus the scaled centre gap. The shipped fan is **0.36**.
+ */
+export function mouthFanInnerOverlap(): number {
+  return MOUTH_BAR_SCALE.x - mouthFanReferenceGap() * MOUTH_FAN_X_SCALE
+}
+
+/**
+ * The third mouth-bar complex keeps this fraction of the source fan's
+ * inner-pair overlap, so its centre gap grows and the fan spreads in X.
+ */
+export const MOUTH_DISTAL_OVERLAP_FRACTION = 0.5
+
+/** Scale on an already `MOUTH_FAN_X_SCALE`d X. Half the source overlap. */
+export function mouthDistalXScale(): number {
+  const gap = mouthFanReferenceGap() * MOUTH_FAN_X_SCALE
+  const distalGap = MOUTH_BAR_SCALE.x - mouthFanInnerOverlap() * MOUTH_DISTAL_OVERLAP_FRACTION
+  return distalGap / gap
+}
+
+export function isDistalMouthId(id: string): boolean {
+  return id === 'ec-mouth-dist' || id === 'es-mouth-dist' || id.startsWith('e-mouth-dist-')
+}
+
+/**
  * Filled V in front of the channel. The apex is the centre bar.
  * The next row is one left and one right. Each of those then adds an
  * outer bar, a bar back toward the opposite side of the axis, and one
@@ -113,6 +141,13 @@ export const RIDGE_BASE_SEAWARD = 0.12
  * 0.25 is another halving of the previous 0.5 slope, so the whole section is 50% flatter again.
  */
 export const RIDGE_FACE_SLOPE = 0.25
+
+/**
+ * Seaward-face hypotenuse scale. 2 doubles that face: the crest stays put,
+ * the base drops by one crest height and moves seaward, and the base's
+ * fore-aft thickness stays the same.
+ */
+export const RIDGE_FACE_LENGTH_SCALE = 2
 
 /**
  * Plan angle, in degrees, added at the channel end of the most seaward beach ridge.
@@ -169,7 +204,7 @@ function localCenter(body: SceneBody): { x: number; y: number; z: number } {
     const sum = stations.reduce(
       (total, station) => ({
         x: total.x + station.x,
-        y: total.y + station.height / 2,
+        y: total.y + station.height * (1 - RIDGE_FACE_LENGTH_SCALE / 2),
         z: total.z + station.z,
       }),
       { x: 0, y: 0, z: 0 },
@@ -195,7 +230,7 @@ const RIDGE_COUNT = 5
 const RIDGE_INNER = CHANNEL_RADIUS
 const RIDGE_OUTER = 3.45
 const RIDGE_Z_BASE = -0.55
-const RIDGE_Z_STEP = 0.34
+export const RIDGE_Z_STEP = 0.34
 const RIDGE_BOW = 0.85
 /** Seaward swing added along the outer half of the centreline. */
 const RIDGE_TIP_TURN = 0.7
@@ -295,6 +330,9 @@ export function beachRidgeStations(side: 'l' | 'r', index: number): RidgeStation
 /**
  * Cross-section at one station. The crest stays put. The base is sheared seaward
  * so the seaward-face slope is RIDGE_FACE_SLOPE times the unsheared wedge.
+ * {@link RIDGE_FACE_LENGTH_SCALE} lengthens that face along its hypotenuse:
+ * height grows on the same angle, the base moves down and seaward, and the
+ * base's Z thickness does not change.
  * The face reflects a logistic sigmoid across the chord: seaward of the chord in the
  * upper half (convex toward the sea) and landward of it in the lower half, with the
  * toe running out flat.
@@ -308,24 +346,28 @@ export function beachRidgeRing(station: RidgeStation): RidgeCorner[] {
   const steepRun = baseSea0 - crestSeaZ
   const run = steepRun / RIDGE_FACE_SLOPE
   const shear = run - steepRun
-  const baseLandZ = baseLand0 + shear
-  const baseSeaZ = crestSeaZ + run
+  const baseSpan = crestSeaZ + run - (baseLand0 + shear)
+  const faceRun = run * RIDGE_FACE_LENGTH_SCALE
+  const baseSeaZ = crestSeaZ + faceRun
+  const baseLandZ = baseSeaZ - baseSpan
+  const crestY = station.height
+  const baseY = crestY - station.height * RIDGE_FACE_LENGTH_SCALE
   const ring: RidgeCorner[] = [
-    { x: station.x, y: 0, z: baseLandZ },
-    { x: station.x, y: 0, z: baseSeaZ },
+    { x: station.x, y: baseY, z: baseLandZ },
+    { x: station.x, y: baseY, z: baseSeaZ },
   ]
   const steps = 16
   for (let i = 1; i < steps; i += 1) {
     const down = 1 - i / steps
     ring.push({
       x: station.x,
-      y: station.height * (1 - down),
-      z: crestSeaZ + run * ridgeFaceFraction(down),
+      y: crestY - down * (crestY - baseY),
+      z: crestSeaZ + faceRun * ridgeFaceFraction(down),
     })
   }
   ring.push(
-    { x: station.x, y: station.height, z: crestSeaZ },
-    { x: station.x, y: station.height, z: crestLandZ },
+    { x: station.x, y: crestY, z: crestSeaZ },
+    { x: station.x, y: crestY, z: crestLandZ },
   )
   return ring
 }
@@ -434,6 +476,27 @@ function layMouthFan(originZ: number, yLand: number): Array<{ x: number; y: numb
   })
 }
 
+/**
+ * Third mouth-bar complex, one land→sea step beyond the seaward fan.
+ * X is widened so the inner-pair overlap is half the source fan's overlap.
+ * Y drops by the same step as the proximal→seaward pair.
+ */
+export function layDistalMouthFan<T extends { x: number; y: number; z: number; yaw: number }>(
+  seaward: T[],
+  proximalApex: { y: number; z: number },
+  seawardApex: { y: number; z: number },
+): T[] {
+  const dz = seawardApex.z - proximalApex.z
+  const dy = proximalApex.y - seawardApex.y
+  const xScale = mouthDistalXScale()
+  return seaward.map((point) => ({
+    ...point,
+    x: point.x * xScale,
+    y: point.y - dy,
+    z: point.z + dz,
+  }))
+}
+
 function mouthFans(): { seaward: ReturnType<typeof layMouthFan>; proximal: ReturnType<typeof layMouthFan> } {
   const span = channelSpan()
   const halfZ = MOUTH_BAR_SCALE.z / 2
@@ -476,9 +539,12 @@ function ridgeFlank(side: 'l' | 'r'): SceneBody[] {
 }
 
 const FANS = mouthFans()
+const DISTAL = layDistalMouthFan(FANS.seaward, FANS.proximal[0], FANS.seaward[0])
 const MOUTH_BARS = [...FANS.seaward, ...FANS.proximal]
 const MOUTH_FAN_Z = MOUTH_BARS.reduce((sum, bar) => sum + bar.z, 0) / MOUTH_BARS.length
 const MOUTH_FAN_Y = MOUTH_BARS.reduce((sum, bar) => sum + bar.y, 0) / MOUTH_BARS.length
+const DISTAL_Z = DISTAL.reduce((sum, bar) => sum + bar.z, 0) / DISTAL.length
+const DISTAL_Y = DISTAL.reduce((sum, bar) => sum + bar.y, 0) / DISTAL.length
 const CHANNEL = channelSpan()
 
 const BODIES: SceneBody[] = [
@@ -542,12 +608,37 @@ const BODIES: SceneBody[] = [
     kind: 'channel',
     nested: { x: 0, y: CHANNEL.flatY, z: CHANNEL.centerZ },
   },
+  {
+    id: 'ec-mouth-dist',
+    name: 'Wf-Mouth Bar seaward',
+    rank: 'element-complex',
+    parentId: 'ecs',
+    kind: 'group',
+    nested: { x: 0, y: DISTAL_Y + 0.2, z: DISTAL_Z },
+  },
+  {
+    id: 'es-mouth-dist',
+    name: 'Mouth-bar set seaward',
+    rank: 'element-set',
+    parentId: 'ec-mouth-dist',
+    kind: 'group',
+    nested: { x: 0, y: DISTAL_Y + 0.2, z: DISTAL_Z },
+  },
+  ...DISTAL.map((point, index) => ({
+    id: `e-mouth-dist-${index}`,
+    name: 'Mouth bar',
+    rank: 'element' as const,
+    parentId: 'es-mouth-dist',
+    kind: 'mouth-bar' as const,
+    nested: { x: point.x, y: point.y, z: point.z },
+    yaw: point.yaw,
+  })),
 ]
 
 export function sceneAt(explode: number): PlacedBody[] {
   const t = Math.min(1, Math.max(0, explode))
   const spread = 1 + (EXPLODE_SPREAD - 1) * t
-  return BODIES.map((body) => {
+  const placed = BODIES.map((body) => {
     if (spread === 1) return { ...body, position: body.nested, showLabel: labelVisible(body, t) }
     const local = rotateYaw(localCenter(body), body.yaw ?? 0)
     const center = bodyCenter(body)
@@ -561,4 +652,20 @@ export function sceneAt(explode: number): PlacedBody[] {
       showLabel: labelVisible(body, t),
     }
   })
+  const travel = spread - 1
+  const fill = (body: SceneBody) => {
+    const center = bodyCenter(body)
+    return {
+      ...body,
+      position: {
+        x: body.nested.x + travel * center.x,
+        y: body.nested.y + travel * center.y,
+        z: body.nested.z + travel * center.z,
+      },
+      showLabel: false,
+    }
+  }
+  const swales = swaleBodies('wf', BODIES).map(fill)
+  const shales = shaleBodies('wf', BODIES).map(fill)
+  return [...placed, ...swales, ...shales]
 }

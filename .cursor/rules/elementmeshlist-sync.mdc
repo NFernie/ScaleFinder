@@ -15,15 +15,20 @@ Update `features/elementmeshlist.md` when you **add** or **materially change** a
 2. **A new schematic scene view** — a new `SchematicSceneId` in [`src/core/schematicScene.ts`](../../src/core/schematicScene.ts), a new core scene module (e.g. another `*WfSchematic.ts` beside `wfSchematic` / `asymWfSchematic`), a new map pin + panel `scene=` wiring, or dispatch rules that assign a different mesh to a body per scene.
 3. **Mesh dispatch or scene-only usage** — e.g. `beachRidgeMesh()`, switching which flank or body ids use symmetric, asymmetric, or convex-seaward lofts, or removing a mesh from a scene.
 4. **Layout numbers that define the table** — sizes, station counts, taper, angles, fan layout, or nested arrangement summaries when they change how a mesh reads in the schematic (even if the mesh file itself is unchanged).
+5. **Taxonomy** — a new or removed body, a changed `parentId` or rank, or a changed count of elements inside an element set, element complex, or element complex set.
 
 ## What to write
 
-Keep the **main table** columns: **Name**, **File**, **Geometry (size, shape)**, **Where used**, **Scene arrangement (position / taper / angles)**.
+Keep the **main table** columns: **Name**, **File**, **Geometry (size, shape)**, **Where used**, **Scene arrangement (position / taper / angles)**, **Scale**.
 
-- Add a row for each new drawable element kind or mesh variant wired into a scene.
+Keep the **Taxonomy** section in agreement with the Scale column. It is the count of what each scene creates.
+
+- Name the four scales only as **E** (element), **ES** (element set), **EC** (element complex), and **ECS** (element complex set). Spell the rank in the taxonomy legend. Do not add another scale, and do not call the same scale by two names.
+- When a scale gains or loses bodies, update that scene’s taxonomy table (id, what it is built from, and how many **E** sit inside it) and the **Scale** cell of every mesh row that count touches.
+- Add a row for each new drawable element kind or mesh variant wired into a scene, and say which **ES** / **EC** / **ECS** it is created under.
 - Edit the row when geometry or which scene uses it changes.
 - Update the intro **Scenes** line when pins, scene ids, or core scene files change.
-- Put 2D-only helpers under **Helpers (not scene meshes)**; label-only ranks under **Not drawn as meshes**.
+- Put 2D-only helpers under **Helpers (not scene meshes)**; label-only **ES** and **EC** groups under **Not drawn as meshes**.
 - List new core scene modules under **Core silhouette (no Three.js)** and new tests under **Tests**.
 
 Do **not** skip the doc because the change is “small”. Do **not** defer it to a follow-up commit.

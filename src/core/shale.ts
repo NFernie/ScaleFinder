@@ -271,72 +271,155 @@ function facingPair(
   return { yaw, landFace, seaFace, yBase, yCap }
 }
 
-function emitSection(pair: FacingPair, yTop: number, yFloor: number): ShaleSection | null {
-  if (yTop - yFloor < SHALE_MIN_THICKNESS) return null
-  const land = clipRange(pair.landFace, yTop, yFloor).map((point) => nudge(point, pair.yaw, SHALE_CLEARANCE))
-  const sea = clipRange(pair.seaFace, yTop, yFloor).map((point) => nudge(point, pair.yaw, -SHALE_CLEARANCE))
-  if (land.length < 2 || sea.length < 2) return null
-  if (seawardOf(pair.yaw, sea[0]) - seawardOf(pair.yaw, land[0]) <= 0) return null
-  if (seawardOf(pair.yaw, sea[sea.length - 1]) - seawardOf(pair.yaw, land[land.length - 1]) <= 0) return null
-  return { land, sea }
+function segmentPoint(a: SwalePoint, b: SwalePoint, u: number): SwalePoint {
+  return {
+    x: a.x + (b.x - a.x) * u,
+    y: a.y + (b.y - a.y) * u,
+    z: a.z + (b.z - a.z) * u,
+  }
+}
+
+/**
+ * The open run between the two hypotenuses at one height. Ends sit just off
+ * whichever comes first: the hypotenuse, or the beach-ridge mesh where that
+ * mesh crosses the gap.
+ */
+function clearOf(scene: SchematicSceneId, ridges: SceneBody[], point: SwalePoint): boolean {
+  return ridges.every((ridge) => !pointInsideRidge(scene, ridge, point))
+}
+
+function openEnds(
+  scene: SchematicSceneId,
+  ridges: SceneBody[],
+  landAt: SwalePoint,
+  seaAt: SwalePoint,
+): { land: SwalePoint; sea: SwalePoint } | null {
+  const len = Math.hypot(seaAt.x - landAt.x, seaAt.z - landAt.z)
+  if (len < SHALE_MIN_THICKNESS) return null
+  const outside = (u: number) => clearOf(scene, ridges, segmentPoint(landAt, seaAt, u))
+  const steps = 8
+  let bestStart = -1
+  let bestEnd = -1
+  let runStart = -1
+  for (let i = 0; i <= steps; i += 1) {
+    const ok = outside(i / steps)
+    if (ok && runStart < 0) runStart = i
+    if (!ok && runStart >= 0) {
+      if (bestStart < 0 || i - runStart > bestEnd - bestStart) {
+        bestStart = runStart
+        bestEnd = i - 1
+      }
+      runStart = -1
+    }
+  }
+  if (runStart >= 0 && (bestStart < 0 || steps + 1 - runStart > bestEnd - bestStart)) {
+    bestStart = runStart
+    bestEnd = steps
+  }
+  if (bestStart < 0 || bestEnd <= bestStart) return null
+  let u0 = bestStart / steps
+  let u1 = bestEnd / steps
+  if (bestStart > 0) {
+    let inside = (bestStart - 1) / steps
+    let clear = u0
+    for (let n = 0; n < 5; n += 1) {
+      const mid = (inside + clear) / 2
+      if (outside(mid)) clear = mid
+      else inside = mid
+    }
+    u0 = clear
+  }
+  if (bestEnd < steps) {
+    let clear = u1
+    let inside = (bestEnd + 1) / steps
+    for (let n = 0; n < 5; n += 1) {
+      const mid = (clear + inside) / 2
+      if (outside(mid)) clear = mid
+      else inside = mid
+    }
+    u1 = clear
+  }
+  const margin = SHALE_CLEARANCE / len
+  u0 += margin
+  u1 -= margin
+  if (u1 - u0 <= SHALE_MIN_THICKNESS / len) return null
+  if (!outside(u0) || !outside(u1)) return null
+  return { land: segmentPoint(landAt, seaAt, u0), sea: segmentPoint(landAt, seaAt, u1) }
+}
+
+function sectionSamples(pair: FacingPair, yFrom: number, yTo: number): number[] {
+  const high = Math.max(yFrom, yTo)
+  const low = Math.min(yFrom, yTo)
+  const raw = [high, low]
+  for (const poly of [pair.landFace, pair.seaFace]) {
+    for (const point of poly) {
+      if (point.y < high - 1e-8 && point.y > low + 1e-8) raw.push(point.y)
+    }
+  }
+  raw.sort((a, b) => b - a)
+  const unique: number[] = []
+  for (const y of raw) {
+    if (unique.length === 0 || unique[unique.length - 1] - y > 1e-6) unique.push(y)
+  }
+  const out: number[] = []
+  const maxStep = 0.02
+  for (let i = 0; i < unique.length - 1; i += 1) {
+    out.push(unique[i])
+    const span = unique[i] - unique[i + 1]
+    const pieces = Math.ceil(span / maxStep)
+    for (let piece = 1; piece < pieces; piece += 1) {
+      out.push(unique[i] + ((unique[i + 1] - unique[i]) * piece) / pieces)
+    }
+  }
+  out.push(unique[unique.length - 1])
+  return yFrom >= yTo ? out : [...out].reverse()
+}
+
+/**
+ * Walk from `yFrom` toward `yTo` and keep the first contiguous open run.
+ * The run stops where the gap closes, so a pinch is not bridged. The downward
+ * walk does not skip a closed start: that would fall through the pinch into
+ * the cavity below it and thicken the channel end.
+ */
+function sectionAlong(
+  scene: SchematicSceneId,
+  ridges: SceneBody[],
+  pair: FacingPair,
+  yFrom: number,
+  yTo: number,
+  skipClosedStart: boolean,
+): ShaleSection | null {
+  if (Math.abs(yFrom - yTo) < SHALE_MIN_THICKNESS) return null
+  const land: SwalePoint[] = []
+  const sea: SwalePoint[] = []
+  let started = false
+  for (const y of sectionSamples(pair, yFrom, yTo)) {
+    const ends = openEnds(scene, ridges, pointAtY(pair.landFace, y), pointAtY(pair.seaFace, y))
+    if (!ends) {
+      if (started || !skipClosedStart) break
+      continue
+    }
+    started = true
+    land.push(ends.land)
+    sea.push(ends.sea)
+  }
+  if (land.length < 2) return null
+  if (Math.abs(land[0].y - land[land.length - 1].y) < SHALE_MIN_THICKNESS) return null
+  const order = land[0].y >= land[land.length - 1].y ? land.map((_, index) => index) : [...land.keys()].reverse()
+  return {
+    land: order.map((index) => land[index]),
+    sea: order.map((index) => sea[index]),
+  }
 }
 
 /** Open gap directly under the swale, down to the first meeting of the two faces. */
 function sectionUnderSwale(
   scene: SchematicSceneId,
-  landBody: SceneBody,
-  seaBody: SceneBody,
+  ridges: SceneBody[],
   pair: FacingPair,
 ): ShaleSection | null {
   if (pair.yCap - pair.yBase < SHALE_MIN_THICKNESS) return null
-  const yFloor = firstClosure(scene, landBody, seaBody, pair.landFace, pair.seaFace, pair.yaw, pair.yCap, pair.yBase)
-  return emitSection(pair, pair.yCap, yFloor)
-}
-
-/** First Y at or above the bases where the inset still fits. */
-function firstOpen(
-  scene: SchematicSceneId,
-  landBody: SceneBody,
-  seaBody: SceneBody,
-  pair: FacingPair,
-): number | null {
-  const blockedAt = (y: number) => blocked(scene, landBody, seaBody, pair.landFace, pair.seaFace, pair.yaw, y)
-  if (!blockedAt(pair.yBase)) return pair.yBase
-  const steps = 24
-  for (let s = 1; s <= steps; s += 1) {
-    const y = pair.yBase + ((pair.yCap - pair.yBase) * s) / steps
-    if (!blockedAt(y)) return y
-  }
-  return null
-}
-
-/** Walking up from an open Y, the last Y that can still hold the inset. */
-function closureAbove(
-  scene: SchematicSceneId,
-  landBody: SceneBody,
-  seaBody: SceneBody,
-  pair: FacingPair,
-  yStart: number,
-): number {
-  const blockedAt = (y: number) => blocked(scene, landBody, seaBody, pair.landFace, pair.seaFace, pair.yaw, y)
-  if (blockedAt(yStart)) return yStart
-  const steps = 32
-  let prev = yStart
-  for (let s = 1; s <= steps; s += 1) {
-    const y = yStart + ((pair.yCap - yStart) * s) / steps
-    if (blockedAt(y)) {
-      let open = prev
-      let closed = y
-      for (let n = 0; n < 12; n += 1) {
-        const mid = (open + closed) / 2
-        if (blockedAt(mid)) closed = mid
-        else open = mid
-      }
-      return open
-    }
-    prev = y
-  }
-  return pair.yCap
+  return sectionAlong(scene, ridges, pair, pair.yCap, pair.yBase, false)
 }
 
 /**
@@ -345,14 +428,11 @@ function closureAbove(
  */
 function sectionAboveBases(
   scene: SchematicSceneId,
-  landBody: SceneBody,
-  seaBody: SceneBody,
+  ridges: SceneBody[],
   pair: FacingPair,
 ): ShaleSection | null {
-  const yStart = firstOpen(scene, landBody, seaBody, pair)
-  if (yStart == null) return null
-  const yEnd = closureAbove(scene, landBody, seaBody, pair, yStart)
-  return emitSection(pair, yEnd, yStart)
+  if (pair.yCap - pair.yBase < SHALE_MIN_THICKNESS) return null
+  return sectionAlong(scene, ridges, pair, pair.yBase, pair.yCap, true)
 }
 
 function outward(positions: number[], a: number, b: number, c: number): boolean {
@@ -382,25 +462,6 @@ function pushQuad(indices: number[], positions: number[], a: number, b: number, 
   pushTri(indices, positions, a, c, d)
 }
 
-function zipper(indices: number[], positions: number[], left: number[], right: number[]) {
-  let i = 0
-  let j = 0
-  while (i < left.length - 1 || j < right.length - 1) {
-    const nextLeft = i < left.length - 1
-    const nextRight = j < right.length - 1
-    const stepLeft =
-      nextLeft &&
-      (!nextRight || positions[left[i + 1] * 3 + 1] >= positions[right[j + 1] * 3 + 1])
-    if (stepLeft) {
-      pushTri(indices, positions, left[i], left[i + 1], right[j])
-      i += 1
-    } else {
-      pushTri(indices, positions, left[i], right[j + 1], right[j])
-      j += 1
-    }
-  }
-}
-
 function worldAt(positions: number[], index: number, origin: SwalePoint): SwalePoint {
   return {
     x: positions[index * 3] + origin.x,
@@ -411,8 +472,7 @@ function worldAt(positions: number[], index: number, origin: SwalePoint): SwaleP
 
 function triangleHitsRidge(
   scene: SchematicSceneId,
-  land: SceneBody,
-  sea: SceneBody,
+  ridges: SceneBody[],
   positions: number[],
   origin: SwalePoint,
   a: number,
@@ -422,27 +482,24 @@ function triangleHitsRidge(
   const pa = worldAt(positions, a, origin)
   const pb = worldAt(positions, b, origin)
   const pc = worldAt(positions, c, origin)
-  const mid = (p: SwalePoint, q: SwalePoint): SwalePoint => ({
-    x: (p.x + q.x) / 2,
-    y: (p.y + q.y) / 2,
-    z: (p.z + q.z) / 2,
-  })
-  const samples = [
-    pa,
-    pb,
-    pc,
-    mid(pa, pb),
-    mid(pb, pc),
-    mid(pc, pa),
-    { x: (pa.x + pb.x + pc.x) / 3, y: (pa.y + pb.y + pc.y) / 3, z: (pa.z + pb.z + pc.z) / 3 },
-  ]
-  return samples.some((point) => pointInsideRidge(scene, land, point) || pointInsideRidge(scene, sea, point))
+  const steps = 8
+  for (let i = 0; i <= steps; i += 1) {
+    for (let j = 0; j <= steps - i; j += 1) {
+      const k = steps - i - j
+      const point = {
+        x: (pa.x * i + pb.x * j + pc.x * k) / steps,
+        y: (pa.y * i + pb.y * j + pc.y * k) / steps,
+        z: (pa.z * i + pb.z * j + pc.z * k) / steps,
+      }
+      if (!clearOf(scene, ridges, point)) return true
+    }
+  }
+  return false
 }
 
 function trimOverlap(
   scene: SchematicSceneId,
-  land: SceneBody,
-  sea: SceneBody,
+  ridges: SceneBody[],
   positions: number[],
   indices: number[],
   origin: SwalePoint,
@@ -458,7 +515,7 @@ function trimOverlap(
   }
   const out: number[] = []
   const emit = (a: number, b: number, c: number, depth: number) => {
-    if (!triangleHitsRidge(scene, land, sea, positions, origin, a, b, c)) {
+    if (!triangleHitsRidge(scene, ridges, positions, origin, a, b, c)) {
       out.push(a, b, c)
       return
     }
@@ -471,7 +528,7 @@ function trimOverlap(
     emit(ca, bc, c, depth - 1)
     emit(ab, bc, ca, depth - 1)
   }
-  for (let t = 0; t < indices.length; t += 3) emit(indices[t], indices[t + 1], indices[t + 2], 4)
+  for (let t = 0; t < indices.length; t += 3) emit(indices[t], indices[t + 1], indices[t + 2], 3)
   const used = new Map<number, number>()
   const packed: number[] = []
   const remapped: number[] = []
@@ -485,35 +542,129 @@ function trimOverlap(
     remapped.push(id)
   }
   positions.length = 0
-  positions.push(...packed)
+  for (let i = 0; i < packed.length; i += 1) positions.push(packed[i])
   return remapped
 }
 
+function sectionSpan(section: ShaleSection): { top: number; foot: number } {
+  return {
+    top: Math.min(section.land[0].y, section.sea[0].y),
+    foot: Math.max(section.land[section.land.length - 1].y, section.sea[section.sea.length - 1].y),
+  }
+}
+
+/** Shared heights, fine enough that a strip between them stays on the two hypotenuses. */
+function yLevels(polys: SwalePoint[][], yHigh: number, yLow: number): number[] {
+  const raw = [yHigh, yLow]
+  for (const poly of polys) {
+    for (const point of poly) {
+      if (point.y <= yHigh + 1e-8 && point.y >= yLow - 1e-8) raw.push(point.y)
+    }
+  }
+  raw.sort((a, b) => b - a)
+  const unique: number[] = []
+  for (const y of raw) {
+    if (unique.length === 0 || unique[unique.length - 1] - y > 1e-6) unique.push(y)
+  }
+  const out: number[] = []
+  const maxStep = 0.02
+  for (let i = 0; i < unique.length - 1; i += 1) {
+    out.push(unique[i])
+    const span = unique[i] - unique[i + 1]
+    const pieces = Math.ceil(span / maxStep)
+    for (let piece = 1; piece < pieces; piece += 1) {
+      out.push(unique[i] + ((unique[i + 1] - unique[i]) * piece) / pieces)
+    }
+  }
+  out.push(unique[unique.length - 1])
+  return out
+}
+
+function resample(poly: SwalePoint[], levels: number[]): SwalePoint[] {
+  return levels.map((y) => pointAtY(poly, y))
+}
+
+/** Pair equal heights. A greedy zipper walks one long hypotenuse and cuts across the ridge. */
+function quilt(indices: number[], positions: number[], left: number[], right: number[]) {
+  const count = Math.min(left.length, right.length)
+  for (let i = 0; i < count - 1; i += 1) {
+    pushTri(indices, positions, left[i], left[i + 1], right[i])
+    pushTri(indices, positions, left[i + 1], right[i + 1], right[i])
+  }
+}
+
+/**
+ * Loft only the Y band both sections still have open, in thin strips that
+ * stay on the two hypotenuses. A deeper section is closed by a wall in its
+ * own cross-section. A diagonal from a high foot to a low foot, or from one
+ * long hypotenuse across to the other, would leave the gap and cut a ridge.
+ */
 function buildMesh(
   scene: SchematicSceneId,
-  landBody: SceneBody,
-  seaBody: SceneBody,
+  ridges: SceneBody[],
   sections: ShaleSection[],
 ): { positions: number[]; indices: number[]; origin: SwalePoint } {
   const positions: number[] = []
-  const landIds: number[][] = []
-  const seaIds: number[][] = []
-  for (const section of sections) {
-    landIds.push(
-      section.land.map((point) => {
-        const id = positions.length / 3
-        positions.push(point.x, point.y, point.z)
-        return id
-      }),
-    )
-    seaIds.push(
-      section.sea.map((point) => {
-        const id = positions.length / 3
-        positions.push(point.x, point.y, point.z)
-        return id
-      }),
-    )
+  const take = (poly: SwalePoint[]) =>
+    poly.map((point) => {
+      const id = positions.length / 3
+      positions.push(point.x, point.y, point.z)
+      return id
+    })
+  const spans = sections.map(sectionSpan)
+  const walls: Array<{ left: number[]; right: number[] }> = []
+  const quads: Array<{ a: number; b: number; c: number; d: number }> = []
+  const matched = (polys: SwalePoint[][], yHigh: number, yLow: number) => {
+    if (yHigh - yLow < SHALE_MIN_THICKNESS) return null
+    const levels = yLevels(polys, yHigh, yLow)
+    const sampled = polys.map((poly) => take(resample(poly, levels)))
+    if (sampled.some((ids) => ids.length < 2)) return null
+    return sampled
   }
+
+  for (let s = 0; s < sections.length - 1; s += 1) {
+    const yTop = Math.min(spans[s].top, spans[s + 1].top)
+    const yFoot = Math.max(spans[s].foot, spans[s + 1].foot)
+    const band = [
+      clipRange(sections[s].land, yTop, yFoot),
+      clipRange(sections[s + 1].land, yTop, yFoot),
+      clipRange(sections[s].sea, yTop, yFoot),
+      clipRange(sections[s + 1].sea, yTop, yFoot),
+    ]
+    const sampled = matched(band, yTop, yFoot)
+    if (!sampled) continue
+    const [landA, landB, seaA, seaB] = sampled
+    walls.push({ left: landA, right: landB }, { left: seaA, right: seaB })
+    quads.push({ a: landA[0], b: landB[0], c: seaB[0], d: seaA[0] })
+    quads.push({
+      a: landA[landA.length - 1],
+      b: seaA[seaA.length - 1],
+      c: seaB[seaB.length - 1],
+      d: landB[landB.length - 1],
+    })
+  }
+
+  const cap = (section: ShaleSection, yHigh: number, yLow: number) => {
+    const sampled = matched(
+      [clipRange(section.land, yHigh, yLow), clipRange(section.sea, yHigh, yLow)],
+      yHigh,
+      yLow,
+    )
+    if (!sampled) return
+    walls.push({ left: sampled[0], right: sampled[1] })
+  }
+
+  for (let s = 1; s < sections.length - 1; s += 1) {
+    const shallowerFeet = [spans[s - 1].foot, spans[s + 1].foot].filter((y) => y > spans[s].foot + 1e-4)
+    if (shallowerFeet.length > 0) cap(sections[s], Math.max(...shallowerFeet), spans[s].foot)
+    const lowerTops = [spans[s - 1].top, spans[s + 1].top].filter((y) => y < spans[s].top - 1e-4)
+    if (lowerTops.length > 0) cap(sections[s], spans[s].top, Math.min(...lowerTops))
+  }
+
+  cap(sections[0], spans[0].top, spans[0].foot)
+  const last = sections.length - 1
+  cap(sections[last], spans[last].top, spans[last].foot)
+
   let sx = 0
   let sy = 0
   let sz = 0
@@ -530,42 +681,43 @@ function buildMesh(
     positions[i + 2] -= origin.z
   }
   const indices: number[] = []
-  for (let s = 0; s < sections.length - 1; s += 1) {
-    zipper(indices, positions, landIds[s], landIds[s + 1])
-    zipper(indices, positions, seaIds[s], seaIds[s + 1])
-    pushQuad(indices, positions, landIds[s][0], landIds[s + 1][0], seaIds[s + 1][0], seaIds[s][0])
-    const landFoot = landIds[s][landIds[s].length - 1]
-    const landNext = landIds[s + 1][landIds[s + 1].length - 1]
-    const seaFoot = seaIds[s][seaIds[s].length - 1]
-    const seaNext = seaIds[s + 1][seaIds[s + 1].length - 1]
-    pushQuad(indices, positions, landFoot, seaFoot, seaNext, landNext)
-  }
-  zipper(indices, positions, landIds[0], seaIds[0])
-  const last = sections.length - 1
-  zipper(indices, positions, landIds[last], seaIds[last])
+  for (const wall of walls) quilt(indices, positions, wall.left, wall.right)
+  for (const quad of quads) pushQuad(indices, positions, quad.a, quad.b, quad.c, quad.d)
   return {
     positions,
-    indices: trimOverlap(scene, landBody, seaBody, positions, indices, origin),
+    indices: trimOverlap(scene, ridges, positions, indices, origin),
     origin,
   }
 }
 
-function shapeBetween(scene: SchematicSceneId, land: SceneBody, sea: SceneBody, floorY: number): ShaleShape | null {
+function shapeBetween(
+  scene: SchematicSceneId,
+  land: SceneBody,
+  sea: SceneBody,
+  ridges: SceneBody[],
+  floorY: number,
+): ShaleShape | null {
   const landStations = stationsFor(scene, land)
   const seaStations = stationsFor(scene, sea)
-  const pairs = parameterSamples(landStations.length, seaStations.length).map((t) =>
+  const samples = parameterSamples(landStations.length, seaStations.length)
+  const dense: number[] = []
+  for (let i = 0; i < samples.length; i += 1) {
+    if (i > 0) dense.push((samples[i - 1] + samples[i]) / 2)
+    dense.push(samples[i])
+  }
+  const pairs = dense.map((t) =>
     facingPair(scene, land, sea, loftedRing(landStations, t), loftedRing(seaStations, t), floorY),
   )
   let sections = pairs
-    .map((pair) => sectionUnderSwale(scene, land, sea, pair))
+    .map((pair) => sectionUnderSwale(scene, [land, sea], pair))
     .filter((section): section is ShaleSection => section != null)
   if (sections.length < 2) {
     sections = pairs
-      .map((pair) => sectionAboveBases(scene, land, sea, pair))
+      .map((pair) => sectionAboveBases(scene, [land, sea], pair))
       .filter((section): section is ShaleSection => section != null)
   }
   if (sections.length < 2) return null
-  const mesh = buildMesh(scene, land, sea, sections)
+  const mesh = buildMesh(scene, ridges, sections)
   return {
     id: land.id.replace(/^e-ridge-/, 'e-shale-'),
     parentId: land.parentId,
@@ -605,7 +757,7 @@ export function shaleShapes(scene: SchematicSceneId, bodies: SceneBody[]): Shale
   for (const ridges of groups.values()) {
     const sorted = [...ridges].sort((a, b) => ridgeIndex(a.id) - ridgeIndex(b.id))
     for (let i = 0; i < sorted.length - 1; i += 1) {
-      const shape = shapeBetween(scene, sorted[i], sorted[i + 1], floorY)
+      const shape = shapeBetween(scene, sorted[i], sorted[i + 1], sorted, floorY)
       if (shape) shapes.push(shape)
     }
   }

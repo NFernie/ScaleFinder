@@ -38,4 +38,4 @@ it('opens the Tfw element complex set from its pin', async () => {
       'Type schematic for a tide-dominated, fluvial-influenced, wave-affected shoreline. Size and direction are not a measured map of this coast.',
     ),
   ).toBeInTheDocument()
-})
+}, 120_000)

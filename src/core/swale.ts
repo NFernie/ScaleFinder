@@ -567,15 +567,20 @@ function ringContains(ring: RidgeCorner[], y: number, z: number): boolean {
   return inside
 }
 
+function sectionAtX(scene: SchematicSceneId, ridge: SceneBody, x: number): RidgeCorner[] | null {
+  const key = `${scene}:${ridge.id}:${Math.round(x * 1e4)}`
+  let ring = sectionCache.get(key)
+  if (ring === undefined) {
+    ring = ringAt(stationsFor(scene, ridge), x)
+    sectionCache.set(key, ring)
+  }
+  return ring
+}
+
 /** True when `world` sits in the interior of this beach-ridge loft. */
 export function pointInsideRidge(scene: SchematicSceneId, ridge: SceneBody, world: SwalePoint): boolean {
   const local = localFromBody(ridge, world)
-  const key = `${scene}:${ridge.id}:${Math.round(local.x * 1e4)}`
-  let ring = sectionCache.get(key)
-  if (ring === undefined) {
-    ring = ringAt(stationsFor(scene, ridge), local.x)
-    sectionCache.set(key, ring)
-  }
+  const ring = sectionAtX(scene, ridge, local.x)
   if (!ring) return false
   return ringContains(ring, local.y, local.z)
 }

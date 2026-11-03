@@ -350,9 +350,9 @@ export function beachRidgeStations(side: 'l' | 'r', index: number): RidgeStation
  * The face reflects a logistic sigmoid across the chord: seaward of the chord in the
  * upper half (convex toward the sea) and landward of it in the lower half, with the
  * toe running out flat.
- * The plan centreline is unchanged. Z thickness is then split into three sets:
- * the top third scales by {@link RIDGE_TOP_SET_SCALE}, the middle third is
- * {@link RIDGE_MID_OF_TOP} of that top-set thickness, and the toe is
+ * The plan centreline is unchanged. Z thickness then thins in a sigmoid from the
+ * top set to the toe set: the top third scales by {@link RIDGE_TOP_SET_SCALE},
+ * the middle is {@link RIDGE_MID_OF_TOP} of that thickness, and the toe is
  * {@link RIDGE_TOE_OF_TOP} of it. The landward edge stays put, so a thicker top
  * can overlap the next ridge.
  */
@@ -420,6 +420,35 @@ function zOnOutline(outline: RidgeCorner[], y: number): number {
 }
 
 /**
+ * Logistic on 0..1. The ends are exactly 0 and 1, and the middle is the steep part.
+ * Same steepness as the seaward-face sigmoid.
+ */
+function unitSigmoid(t: number): number {
+  const x = Math.min(1, Math.max(0, t))
+  const k = 6
+  const raw = (u: number) => 1 / (1 + Math.exp(-k * (u - 0.5)))
+  const start = raw(0)
+  const end = raw(1)
+  const span = end - start
+  return span === 0 ? x : (raw(x) - start) / span
+}
+
+/**
+ * Z thickness down the face. Above the top-set centre the scaled face stays.
+ * From there a sigmoid falls to the mid-set thickness at mid-height, then another
+ * falls to the toe-set thickness at the toe-set centre and holds it to the base.
+ */
+function taperedSetThickness(u: number, localTop: number, topThickness: number, midThickness: number, toeThickness: number): number {
+  const topU = 1 / 6
+  const midU = 0.5
+  const toeU = 5 / 6
+  if (u <= topU) return localTop
+  if (u <= midU) return topThickness + (midThickness - topThickness) * unitSigmoid((u - topU) / (midU - topU))
+  if (u <= toeU) return midThickness + (toeThickness - midThickness) * unitSigmoid((u - midU) / (toeU - midU))
+  return toeThickness
+}
+
+/**
  * Move the seaward outline. The landward crest and base stay, so the plan
  * centreline and the landward hypotenuse do not move.
  */
@@ -440,11 +469,8 @@ function applyRidgeSets(ring: RidgeCorner[]): RidgeCorner[] {
   return ring.map((corner, index) => {
     if (index === 0 || index === ring.length - 1) return corner
     const u = (crestLand.y - corner.y) / span
-    const current = corner.z - landZ(corner.y)
-    // The top set keeps the scaled face. The mid and toe sets are each one
-    // thickness, half and 33% of the top set, even where that overlaps the next ridge.
-    const next =
-      u < 1 / 3 ? current * RIDGE_TOP_SET_SCALE : u < 2 / 3 ? midThickness : toeThickness
+    const localTop = Math.max(corner.z - landZ(corner.y), 0) * RIDGE_TOP_SET_SCALE
+    const next = taperedSetThickness(u, localTop, topThickness, midThickness, toeThickness)
     return { ...corner, z: landZ(corner.y) + Math.max(next, 0) }
   })
 }

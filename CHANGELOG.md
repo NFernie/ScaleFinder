@@ -61,6 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `features/elementmeshlist.md` states the four scales in full. An element is one mesh. An element set is three mouth bars, or one beach ridge plus its landward swale and shale where that gap exists. An element complex is one beach-ridge flank with all of its swales and shales, or one mouth-bar fan (proximal, mid, or distal). An element complex set is one scene (`wf`, `asym`, or `tfw`). Scene-graph group ids stay as stored, and the taxonomy says where one id covers more than one set or complex. `.cursor/rules/elementmeshlist-sync.mdc` uses the same meanings.
 - `features/elementmeshlist.md` records the E / ES / EC / ECS build for each scene (what each scale is created from, and how many elements sit inside it) and a Scale column on each mesh row. `.cursor/rules/elementmeshlist-sync.mdc` requires that taxonomy to stay in step with scene changes.
 - `features/elementmeshlist.md` tables the Wf schematic element meshes (geometry, scenes, and arrangement).
 - `.cursor/rules/elementmeshlist-sync.mdc` requires updating that file when new Wf schematic meshes or scene views are added or materially changed.

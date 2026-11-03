@@ -94,7 +94,7 @@ describe('tidalChannelGeometry', () => {
     const dipAngle = Math.atan2(seaDepth - landDepth, length)
     const midZ = (landZ + seaZ) / 2
 
-    expect(TIDAL_CHANNEL_OPACITY).toBe(0.5)
+    expect(TIDAL_CHANNEL_OPACITY).toBe(1)
     expect(reference).toBeCloseTo(channelSpan().flatY - landwardMouthBarBaseY())
     expect(reference).toBeGreaterThan(landDepth)
     expect(tidalChannelDepthAt(landZ)).toBeCloseTo(landDepth)

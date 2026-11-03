@@ -232,13 +232,14 @@ const WfSchematicView = forwardRef<
         geometries.push(geometry)
         const tidalChannel =
           body.kind === 'channel' && body.channelLength == null && channelMesh(scene) === 'tidal'
+        const tidalSeeThrough = tidalChannel && TIDAL_CHANNEL_OPACITY < 1
         const material = new THREE.MeshStandardMaterial({
           color: COLOUR[body.kind],
           roughness: 0.72,
           flatShading: body.kind === 'beach-ridge',
-          transparent: body.kind === 'ground' || tidalChannel,
+          transparent: body.kind === 'ground' || tidalSeeThrough,
           opacity: body.kind === 'ground' ? WATER_OPACITY : tidalChannel ? TIDAL_CHANNEL_OPACITY : 1,
-          depthWrite: body.kind !== 'ground' && !tidalChannel,
+          depthWrite: body.kind !== 'ground' && !tidalSeeThrough,
         })
         meshMaterials.push(material)
         group.add(new THREE.Mesh(geometry, material))

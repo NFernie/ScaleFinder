@@ -14,9 +14,9 @@ export const TIDAL_CHANNEL_TAPER_LENGTH_SCALE = 1.2
 
 /**
  * Opacity of the tidal channel shell in the schematic view.
- * The shell was fully opaque; this is 50% transparency.
+ * 1 is 0% transparency: the shell is fully opaque.
  */
-export const TIDAL_CHANNEL_OPACITY = 0.5
+export const TIDAL_CHANNEL_OPACITY = 1
 
 /**
  * The floor's dip toward +Z is this multiple of the angle from the landward

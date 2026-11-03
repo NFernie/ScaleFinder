@@ -152,14 +152,17 @@ export const RIDGE_FACE_LENGTH_SCALE = 2
 /** Top third of the section, from the crest down. Z thickness times this. */
 export const RIDGE_TOP_SET_SCALE = 1.3
 
-/** Middle third of the section. Z thickness times this. */
-export const RIDGE_MID_SET_SCALE = 1.15
+/**
+ * Middle third, the mid set. Its Z thickness is this fraction of the top set,
+ * measured at the centre of the top third.
+ */
+export const RIDGE_MID_OF_TOP = 0.5
 
 /**
- * Bottom third, the toe set. Its Z thickness is this fraction of the mid set's
- * thickness at mid-height, after the mid-set scale.
+ * Bottom third, the toe set. Its Z thickness is this fraction of that same
+ * top-set thickness.
  */
-export const RIDGE_TOE_OF_MID = 1 / 3
+export const RIDGE_TOE_OF_TOP = 0.33
 
 /**
  * Plan angle, in degrees, added at the channel end of the most seaward beach ridge.
@@ -348,10 +351,10 @@ export function beachRidgeStations(side: 'l' | 'r', index: number): RidgeStation
  * upper half (convex toward the sea) and landward of it in the lower half, with the
  * toe running out flat.
  * The plan centreline is unchanged. Z thickness is then split into three sets:
- * the top third scales by {@link RIDGE_TOP_SET_SCALE}, the middle third by
- * {@link RIDGE_MID_SET_SCALE}, and the toe is {@link RIDGE_TOE_OF_MID} of the
- * mid-set thickness. The landward edge stays put, so a thicker top can overlap
- * the next ridge.
+ * the top third scales by {@link RIDGE_TOP_SET_SCALE}, the middle third is
+ * {@link RIDGE_MID_OF_TOP} of that top-set thickness, and the toe is
+ * {@link RIDGE_TOE_OF_TOP} of it. The landward edge stays put, so a thicker top
+ * can overlap the next ridge.
  */
 export function beachRidgeRing(station: RidgeStation): RidgeCorner[] {
   return applyRidgeSets(ridgeSection(station))
@@ -430,19 +433,19 @@ function applyRidgeSets(ring: RidgeCorner[]): RidgeCorner[] {
     return crestLand.z + (baseLand.z - crestLand.z) * u
   }
   const outline = seawardOutline(ring)
-  const midY = crestLand.y - span / 2
-  const midThickness = (zOnOutline(outline, midY) - landZ(midY)) * RIDGE_MID_SET_SCALE
-  const toeThickness = Math.max(midThickness, 0) * RIDGE_TOE_OF_MID
+  const topY = crestLand.y - span / 6
+  const topThickness = Math.max(zOnOutline(outline, topY) - landZ(topY), 0) * RIDGE_TOP_SET_SCALE
+  const midThickness = topThickness * RIDGE_MID_OF_TOP
+  const toeThickness = topThickness * RIDGE_TOE_OF_TOP
   return ring.map((corner, index) => {
     if (index === 0 || index === ring.length - 1) return corner
     const u = (crestLand.y - corner.y) / span
     const current = corner.z - landZ(corner.y)
-    const scaled =
-      u < 1 / 3 ? current * RIDGE_TOP_SET_SCALE : u < 2 / 3 ? current * RIDGE_MID_SET_SCALE : toeThickness
-    // A narrow tip can fold the logistic face through the landward edge. Keep the
-    // seaward outline on the seaward side so the section stays a simple polygon.
-    const next = Math.max(scaled, toeThickness)
-    return { ...corner, z: landZ(corner.y) + next }
+    // The top set keeps the scaled face. The mid and toe sets are each one
+    // thickness, half and 33% of the top set, even where that overlaps the next ridge.
+    const next =
+      u < 1 / 3 ? current * RIDGE_TOP_SET_SCALE : u < 2 / 3 ? midThickness : toeThickness
+    return { ...corner, z: landZ(corner.y) + Math.max(next, 0) }
   })
 }
 

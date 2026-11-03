@@ -24,7 +24,8 @@ import {
   mouthBarSeawardSlope,
   RIDGE_FACE_LENGTH_SCALE,
   RIDGE_FACE_SLOPE,
-  RIDGE_TOE_OF_MID,
+  RIDGE_MID_OF_TOP,
+  RIDGE_TOE_OF_TOP,
   RIDGE_SEAWARD_ANGLE_DEG,
   bodyCenter,
   EXPLODE_SPREAD,
@@ -249,25 +250,37 @@ describe('wfSchematic', () => {
       const top = byU.filter((sample) => sample.u < 1 / 3)
       const middle = byU.filter((sample) => sample.u >= 1 / 3 && sample.u < 2 / 3)
       const toe = byU.filter((sample) => sample.u >= 2 / 3)
-      const midCentre = byU.reduce((best, sample) =>
-        Math.abs(sample.u - 0.5) < Math.abs(best.u - 0.5) ? sample : best,
-      )
+      const atU = (u: number) => {
+        const above = byU.filter((sample) => sample.u <= u).reduce((best, sample) => (sample.u > best.u ? sample : best))
+        const below = byU.filter((sample) => sample.u >= u).reduce((best, sample) => (sample.u < best.u ? sample : best))
+        const spanU = below.u - above.u
+        const t = spanU === 0 ? 0 : (u - above.u) / spanU
+        return above.thick + (below.thick - above.thick) * t
+      }
+      const topCentre = atU(1 / 6)
       expect(top.length).toBeGreaterThan(0)
       expect(middle.length).toBeGreaterThan(0)
       expect(toe.length).toBeGreaterThan(0)
       expect(crestSea.z - crestLand.z).toBeGreaterThan(channelEnd.halfWidth * 0.28 * 2)
-      expect(midCentre.thick).toBeCloseTo(toe[0].thick / RIDGE_TOE_OF_MID, 2)
-      for (const sample of toe) expect(sample.thick).toBeCloseTo(toe[0].thick, 4)
-      expect(toe[0].thick).toBeLessThan(midCentre.thick / 2)
+      expect(RIDGE_MID_OF_TOP).toBe(0.5)
+      expect(RIDGE_TOE_OF_TOP).toBe(0.33)
+      for (const sample of middle) expect(sample.thick).toBeCloseTo(topCentre * RIDGE_MID_OF_TOP, 4)
+      for (const sample of toe) expect(sample.thick).toBeCloseTo(topCentre * RIDGE_TOE_OF_TOP, 4)
+      expect(toe[0].thick).toBeLessThan(middle[0].thick)
+      expect(middle[0].thick).toBeLessThan(topCentre)
       expect(baseSea.z - baseLand.z).toBeCloseTo(toe[0].thick)
       const face = [crestSea, ...ring.filter((corner) => corner.y > baseY && corner.y < channelEnd.height), baseSea].sort(
         (a, b) => b.y - a.y,
       )
-      const stepsZ = face.slice(1).map((corner, index) => corner.z - face[index].z)
-      const middleStep = stepsZ[Math.floor(stepsZ.length / 2)]
-      expect(stepsZ[0]).toBeGreaterThan(middleStep)
-      expect(stepsZ[stepsZ.length - 1]).toBeGreaterThan(middleStep)
-      expect(stepsZ.every((step) => step > 0)).toBe(true)
+      const bandOf = (y: number) => {
+        const u = (crestLand.y - y) / (crestLand.y - baseLand.y)
+        return u < 1 / 3 ? 0 : u < 2 / 3 ? 1 : 2
+      }
+      for (let band = 0; band < 3; band += 1) {
+        const part = face.filter((corner) => bandOf(corner.y) === band)
+        const steps = part.slice(1).map((corner, index) => corner.z - part[index].z)
+        expect(steps.every((step) => step > -1e-6)).toBe(true)
+      }
       expect(Math.abs(tip.x)).toBeGreaterThan(Math.abs(channelEnd.x))
       expect(Math.sign(channelEnd.x)).toBe(side === 'r' ? 1 : -1)
       const seaward = ridges[ridges.length - 1]

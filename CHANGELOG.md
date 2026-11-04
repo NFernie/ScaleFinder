@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The Wf schematic WebGL view measures a full-explode bounding sphere at mount (meshes at 0, ⅓, ⅔, and 1), derives per-scene zoom limits and `camera.far`, clamps pan to that sphere, and re-frames without animation when the Explode slider moves (not on open or pin switch).
 - Wf, asymmetric, and Tfw schematic `sceneAt` now build each scene’s rest body list and delegate explode placement and labels to `applyExplode` in `src/core/explode.ts` (replacing radial `EXPLODE_SPREAD` spread in the scene modules).
 - The Tfw tidal channel is fully opaque (transparency 0%).
 - Beach-ridge cross-sections keep their plan centreline and gain three Z sets joined by a sigmoid. The top third is 30% thicker, then that thickness tapers to half through the middle third and to 33% at the toe. End caps are ear-clipped so the diagonals stay inside the section. The swale still fills the open gap down to the water slab, stopping where the thicker top set closes it. The shale runs from that swale base to the ridge bases: thin or absent in the top set, thicker in the mid set, and thickest in the toe set.

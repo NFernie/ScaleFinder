@@ -25,6 +25,8 @@ export interface SceneBody {
   channelLength?: number
   /** Plan size of a ground slab when it is larger than the default water slab. */
   groundSpan?: { width: number; depth: number }
+  /** Label-only taxonomy helper; omit from WebGL-failure text list. */
+  taxonomyLabelOnly?: boolean
 }
 
 export interface PlacedBody extends SceneBody {

@@ -14,8 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Schematic camera frame helpers: `fitDistance`, `ZoomLimits`, optional limits on `zoomDistance`, `clampTargetInsideSphere`, and `frameCameraKeepingDirection` in `schematicFrame.ts`.
-- Taxonomy explode label-only bodies and `showLabel` thresholds in `applyExplode` (`tax-label-ec-*`, `tax-label-es-*`; ECS at nested, EC/ES/E labels per slider stage).
-- Core taxonomy explode stage maths: `applyExplode`, `stageWeights`, and constants `S_EC`, `H`, `R_E_RIDGE_SET`, `R_E_MOUTH_SET` in `src/core/explode.ts`.
 - Each beach-ridge set in the Wf, asymmetric, and Tfw scenes has a stone shale under each swale (`e-shale-*`, `BRShaleGeometry.ts`). The sides follow the same facing hypotenuses as the swale. The wedge fills from just under the swale down to the ridge bases, and stops where those faces meet, so a tapering loft is thin beside the channel and thick at the tip. A uniform convex loft meets just under the swale along the whole arc, so that shale runs from the bases up to the meeting.
 - Each beach-ridge set in the Wf, asymmetric, and Tfw scenes has a green swale between consecutive ridges (`e-swale-*`). The top follows the two crest lines of that pair, using the loft already on those ridges (symmetric, asymmetric, or convex-seaward). The sides follow the facing hypotenuses down to the top of the water slab.
 
@@ -33,9 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Wf schematic Explode slider: ECS/EC/ES/E markers under the track, stage text on `aria-valuetext`, taxonomy label-only bodies omitted from the WebGL-failure list, and `PANEL_VERTICAL_CHROME_FALLBACK_PX` raised for the marker row.
-- The Wf schematic WebGL view measures a full-explode bounding sphere at mount (meshes at 0, ⅓, ⅔, and 1), derives per-scene zoom limits and `camera.far`, clamps pan to that sphere, and re-frames without animation when the Explode slider moves (not on open or pin switch).
-- Wf, asymmetric, and Tfw schematic `sceneAt` now build each scene’s rest body list and delegate explode placement and labels to `applyExplode` in `src/core/explode.ts` (replacing radial `EXPLODE_SPREAD` spread in the scene modules).
+- Wf, asymmetric, and Tfw schematic Explode opens the four taxonomy scales in three equal slider stages: element complexes separate in the ground plane about the water slab, one element set per complex rises, then the elements of each risen set spread in a ring. `sceneAt` delegates placement and labels to `applyExplode` in `src/core/explode.ts` (replacing radial `EXPLODE_SPREAD`). Four ECS/EC/ES/E markers under the track, stage text on `aria-valuetext`, and taxonomy label-only bodies omitted from the WebGL-failure list; `PANEL_VERTICAL_CHROME_FALLBACK_PX` rises for the marker row. The WebGL view measures a full-explode bounding sphere at mount, derives per-scene zoom limits and `camera.far`, clamps pan to that sphere, and re-frames without animation when the slider moves (not on open or pin switch).
 - The Tfw tidal channel is fully opaque (transparency 0%).
 - Beach-ridge cross-sections keep their plan centreline and gain three Z sets joined by a sigmoid. The top third is 30% thicker, then that thickness tapers to half through the middle third and to 33% at the toe. End caps are ear-clipped so the diagonals stay inside the section. The swale still fills the open gap down to the water slab, stopping where the thicker top set closes it. The shale runs from that swale base to the ridge bases: thin or absent in the top set, thicker in the mid set, and thickest in the toe set.
 - The swale fills only the open gap above the water slab. The crest edge follows the ridge step-down, the sides trace the facing hypotenuses down to the slab top, and any connector that would enter a beach-ridge mesh is left out.
@@ -67,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- `DESIGN.md`, `features/elementmeshlist.md`, `features/wfpaneldesignsummary.md`, and `features/schematic_module.md` record the three-stage taxonomy explode (`src/core/explode.ts`), slider markers, camera auto-frame, and label-only taxonomy bodies.
 - `features/elementmeshlist.md` states the four scales in full. An element is one mesh. An element set is three mouth bars, or one beach ridge plus its landward swale and shale where that gap exists. An element complex is one beach-ridge flank with all of its swales and shales, or one mouth-bar fan (proximal, mid, or distal). An element complex set is one scene (`wf`, `asym`, or `tfw`). Scene-graph group ids stay as stored, and the taxonomy says where one id covers more than one set or complex. `.cursor/rules/elementmeshlist-sync.mdc` uses the same meanings.
 - `features/elementmeshlist.md` records the E / ES / EC / ECS build for each scene (what each scale is created from, and how many elements sit inside it) and a Scale column on each mesh row. `.cursor/rules/elementmeshlist-sync.mdc` requires that taxonomy to stay in step with scene changes.
 - `features/elementmeshlist.md` tables the Wf schematic element meshes (geometry, scenes, and arrangement).

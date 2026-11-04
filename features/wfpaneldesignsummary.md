@@ -18,7 +18,7 @@ These branches are merged into `cursor/wf-schematic-panel-design-69e0`. Continue
 
 The 50% overlap coefficient is not the runtime scale. The later 100% scale replaces it and keeps the same `MOUTH_FAN_X_SCALE` mechanism.
 
-For mesh authoring workflow and skills, still read [`features/schematic_module.md`](schematic_module.md). Explode is radial from the origin; the panel notes below and [`DESIGN.md`](../DESIGN.md) under `### Wf schematic pin` match that.
+For mesh authoring workflow and skills, still read [`features/schematic_module.md`](schematic_module.md). Explode is a three-stage taxonomy explode in `src/core/explode.ts`; the panel notes below and [`DESIGN.md`](../DESIGN.md) under `### Wf schematic pin` match that.
 
 ---
 
@@ -31,7 +31,7 @@ For mesh authoring workflow and skills, still read [`features/schematic_module.m
 | **3D view** | WebGL when available; fallback text list from `sceneAt(0)` (explode slider does not change the list). |
 | **Resize** | Top-left 44px handle; aspect ratio **328∶224**; bottom-right of panel fixed; keyboard ±16px. |
 | **Camera** | Start `(6.5, 5.5, 7.5)` looking at `(0, 0.4, 0.6)`. Orbit on drag; **Space + drag** pans; zoom buttons + wheel (detented). Zoom/orbit use `controls.target` after pan. Map does not receive pointer on the canvas (`stopPropagation`). |
-| **Explode** | Slider 0–1. Each solid moves along the ray from **origin through its world centre**; at `t = 1` centres are **5×** farther out (`EXPLODE_SPREAD`). Nested pose at `t = 0`. Label bands unchanged (complexes after 0, sets after ⅓, three element labels after ⅔). |
+| **Explode** | Slider 0–1 in three equal stages (ECS → EC → ES → E). Each scene’s `sceneAt` delegates placement and labels to `applyExplode` in `src/core/explode.ts`. Stage 1: element complexes (and standalone elements) scale in the ground plane about the water-slab centre. Stage 2: one risen element set per complex lifts in Y. Stage 3: elements of each risen set spread in an XZ ring. Four markers under the track (ECS, EC, ES, E). Nested pose at `t = 0`. Label thresholds unchanged in spirit (ECS at 0, EC after 0, risen ES after ⅓, E kinds after ⅔). |
 | **Labels** | Canvas sprites on each body group; 120ms opacity fade when a name first appears; `cssEaseOut` in core. |
 | **Docs** | [`docs/superpowers/specs/2026-10-09-wf-schematic-panel-design.md`](../docs/superpowers/specs/2026-10-09-wf-schematic-panel-design.md) (historical; explode/pan superseded by product). |
 
@@ -88,22 +88,23 @@ At explode `0`, `sceneAt` returns `position: body.nested` exactly (no float drif
 
 Mouth bars carry `yaw` (radians, +Y). Positive yaw swings the seaward end toward **+X**. Applied on the group: `object.rotation.y = body.yaw ?? 0`.
 
-### Explode (`sceneAt`)
+### Explode (`sceneAt` → `applyExplode`)
+
+Each scene module builds its rest body list (nested poses, generated swales/shales, Tfw extras), then calls `applyExplode(rest, sceneId, t, bodyCenter)` in [`src/core/explode.ts`](../src/core/explode.ts).
 
 ```text
 t = clamp(explode, 0, 1)
-spread = 1 + (EXPLODE_SPREAD - 1) * t   // EXPLODE_SPREAD = 5
-
-local = rotateYaw(localCenter(body), yaw)
-center = bodyCenter(body)   // nested + local in world frame
-
-position = center * spread - local
+u1 = clamp(3t,     0, 1)   // ECS → EC (ground-plane scale about ecs centre)
+u2 = clamp(3t - 1, 0, 1)   // EC → ES (one risen set per EC lifts in Y)
+u3 = clamp(3t - 2, 0, 1)   // ES → E (ring spread in XZ for risen sets)
 ```
 
-- **`localCenter(body)`** — centroid of mesh in body-local space (ridge: mean of stations; mouth bar: `(0, MOUTH_BAR_SCALE.y/2, 0)`; channel: `(0, -CHANNEL_RADIUS/2, 0)`; group/ground: origin).
-- **`bodyCenter(body)`** — exported; use for tests and explode direction.
+Constants: `S_EC`, `H`, `R_E_RIDGE_SET`, `R_E_MOUTH_SET`. Classification is by body id (see design spec §3).
 
-Explode is **uniform per body** (not staggered bands in time). Label visibility still uses band thresholds on `t`.
+- **`bodyCenter(body)`** — exported; used for centres and tests.
+- **`localCenter(body)`** — still used inside scene modules for nested geometry.
+
+Explode is **linear with the thumb** (no ease). Label visibility uses band thresholds on `t`; taxonomy EC/ES labels are label-only bodies from the explode module.
 
 ---
 
@@ -186,7 +187,7 @@ Lights: ambient + hemisphere + directional (fixed positions in view setup).
 | `GROUND_THICKNESS`, `WATER_COLOUR`, `WATER_OPACITY` | Ground slab. |
 | `beachRidgeStations`, `beachRidgeRing` | Ridge silhouette. |
 | `channelSpan`, `waterlineY`, `mouthBarBaseOffset`, `mouthBarCrownY`, `seawardRidgeBaseY` | Alignment constraints (tests document channel–ridge meeting). |
-| `sceneAt`, `bodyCenter`, `EXPLODE_SPREAD` | Layout and explode. |
+| `sceneAt`, `bodyCenter` | Layout; explode placement lives in `applyExplode` (`explode.ts`). |
 | `WF_ANCHOR` | Map pin only. |
 
 ---
@@ -195,7 +196,8 @@ Lights: ambient + hemisphere + directional (fixed positions in view setup).
 
 | File | Covers |
 | --- | --- |
-| [`src/core/wfSchematic.test.ts`](../src/core/wfSchematic.test.ts) | Hierarchy, channel trim, ridge stacking, **radial explode**, labels, `cssEaseOut`. |
+| [`src/core/wfSchematic.test.ts`](../src/core/wfSchematic.test.ts) | Hierarchy, channel trim, ridge stacking, **taxonomy explode via `applyExplode`**, labels, `cssEaseOut`. |
+| [`src/core/explode.test.ts`](../src/core/explode.test.ts) | Classification, stage weights, positions, labels, label-only bodies. |
 | [`src/ui/wfChannelGeometry.test.ts`](../src/ui/wfChannelGeometry.test.ts) | Half-cylinder bounds and face normals. |
 | [`src/ui/beachRidgeGeometry.test.ts`](../src/ui/beachRidgeGeometry.test.ts) | Right-flank loft matches core rings; left flank is the X mirror. |
 | [`src/ui/mouthBarGeometry.test.ts`](../src/ui/mouthBarGeometry.test.ts) | Spheroid bounds, seaward dip, crown height. |
@@ -238,7 +240,7 @@ Reference PNG: [`WF_element complex set.png`](../WF_element%20complex%20set.png)
 
 | Doc | Issue |
 | --- | --- |
-| [`features/schematic_module.md`](schematic_module.md) | Says explode adds **Y by rank**; branch uses **origin radial** `sceneAt`. |
+| [`features/schematic_module.md`](schematic_module.md) | Older workflow lines about radial explode; current behaviour is in `DESIGN.md` and `src/core/explode.ts`. |
 | [`docs/superpowers/specs/2026-10-09-wf-schematic-panel-design.md`](../docs/superpowers/specs/2026-10-09-wf-schematic-panel-design.md) | Original **sphere bands** (8/6/5) and **no pan**; superseded by `DESIGN.md` + this branch. |
 
 **Source of truth for current explode/pan/copy:** [`DESIGN.md`](../DESIGN.md) `### Wf schematic pin`, [`CHANGELOG.md`](../CHANGELOG.md) `[Unreleased]`.

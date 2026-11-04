@@ -150,7 +150,11 @@ describe('explode stages', () => {
     for (const body of placed) {
       if (body.taxonomyLabelOnly) continue
       expect(body.position).toEqual(body.nested)
-      expect(body.showLabel).toBe(false)
+      if (body.id === 'ecs') {
+        expect(body.showLabel).toBe(true)
+      } else {
+        expect(body.showLabel).toBe(false)
+      }
     }
   })
 
@@ -268,5 +272,61 @@ describe('explode stages', () => {
     expect(p56.x - p23.x).toBeCloseTo((p1.x - p23.x) / 2, 5)
     expect(p56.z - p23.z).toBeCloseTo((p1.z - p23.z) / 2, 5)
     expect(p56.y).toBeCloseTo(p1.y, 5)
+  })
+})
+
+describe('explode taxonomy labels', () => {
+  it('shows taxonomy labels at thresholds on wf', () => {
+    const rest = restWf()
+    const at0 = applyExplode(rest, 'wf', 0, bodyCenter)
+    expect(at0.filter((b) => b.showLabel && !b.taxonomyLabelOnly).map((b) => b.id)).toEqual(['ecs'])
+    const above0 = applyExplode(rest, 'wf', 0.01, bodyCenter)
+    expect(above0.filter((b) => b.showLabel && b.taxonomyLabelOnly && b.rank === 'element-complex')).toHaveLength(5)
+    const aboveThird = applyExplode(rest, 'wf', 1 / 3 + 0.01, bodyCenter)
+    expect(aboveThird.filter((b) => b.showLabel && b.taxonomyLabelOnly && b.rank === 'element-set')).toHaveLength(5)
+  })
+
+  it('shows element representatives and standalone labels above 2/3 on wf', () => {
+    const rest = restWf()
+    const aboveTwoThirds = applyExplode(rest, 'wf', 2 / 3 + 0.01, bodyCenter)
+    const elementLabels = aboveTwoThirds.filter(
+      (b) => b.showLabel && b.rank === 'element' && !b.taxonomyLabelOnly,
+    )
+    expect(elementLabels.length).toBeGreaterThanOrEqual(4)
+    expect(elementLabels.some((b) => b.id === 'e-channel')).toBe(true)
+    const kinds = new Set(elementLabels.map((b) => b.kind))
+    expect(kinds.has('beach-ridge')).toBe(true)
+    expect(kinds.has('mouth-bar')).toBe(true)
+  })
+
+  it('returns the same body ids for every explode value', () => {
+    const rest = restWf()
+    const samples = [0, 0.01, 1 / 3, 1 / 3 + 0.01, 2 / 3, 2 / 3 + 0.01, 1]
+    const idSets = samples.map((t) =>
+      applyExplode(rest, 'wf', t, bodyCenter)
+        .map((b) => b.id)
+        .sort(),
+    )
+    for (let i = 1; i < idSets.length; i++) {
+      expect(idSets[i]).toEqual(idSets[0])
+    }
+    expect(idSets[0].some((id) => id.startsWith('tax-label-ec-'))).toBe(true)
+    expect(idSets[0].some((id) => id.startsWith('tax-label-es-'))).toBe(true)
+  })
+
+  it('keeps scene-graph groups at nested pose with labels off', () => {
+    const rest = restWf()
+    const atFull = applyExplode(rest, 'wf', 1, bodyCenter)
+    for (const id of ['ec-lobe', 'ec-mouth', 'es-ridge-r']) {
+      const body = atFull.find((b) => b.id === id)!
+      expect(body.position).toEqual(body.nested)
+      expect(body.showLabel).toBe(false)
+    }
+  })
+
+  it('emits nine EC taxonomy labels on tfw above zero', () => {
+    const rest = restBodiesFor('tfw')
+    const above0 = applyExplode(rest, 'tfw', 0.01, bodyCenter)
+    expect(above0.filter((b) => b.showLabel && b.taxonomyLabelOnly && b.rank === 'element-complex')).toHaveLength(9)
   })
 })

@@ -51,11 +51,11 @@ function ridgeFlankClassification(id: string): { ecKey: string; esIndex: number 
 }
 
 export function classifyBody(body: SceneBody): BodyClassification {
-  if (body.kind === 'group' || body.kind === 'ground') {
-    return 'skip'
-  }
   if (body.id === 'ecs') {
     return 'ecs'
+  }
+  if (body.kind === 'group' || body.kind === 'ground') {
+    return 'skip'
   }
   if (STANDALONE_IDS.has(body.id)) {
     return 'standalone'
@@ -154,6 +154,114 @@ function circularMean(angles: readonly number[]): number {
 
 const SEAWARD_BEARING = Math.PI / 2
 const ZERO_XZ_EPS = 1e-9
+
+/** EC scan order for element-kind representatives (spec §6). */
+const EC_SCAN_ORDER: readonly string[] = [
+  'ridge-r',
+  'ridge-l',
+  'ridge-hl',
+  'mouth',
+  'mouth-prox',
+  'mouth-sea',
+  'mouth-dist',
+  'mouth-l',
+  'mouth-l-prox',
+  'mouth-l-dist',
+]
+
+const E_KIND_SCAN_ORDER: readonly SolidKind[] = ['beach-ridge', 'swale', 'shale', 'mouth-bar']
+
+type SolidKind = SceneBody['kind']
+
+function ecKeysInScanOrder(ecKeys: Iterable<string>): string[] {
+  const present = new Set(ecKeys)
+  return EC_SCAN_ORDER.filter((key) => present.has(key))
+}
+
+function ecDisplayName(scene: SchematicSceneId, ecKey: string): string {
+  const wfAsym: Record<string, string> = {
+    'ridge-l': 'Beach-ridge complex, left',
+    'ridge-r': 'Beach-ridge complex, right',
+    'mouth-prox': 'Mouth-bar complex, proximal',
+    mouth: 'Mouth-bar complex, seaward',
+    'mouth-sea': 'Mouth-bar complex, seaward',
+    'mouth-dist': 'Mouth-bar complex, distal',
+  }
+  const tfw: Record<string, string> = {
+    'ridge-l': 'Beach-ridge complex, left',
+    'ridge-r': 'Beach-ridge complex, right',
+    'ridge-hl': 'Beach-ridge complex, half channel',
+    'mouth-prox': 'Mouth-bar complex, tidal proximal',
+    mouth: 'Mouth-bar complex, tidal seaward',
+    'mouth-sea': 'Mouth-bar complex, tidal mid',
+    'mouth-l-prox': 'Mouth-bar complex, half-channel proximal',
+    'mouth-l': 'Mouth-bar complex, half-channel seaward',
+    'mouth-l-dist': 'Mouth-bar complex, half-channel distal',
+  }
+  const table = scene === 'tfw' ? tfw : wfAsym
+  const name = table[ecKey]
+  if (!name) {
+    throw new Error(`No EC display name for "${ecKey}" in scene "${scene}"`)
+  }
+  return name
+}
+
+function esDisplayName(ecKey: string): string {
+  return ecKey.startsWith('ridge') ? 'Beach-ridge set' : 'Mouth-bar set'
+}
+
+function showEcsLabel(t: number): boolean {
+  return clamp01(t) >= 0
+}
+
+function showEcTaxonomyLabel(t: number): boolean {
+  return clamp01(t) > 0
+}
+
+function showEsTaxonomyLabel(t: number): boolean {
+  return clamp01(t) > 1 / 3
+}
+
+function showElementLabel(t: number): boolean {
+  return clamp01(t) > 2 / 3
+}
+
+function findElementRepresentatives(
+  ecMembers: Map<string, SceneBody[]>,
+  esMembers: Map<string, SceneBody[]>,
+): Set<string> {
+  const representatives = new Set<string>()
+  const kindsFound = new Set<SolidKind>()
+
+  for (const ecKey of EC_SCAN_ORDER) {
+    if (!ecMembers.has(ecKey)) {
+      continue
+    }
+    const esIndex = ecKey.startsWith('ridge') ? 2 : 1
+    const esKey = `${ecKey}\0${esIndex}`
+    const members = esMembers.get(esKey)
+    if (!members) {
+      continue
+    }
+    const sorted = [...members].sort((a, b) => a.id.localeCompare(b.id))
+    for (const member of sorted) {
+      if (!E_KIND_SCAN_ORDER.includes(member.kind as (typeof E_KIND_SCAN_ORDER)[number])) {
+        continue
+      }
+      if (kindsFound.has(member.kind)) {
+        continue
+      }
+      kindsFound.add(member.kind)
+      representatives.add(member.id)
+    }
+  }
+
+  return representatives
+}
+
+function addVec(a: Vec3, b: Vec3): Vec3 {
+  return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z }
+}
 
 function stage3Offsets(
   members: readonly SceneBody[],
@@ -295,14 +403,29 @@ export function applyExplode(
   }
 
   const zero = { x: 0, y: 0, z: 0 }
+  const c = clamp01(t)
+  const elementRepresentatives = findElementRepresentatives(ecMembers, esMembers)
+  const orderedEcKeys = ecKeysInScanOrder(ecMembers.keys())
 
-  return bodies.map((body) => {
+  const esCentres = new Map<string, Vec3>()
+  for (const [esKey, members] of esMembers) {
+    esCentres.set(esKey, meanCenter(members, centerOf))
+  }
+
+  const placedSolids: PlacedBody[] = bodies.map((body) => {
     const classification = classifyBody(body)
-    if (classification === 'skip' || classification === 'ecs') {
+    if (classification === 'skip') {
       return {
         ...body,
         position: { ...body.nested },
         showLabel: false,
+      }
+    }
+    if (classification === 'ecs') {
+      return {
+        ...body,
+        position: { ...body.nested },
+        showLabel: showEcsLabel(c),
       }
     }
 
@@ -316,6 +439,13 @@ export function applyExplode(
     const d2 = delta2ByMember.get(body.id) ?? zero
     const d3 = delta3ByMember.get(body.id) ?? zero
 
+    let showLabel = false
+    if (classification === 'standalone') {
+      showLabel = showElementLabel(c)
+    } else if (typeof classification === 'object') {
+      showLabel = showElementLabel(c) && elementRepresentatives.has(body.id)
+    }
+
     return {
       ...body,
       position: {
@@ -323,7 +453,49 @@ export function applyExplode(
         y: body.nested.y + d1.y + d2.y + d3.y,
         z: body.nested.z + d1.z + d2.z + d3.z,
       },
-      showLabel: false,
+      showLabel,
     }
   })
+
+  const taxonomyLabels: PlacedBody[] = []
+
+  for (const ecKey of orderedEcKeys) {
+    const centre = ecCentres.get(ecKey)!
+    const d1 = delta1ByEc.get(ecKey) ?? zero
+    taxonomyLabels.push({
+      id: `tax-label-ec-${ecKey}`,
+      name: ecDisplayName(scene, ecKey),
+      rank: 'element-complex',
+      parentId: 'ecs',
+      kind: 'group',
+      nested: { ...centre },
+      taxonomyLabelOnly: true,
+      position: addVec(centre, d1),
+      showLabel: showEcTaxonomyLabel(c),
+    })
+  }
+
+  for (const ecKey of orderedEcKeys) {
+    const esIndex = ecKey.startsWith('ridge') ? 2 : 1
+    const esKey = `${ecKey}\0${esIndex}`
+    const centre = esCentres.get(esKey)
+    if (!centre) {
+      continue
+    }
+    const d1 = delta1ByEc.get(ecKey) ?? zero
+    const d2 = { x: 0, y: H * u2, z: 0 }
+    taxonomyLabels.push({
+      id: `tax-label-es-${ecKey}-${esIndex}`,
+      name: esDisplayName(ecKey),
+      rank: 'element-set',
+      parentId: 'ecs',
+      kind: 'group',
+      nested: { ...centre },
+      taxonomyLabelOnly: true,
+      position: addVec(addVec(centre, d1), d2),
+      showLabel: showEsTaxonomyLabel(c),
+    })
+  }
+
+  return [...placedSolids, ...taxonomyLabels]
 }

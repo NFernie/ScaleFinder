@@ -4,7 +4,7 @@ export const FRAME_KEY_STEP_PX = 16
 /** Horizontal padding on the panel section (`p-3` × 2); frame width is section width minus this. */
 export const PANEL_HORIZONTAL_PAD_PX = 24
 /** Conservative chrome below/above the frame when layout has not been measured yet. */
-export const PANEL_VERTICAL_CHROME_FALLBACK_PX = 218
+export const PANEL_VERTICAL_CHROME_FALLBACK_PX = 246
 
 export function mapFrameElementFromPanel(section: HTMLElement | null): HTMLElement | null {
   if (!section) return null

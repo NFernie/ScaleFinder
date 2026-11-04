@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Wf schematic Explode slider: ECS/EC/ES/E markers under the track, stage text on `aria-valuetext`, taxonomy label-only bodies omitted from the WebGL-failure list, and `PANEL_VERTICAL_CHROME_FALLBACK_PX` raised for the marker row.
 - The Wf schematic WebGL view measures a full-explode bounding sphere at mount (meshes at 0, ⅓, ⅔, and 1), derives per-scene zoom limits and `camera.far`, clamps pan to that sphere, and re-frames without animation when the Explode slider moves (not on open or pin switch).
 - Wf, asymmetric, and Tfw schematic `sceneAt` now build each scene’s rest body list and delegate explode placement and labels to `applyExplode` in `src/core/explode.ts` (replacing radial `EXPLODE_SPREAD` spread in the scene modules).
 - The Tfw tidal channel is fully opaque (transparency 0%).

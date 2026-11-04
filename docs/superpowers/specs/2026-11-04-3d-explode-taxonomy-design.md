@@ -1,6 +1,6 @@
 # 3D explode by scale taxonomy — Design Spec
 
-- **Status:** Design approved section by section on 2026-11-04. This written spec is awaiting review.
+- **Status:** Design approved 2026-11-04. Implementation plan: [`docs/superpowers/plans/2026-11-04-3d-explode-taxonomy.md`](../plans/2026-11-04-3d-explode-taxonomy.md).
 - **Date:** 2026-11-04
 - **Branch:** `3d_explode_update` (cut from `main` at `7d79fd4`; the panel-design branch, PR #18, is already in `main`)
 - **Revises:** the Explode and Camera parts of [`2026-10-09-wf-schematic-panel-design.md`](2026-10-09-wf-schematic-panel-design.md), and the Explode paragraph and camera paragraph under `### Wf schematic pin` in [`DESIGN.md`](../../../DESIGN.md). Pins, caption, title, resize, colours, and every mesh stay as they are.

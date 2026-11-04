@@ -9,7 +9,7 @@ describe('asymWfSchematic', () => {
     const asym = asymSceneAt(0)
     const wf = wfSceneAt(0)
     expect(asym.map((body) => body.id)).toEqual(wf.map((body) => body.id))
-    for (const body of asym) {
+    for (const body of asym.filter((item) => !item.taxonomyLabelOnly)) {
       const match = wf.find((item) => item.id === body.id)
       const leftFill =
         (body.kind === 'swale' && body.id.startsWith('e-swale-l-')) ||

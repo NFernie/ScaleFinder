@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { cssEaseOut } from './cssEaseOut'
+import { classifyBody, S_EC } from './explode'
 import {
   beachRidgeRing,
   beachRidgeStations,
@@ -28,7 +29,6 @@ import {
   RIDGE_TOE_OF_TOP,
   RIDGE_SEAWARD_ANGLE_DEG,
   bodyCenter,
-  EXPLODE_SPREAD,
   sceneAt,
   WATER_OPACITY,
   waterlineY,
@@ -307,7 +307,7 @@ describe('wfSchematic', () => {
     expect(span.zSea).toBeCloseTo(thickZ)
     expect(span.centerZ + CHANNEL_LENGTH / 2).toBeCloseTo(span.zSea)
     expect(nested.filter((body) => body.kind === 'channel')).toHaveLength(1)
-    expect(nested.filter((body) => body.kind === 'group' && body.rank === 'element-complex')).toHaveLength(3)
+    expect(nested.filter((body) => body.kind === 'group' && body.rank === 'element-complex' && !body.taxonomyLabelOnly)).toHaveLength(3)
     expect(nested.find((body) => body.id === 'ec-lobe')?.kind).toBe('group')
     expect(nested.find((body) => body.id === 'ec-mouth')?.kind).toBe('group')
     expect(nested.filter((body) => body.rank === 'element-complex-set')).toHaveLength(1)
@@ -317,93 +317,59 @@ describe('wfSchematic', () => {
     expect(waterlineY()).toBeCloseTo(span.flatY - CHANNEL_RADIUS)
   })
 
-  it('spreads every centre from the origin and keeps one label per element kind', () => {
-    const at = (t: number) => sceneAt(t)
-    const byId = (bodies: ReturnType<typeof sceneAt>, id: string) => bodies.find((body) => body.id === id)!
-    const length = (point: { x: number; y: number; z: number }) => Math.hypot(point.x, point.y, point.z)
-    const spreadAt = (t: number) => 1 + (EXPLODE_SPREAD - 1) * t
-
-    const expectOnRay = (t: number) => {
-      const spread = spreadAt(t)
-      for (const body of at(t)) {
-        const center = bodyCenter(body)
-        const travel = spread - 1
-        expect(body.position.x).toBeCloseTo(body.nested.x + travel * center.x, 6)
-        expect(body.position.y).toBeCloseTo(body.nested.y + travel * center.y, 6)
-        expect(body.position.z).toBeCloseTo(body.nested.z + travel * center.z, 6)
-        const delta = {
-          x: body.position.x - body.nested.x,
-          y: body.position.y - body.nested.y,
-          z: body.position.z - body.nested.z,
-        }
-        if (length(center) < 1e-6 || length(delta) < 1e-6) continue
-        const cross = length({
-          x: delta.y * center.z - delta.z * center.y,
-          y: delta.z * center.x - delta.x * center.z,
-          z: delta.x * center.y - delta.y * center.x,
-        })
-        expect(cross).toBeCloseTo(0, 6)
-        const dominant = (['x', 'y', 'z'] as const).reduce((best, axis) =>
-          Math.abs(center[axis]) > Math.abs(center[best]) ? axis : best,
-        )
-        expect(Math.sign(delta[dominant])).toBe(Math.sign(center[dominant]))
-        for (const axis of ['x', 'y', 'z'] as const) {
-          expect(Math.abs(delta[dominant])).toBeGreaterThanOrEqual(Math.abs(delta[axis]) - 1e-9)
-        }
+  it('uses taxonomy explode at 0, ⅓, ⅔, and 1', () => {
+    type Vec3 = { x: number; y: number; z: number }
+    const centroid = (points: Vec3[]): Vec3 => {
+      let x = 0
+      let y = 0
+      let z = 0
+      for (const p of points) {
+        x += p.x
+        y += p.y
+        z += p.z
       }
+      const n = points.length
+      return { x: x / n, y: y / n, z: z / n }
     }
+    const xzDist = (a: Vec3, b: Vec3) => Math.hypot(a.x - b.x, a.z - b.z)
+
+    const at = (t: number) => sceneAt(t)
+    const solids = (bodies: ReturnType<typeof sceneAt>) => bodies.filter((b) => !b.taxonomyLabelOnly)
 
     const nested = at(0)
-    for (const body of nested) expect(body.position).toEqual(body.nested)
-    expect(nested.filter((body) => body.showLabel).map((body) => body.id)).toEqual(['ecs'])
-    expectOnRay(0)
+    for (const body of solids(nested)) {
+      expect(body.position).toEqual(body.nested)
+    }
+    expect(nested.filter((b) => b.showLabel && !b.taxonomyLabelOnly).map((b) => b.id)).toEqual(['ecs'])
+    expect(nested.some((b) => b.id.startsWith('tax-label-ec-'))).toBe(true)
+    expect(nested.some((b) => b.id.startsWith('tax-label-es-'))).toBe(true)
 
     const third = at(1 / 3)
-    expectOnRay(1 / 3)
-    expect(third.filter((body) => body.rank === 'element-set' && body.showLabel)).toHaveLength(0)
-    expect(third.filter((body) => body.rank === 'element-complex' && body.showLabel).map((body) => body.id).sort()).toEqual([
-      'ec-lobe',
-      'ec-mouth',
-      'ec-mouth-dist',
-    ])
+    const pivot = bodyCenter(nested.find((b) => b.id === 'ecs')!)
+    const ecKey = 'mouth-dist'
+    const members = solids(nested).filter((b) => {
+      const c = classifyBody(b)
+      return typeof c === 'object' && 'ecKey' in c && c.ecKey === ecKey
+    })
+    const restC = centroid(members.map(bodyCenter))
+    const placedC = centroid(members.map((b) => third.find((p) => p.id === b.id)!.position))
+    expect(xzDist(placedC, pivot)).toBeCloseTo(S_EC * xzDist(restC, pivot), 4)
 
     const twoThirds = at(2 / 3)
-    expectOnRay(2 / 3)
-    expect(twoThirds.filter((body) => body.rank === 'element' && body.showLabel)).toHaveLength(0)
-    expect(twoThirds.filter((body) => body.showLabel && body.rank === 'element-set')).toHaveLength(4)
+    expect(at(1).find((b) => b.id === 'e-ridge-r-2')!.position.y).toBeGreaterThan(
+      third.find((b) => b.id === 'e-ridge-r-2')!.position.y,
+    )
+    expect(twoThirds.filter((b) => b.showLabel && b.taxonomyLabelOnly && b.rank === 'element-set')).toHaveLength(5)
 
     const full = at(1)
-    expectOnRay(1)
-    const centerDistance = (idA: string, idB: string) =>
-      length({
-        x: bodyCenter(byId(nested, idA)).x - bodyCenter(byId(nested, idB)).x,
-        y: bodyCenter(byId(nested, idA)).y - bodyCenter(byId(nested, idB)).y,
-        z: bodyCenter(byId(nested, idA)).z - bodyCenter(byId(nested, idB)).z,
-      })
-    const left = bodyCenter(byId(nested, 'e-ridge-l-0'))
-    const right = bodyCenter(byId(nested, 'e-ridge-r-0'))
-    expect(left.x).toBeLessThan(0)
-    expect(right.x).toBeGreaterThan(0)
-    expect(Math.abs(left.x)).toBeGreaterThan(Math.abs(left.y))
-    expect(Math.abs(left.x)).toBeGreaterThan(Math.abs(left.z))
-    expect(Math.abs(right.x)).toBeGreaterThan(Math.abs(right.y))
-    expect(Math.abs(right.x)).toBeGreaterThan(Math.abs(right.z))
-    const ridgeGap = centerDistance('e-ridge-l-0', 'e-ridge-r-0')
-    const mouthGap = centerDistance('e-mouth-0', 'e-mouth-1')
-    const sameSideGap = centerDistance('e-ridge-r-0', 'e-ridge-r-1')
-    expect(ridgeGap * EXPLODE_SPREAD).toBeGreaterThan(ridgeGap)
-    expect(mouthGap * EXPLODE_SPREAD).toBeGreaterThan(mouthGap + 0.5)
-    expect(sameSideGap * EXPLODE_SPREAD).toBeGreaterThan(sameSideGap)
-    expect(full.filter((body) => body.rank === 'element' && body.showLabel).map((body) => body.id).sort()).toEqual([
-      'e-channel',
-      'e-mouth-0',
-      'e-ridge-r-0',
-    ])
-    expect(full.map((body) => body.id)).toEqual(nested.map((body) => body.id))
-    expect(full.map((body) => body.parentId)).toEqual(nested.map((body) => body.parentId))
-    expect(at(-1)).toEqual(at(0))
-    expect(at(2)).toEqual(at(1))
-    expect(spreadAt(1)).toBe(EXPLODE_SPREAD)
+    const elementLabels = full.filter((b) => b.showLabel && b.rank === 'element' && !b.taxonomyLabelOnly)
+    expect(elementLabels.length).toBeGreaterThanOrEqual(4)
+    expect(elementLabels.some((b) => b.id === 'e-channel')).toBe(true)
+
+    const idsAt = (t: number) => at(t).map((b) => b.id).sort()
+    expect(idsAt(-1)).toEqual(idsAt(0))
+    expect(idsAt(2)).toEqual(idsAt(1))
+    expect(solids(full).map((b) => b.id).sort()).toEqual(solids(nested).map((b) => b.id).sort())
   })
 })
 

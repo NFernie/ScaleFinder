@@ -165,9 +165,80 @@ export function fitSchematicFrame(input: {
   return { width, height: snapNearInteger(height) }
 }
 
-export function zoomDistance(distance: number, direction: 'in' | 'out'): number {
+export type ZoomLimits = { min: number; max: number }
+
+const DEFAULT_ZOOM_LIMITS: ZoomLimits = { min: ZOOM_MIN, max: ZOOM_MAX }
+
+/** Camera distance so a sphere of `radius` fits in the vertical and horizontal FOV (tighter angle wins). */
+export function fitDistance(
+  radius: number,
+  fovDeg: number,
+  aspect: number,
+  margin = 1.15,
+): number {
+  const verticalHalfRad = ((fovDeg * Math.PI) / 180) / 2
+  const horizontalHalfRad = Math.atan(Math.tan(verticalHalfRad) * aspect)
+  const halfAngle = Math.min(verticalHalfRad, horizontalHalfRad)
+  return (radius * margin) / Math.sin(halfAngle)
+}
+
+export function zoomDistance(
+  distance: number,
+  direction: 'in' | 'out',
+  limits: ZoomLimits = DEFAULT_ZOOM_LIMITS,
+): number {
   const next = direction === 'in' ? distance / ZOOM_STEP : distance * ZOOM_STEP
-  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next))
+  return Math.min(limits.max, Math.max(limits.min, next))
+}
+
+type Vec3 = { x: number; y: number; z: number }
+
+/** Pull the look-at target onto the sphere surface when it sits outside. */
+export function clampTargetInsideSphere(target: Vec3, center: Vec3, radius: number): Vec3 {
+  const dx = target.x - center.x
+  const dy = target.y - center.y
+  const dz = target.z - center.z
+  const dist = Math.hypot(dx, dy, dz)
+  if (dist <= radius || dist === 0) return target
+  const scale = radius / dist
+  return {
+    x: center.x + dx * scale,
+    y: center.y + dy * scale,
+    z: center.z + dz * scale,
+  }
+}
+
+/** Re-frame on the sphere centre while preserving the camera offset direction. */
+export function frameCameraKeepingDirection(params: {
+  position: Vec3
+  target: Vec3
+  sphereCenter: Vec3
+  sphereRadius: number
+  fovDeg: number
+  aspect: number
+  margin?: number
+  limits?: ZoomLimits
+}): { position: Vec3; target: Vec3 } {
+  const limits = params.limits ?? DEFAULT_ZOOM_LIMITS
+  const margin = params.margin ?? 1.15
+  const offset = {
+    x: params.position.x - params.target.x,
+    y: params.position.y - params.target.y,
+    z: params.position.z - params.target.z,
+  }
+  const offsetLength = Math.hypot(offset.x, offset.y, offset.z) || 1
+  const fit = fitDistance(params.sphereRadius, params.fovDeg, params.aspect, margin)
+  const distance = Math.min(limits.max, Math.max(limits.min, fit))
+  const scale = distance / offsetLength
+  const target = { ...params.sphereCenter }
+  return {
+    target,
+    position: {
+      x: target.x + offset.x * scale,
+      y: target.y + offset.y * scale,
+      z: target.z + offset.z * scale,
+    },
+  }
 }
 
 export type SchematicDrag = 'orbit' | 'pan'

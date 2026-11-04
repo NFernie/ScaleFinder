@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Schematic camera frame helpers: `fitDistance`, `ZoomLimits`, optional limits on `zoomDistance`, `clampTargetInsideSphere`, and `frameCameraKeepingDirection` in `schematicFrame.ts`.
 - Taxonomy explode label-only bodies and `showLabel` thresholds in `applyExplode` (`tax-label-ec-*`, `tax-label-es-*`; ECS at nested, EC/ES/E labels per slider stage).
 - Core taxonomy explode stage maths: `applyExplode`, `stageWeights`, and constants `S_EC`, `H`, `R_E_RIDGE_SET`, `R_E_MOUTH_SET` in `src/core/explode.ts`.
 - Each beach-ridge set in the Wf, asymmetric, and Tfw scenes has a stone shale under each swale (`e-shale-*`, `BRShaleGeometry.ts`). The sides follow the same facing hypotenuses as the swale. The wedge fills from just under the swale down to the ridge bases, and stops where those faces meet, so a tapering loft is thin beside the channel and thick at the tip. A uniform convex loft meets just under the swale along the whole arc, so that shale runs from the bases up to the meeting.
@@ -32,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Wf, asymmetric, and Tfw schematic `sceneAt` now build each scene’s rest body list and delegate explode placement and labels to `applyExplode` in `src/core/explode.ts` (replacing radial `EXPLODE_SPREAD` spread in the scene modules).
 - The Tfw tidal channel is fully opaque (transparency 0%).
 - Beach-ridge cross-sections keep their plan centreline and gain three Z sets joined by a sigmoid. The top third is 30% thicker, then that thickness tapers to half through the middle third and to 33% at the toe. End caps are ear-clipped so the diagonals stay inside the section. The swale still fills the open gap down to the water slab, stopping where the thicker top set closes it. The shale runs from that swale base to the ridge bases: thin or absent in the top set, thicker in the mid set, and thickest in the toe set.
 - The swale fills only the open gap above the water slab. The crest edge follows the ridge step-down, the sides trace the facing hypotenuses down to the slab top, and any connector that would enter a beach-ridge mesh is left out.

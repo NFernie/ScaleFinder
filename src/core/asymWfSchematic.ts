@@ -14,7 +14,15 @@ export const ASYM_WF_ANCHOR = { lat: 44.878674, lng: 29.515563 } as const
 
 export type Rank = 'element' | 'element-set' | 'element-complex' | 'element-complex-set'
 
-export type SolidKind = 'ground' | 'channel' | 'mouth-bar' | 'beach-ridge' | 'swale' | 'shale' | 'group'
+export type SolidKind =
+  | 'ground'
+  | 'channel'
+  | 'mouth-bar'
+  | 'beach-ridge'
+  | 'delta-plain'
+  | 'swale'
+  | 'shale'
+  | 'group'
 
 export interface SceneBody {
   id: string
@@ -25,6 +33,7 @@ export interface SceneBody {
   nested: { x: number; y: number; z: number }
   /** Yaw around Y, in radians. Positive swings the seaward end toward +X. */
   yaw?: number
+  taxonomyLabelOnly?: boolean
 }
 
 export interface PlacedBody extends SceneBody {

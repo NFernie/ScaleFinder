@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   cameraPositionAtDistance,
+  clampTargetInsideSphere,
+  fitDistance,
   fitSchematicFrame,
+  frameCameraKeepingDirection,
   FRAME_INSET_PX,
   FRAME_START,
   initialSchematicFrame,
@@ -107,6 +110,60 @@ describe('schematicFrame', () => {
     expect(zoomDistance(10, 'out')).toBeCloseTo(12.5)
     expect(zoomDistance(2, 'in')).toBe(2)
     expect(zoomDistance(60, 'out')).toBe(60)
+  })
+
+  it('fitDistance uses the tighter half-angle', () => {
+    const d = fitDistance(10, 40, 1)
+    expect(d).toBeGreaterThan(10)
+    expect(fitDistance(10, 40, 0.5)).toBeGreaterThan(d)
+  })
+
+  it('zoomDistance respects custom limits', () => {
+    const limits = { min: 2, max: 100 }
+    expect(zoomDistance(90, 'out', limits)).toBe(100)
+  })
+
+  it('clampTargetInsideSphere pulls an outside target back', () => {
+    const c = { x: 0, y: 0, z: 0 }
+    const out = clampTargetInsideSphere({ x: 50, y: 0, z: 0 }, c, 10)
+    expect(Math.hypot(out.x, out.y, out.z)).toBeCloseTo(10, 5)
+  })
+
+  it('clampTargetInsideSphere leaves an inside target unchanged', () => {
+    const c = { x: 0, y: 0, z: 0 }
+    const inside = { x: 3, y: 4, z: 0 }
+    expect(clampTargetInsideSphere(inside, c, 10)).toEqual(inside)
+  })
+
+  it('frameCameraKeepingDirection centres the target and keeps view direction', () => {
+    const position = { x: 6.5, y: 5.5, z: 7.5 }
+    const target = { x: 0, y: 0.4, z: 0.6 }
+    const sphereCenter = { x: 0, y: 0, z: 0 }
+    const framed = frameCameraKeepingDirection({
+      position,
+      target,
+      sphereCenter,
+      sphereRadius: 5,
+      fovDeg: 40,
+      aspect: 1,
+    })
+    expect(framed.target).toEqual(sphereCenter)
+    const before = {
+      x: position.x - target.x,
+      y: position.y - target.y,
+      z: position.z - target.z,
+    }
+    const beforeLen = Math.hypot(before.x, before.y, before.z)
+    const after = {
+      x: framed.position.x - framed.target.x,
+      y: framed.position.y - framed.target.y,
+      z: framed.position.z - framed.target.z,
+    }
+    const afterLen = Math.hypot(after.x, after.y, after.z)
+    expect(after.x / afterLen).toBeCloseTo(before.x / beforeLen)
+    expect(after.y / afterLen).toBeCloseTo(before.y / beforeLen)
+    expect(after.z / afterLen).toBeCloseTo(before.z / beforeLen)
+    expect(afterLen).toBeCloseTo(fitDistance(5, 40, 1))
   })
 
   it('keeps a panned look-at when the camera distance changes', () => {

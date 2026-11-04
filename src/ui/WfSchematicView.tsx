@@ -29,10 +29,14 @@ import { TIDAL_CHANNEL_OPACITY, tidalChannelGeometry } from './tidalChannelGeome
 import { cssEaseOut } from '../core/cssEaseOut'
 import {
   cameraPositionAtDistance,
+  clampTargetInsideSphere,
+  fitDistance,
+  frameCameraKeepingDirection,
   schematicDrag,
+  wheelZoomStep,
   ZOOM_MAX,
   ZOOM_MIN,
-  wheelZoomStep,
+  type ZoomLimits,
   zoomDistance,
 } from './schematicFrame'
 
@@ -137,6 +141,77 @@ function place(object: THREE.Object3D, body: PlacedBody) {
   object.rotation.y = body.yaw ?? 0
 }
 
+const FULL_EXPLODE_SAMPLES = [0, 1 / 3, 2 / 3, 1] as const
+
+function solidMeshInGroup(group: THREE.Object3D): THREE.Mesh | undefined {
+  for (const child of group.children) {
+    if (child instanceof THREE.Mesh) return child
+  }
+  return undefined
+}
+
+function unionSolidMeshBounds(
+  objects: Map<string, THREE.Object3D>,
+  scene: SchematicSceneId,
+  explode: number,
+  union: THREE.Box3,
+  scratch: THREE.Box3,
+): boolean {
+  let any = false
+  for (const body of layoutAt(scene, explode)) {
+    if (body.kind === 'group' || body.taxonomyLabelOnly) continue
+    const object = objects.get(body.id)
+    if (!object) continue
+    place(object, body)
+    const mesh = solidMeshInGroup(object)
+    if (!mesh) continue
+    scratch.setFromObject(mesh)
+    if (!any) {
+      union.copy(scratch)
+      any = true
+    } else {
+      union.union(scratch)
+    }
+  }
+  return any
+}
+
+function boundingSphereFromSolids(
+  objects: Map<string, THREE.Object3D>,
+  scene: SchematicSceneId,
+  explodeSamples: readonly number[],
+): THREE.Sphere {
+  const union = new THREE.Box3()
+  const scratch = new THREE.Box3()
+  let any = false
+  for (const t of explodeSamples) {
+    if (unionSolidMeshBounds(objects, scene, t, union, scratch)) any = true
+  }
+  const sphere = new THREE.Sphere()
+  if (any) union.getBoundingSphere(sphere)
+  else sphere.set(new THREE.Vector3(0, 0.4, 0.6), 1)
+  return sphere
+}
+
+function applyZoomLimits(
+  camera: THREE.PerspectiveCamera,
+  controls: OrbitControls,
+  sphereRadius: number,
+  limits: ZoomLimits,
+) {
+  controls.minDistance = limits.min
+  controls.maxDistance = limits.max
+  camera.far = Math.max(100, limits.max + 2 * sphereRadius)
+  camera.updateProjectionMatrix()
+}
+
+function zoomLimitsForSphere(radius: number, aspect: number): ZoomLimits {
+  return {
+    min: ZOOM_MIN,
+    max: Math.max(ZOOM_MAX, fitDistance(radius, 40, aspect)),
+  }
+}
+
 export type SchematicCameraHandle = {
   zoomBy: (direction: 'in' | 'out') => void
 }
@@ -155,6 +230,13 @@ const WfSchematicView = forwardRef<
   explodeRef.current = explode
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
   const controlsRef = useRef<OrbitControls | null>(null)
+  const zoomLimitsRef = useRef<ZoomLimits>({ min: ZOOM_MIN, max: ZOOM_MAX })
+  const fullExplodeSphereRef = useRef<{ center: THREE.Vector3; radius: number }>({
+    center: TARGET.clone(),
+    radius: 1,
+  })
+  const frameForExplodeRef = useRef<((t: number) => void) | null>(null)
+  const skipExplodeFrameRef = useRef(true)
   const onUnavailableRef = useRef(onUnavailable)
   onUnavailableRef.current = onUnavailable
 
@@ -166,12 +248,28 @@ const WfSchematicView = forwardRef<
         const controls = controlsRef.current
         if (!camera || !controls) return
         const distance = camera.position.distanceTo(controls.target)
-        setCameraDistance(camera, controls.target, zoomDistance(distance, direction))
+        setCameraDistance(
+          camera,
+          controls.target,
+          zoomDistance(distance, direction, zoomLimitsRef.current),
+        )
         controls.update()
       },
     }),
     [],
   )
+
+  useEffect(() => {
+    skipExplodeFrameRef.current = true
+  }, [scene])
+
+  useEffect(() => {
+    if (skipExplodeFrameRef.current) {
+      skipExplodeFrameRef.current = false
+      return
+    }
+    frameForExplodeRef.current?.(explodeForScene(explode))
+  }, [explode, scene])
 
   useEffect(() => {
     const el = host.current
@@ -204,8 +302,6 @@ const WfSchematicView = forwardRef<
     controls.screenSpacePanning = true
     controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE
     controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE
-    controls.minDistance = ZOOM_MIN
-    controls.maxDistance = ZOOM_MAX
     controls.update()
     const applyDrag = (spaceHeld: boolean) => {
       const mode = schematicDrag(spaceHeld)
@@ -258,12 +354,39 @@ const WfSchematicView = forwardRef<
       objects.set(body.id, group)
     }
 
+    const fullSphere = boundingSphereFromSolids(objects, scene, FULL_EXPLODE_SAMPLES)
+    fullExplodeSphereRef.current = { center: fullSphere.center.clone(), radius: fullSphere.radius }
+    zoomLimitsRef.current = zoomLimitsForSphere(fullSphere.radius, camera.aspect)
+    applyZoomLimits(camera, controls, fullSphere.radius, zoomLimitsRef.current)
+
+    for (const body of layoutAt(scene, explodeForScene(explodeRef.current))) {
+      const object = objects.get(body.id)
+      if (object) place(object, body)
+    }
+
+    frameForExplodeRef.current = (t: number) => {
+      const sphere = boundingSphereFromSolids(objects, scene, [t])
+      const framed = frameCameraKeepingDirection({
+        position: camera.position,
+        target: controls.target,
+        sphereCenter: sphere.center,
+        sphereRadius: sphere.radius,
+        fovDeg: 40,
+        aspect: camera.aspect,
+        limits: zoomLimitsRef.current,
+      })
+      controls.target.set(framed.target.x, framed.target.y, framed.target.z)
+      camera.position.set(framed.position.x, framed.position.y, framed.position.z)
+      controls.update()
+    }
+
     const resize = () => {
       const w = el.clientWidth || 320
       const h = el.clientHeight || 224
       renderer.setSize(w, h, false)
       camera.aspect = w / Math.max(h, 1)
-      camera.updateProjectionMatrix()
+      zoomLimitsRef.current = zoomLimitsForSphere(fullExplodeSphereRef.current.radius, camera.aspect)
+      applyZoomLimits(camera, controls, fullExplodeSphereRef.current.radius, zoomLimitsRef.current)
     }
     resize()
     const observer = new ResizeObserver(resize)
@@ -278,7 +401,11 @@ const WfSchematicView = forwardRef<
       wheelAccum = step.accumulator
       if (!step.direction) return
       const distance = camera.position.distanceTo(controls.target)
-      setCameraDistance(camera, controls.target, zoomDistance(distance, step.direction))
+      setCameraDistance(
+        camera,
+        controls.target,
+        zoomDistance(distance, step.direction, zoomLimitsRef.current),
+      )
       controls.update()
     }
     function onKeyDown(event: KeyboardEvent) {
@@ -349,6 +476,13 @@ const WfSchematicView = forwardRef<
         }
       }
       controls.update()
+      const full = fullExplodeSphereRef.current
+      const clamped = clampTargetInsideSphere(
+        controls.target,
+        full.center,
+        full.radius,
+      )
+      controls.target.set(clamped.x, clamped.y, clamped.z)
       renderer.render(world, camera)
       frame = requestAnimationFrame(tick)
     }
@@ -368,6 +502,7 @@ const WfSchematicView = forwardRef<
       meshMaterials.forEach((material) => material.dispose())
       spriteMaterials.forEach((material) => material.dispose())
       labelTextures.forEach((texture) => texture.dispose())
+      frameForExplodeRef.current = null
       controls.dispose()
       controlsRef.current = null
       cameraRef.current = null

@@ -52,9 +52,35 @@ const PANEL_BORDER_X_PX = 2
 const FOCUS_RING =
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5eead4]'
 
+const EXPLODE_THIRD = 1 / 3
+const EXPLODE_TWO_THIRDS = 2 / 3
+const EXPLODE_EPS = 1e-6
+
+const EXPLODE_MARKERS = [
+  { f: 0, label: 'ECS' },
+  { f: EXPLODE_THIRD, label: 'EC' },
+  { f: EXPLODE_TWO_THIRDS, label: 'ES' },
+  { f: 1, label: 'E' },
+] as const
+
 function clampExplode(value: number): number {
   if (!Number.isFinite(value)) return 0
   return Math.min(1, Math.max(0, value))
+}
+
+export function explodeAriaValueText(t: number): string {
+  const v = clampExplode(t)
+  if (v <= EXPLODE_EPS) return 'Nested'
+  if (Math.abs(v - EXPLODE_THIRD) < EXPLODE_EPS) return 'Element complexes separated'
+  if (Math.abs(v - EXPLODE_TWO_THIRDS) < EXPLODE_EPS) return 'Element sets risen'
+  if (v >= 1 - EXPLODE_EPS) return 'Elements spread'
+  if (v < EXPLODE_THIRD) return 'Element complexes separating'
+  if (v < EXPLODE_TWO_THIRDS) return 'Element sets rising'
+  return 'Elements spreading'
+}
+
+function explodeMarkerReached(explode: number, f: number): boolean {
+  return clampExplode(explode) + EXPLODE_EPS >= f
 }
 
 interface Props {
@@ -69,9 +95,9 @@ interface Props {
 }
 
 function bodiesAt(scene: SchematicSceneId) {
-  if (scene === 'asym') return asymSceneAt(0)
-  if (scene === 'tfw') return tfwSceneAt(0)
-  return wfSceneAt(0)
+  const at =
+    scene === 'asym' ? asymSceneAt(0) : scene === 'tfw' ? tfwSceneAt(0) : wfSceneAt(0)
+  return at.filter((body) => !body.taxonomyLabelOnly)
 }
 
 function sortedBodies(scene: SchematicSceneId) {
@@ -347,6 +373,7 @@ export default function WfSchematicPanel({
           step={0.01}
           value={explode}
           aria-label="Explode"
+          aria-valuetext={explodeAriaValueText(explode)}
           onChange={(event) => setExplode(clampExplode(Number(event.target.value)))}
           onKeyDown={(event) => {
             if (event.key === 'End') {
@@ -354,8 +381,27 @@ export default function WfSchematicPanel({
               setExplode(1)
             }
           }}
-          className={`mt-1 w-full ${FOCUS_RING}`}
+          className={`explode-range mt-1 w-full ${FOCUS_RING}`}
         />
+        <div aria-hidden="true" className="relative mt-2 h-8 w-full">
+          {EXPLODE_MARKERS.map(({ f, label }) => {
+            const reached = explodeMarkerReached(explode, f)
+            return (
+              <div
+                key={label}
+                className="absolute top-0 flex -translate-x-1/2 flex-col items-center gap-0.5"
+                style={{ left: `calc(8px + (100% - 16px) * ${f})` }}
+              >
+                <span
+                  className={`h-1.5 w-px shrink-0 ${reached ? 'bg-[#2dd4bf]' : 'bg-white/15'}`}
+                />
+                <span className={`text-xs ${reached ? 'text-[#f0fdfa]' : 'text-[#94a3b8]'}`}>
+                  {label}
+                </span>
+              </div>
+            )
+          })}
+        </div>
       </label>
     </section>
   )

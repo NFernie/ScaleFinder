@@ -1,4 +1,5 @@
 import { brConvexSwStations } from './brConvexSwPlan'
+import { applyExplode } from './explode'
 import { shaleBodies } from './shale'
 import { swaleBodies } from './swale'
 import { DELTA_PLAIN_THICKNESS, deltaPlainShape } from './deltaplain'
@@ -11,7 +12,6 @@ import {
   bodyCenter,
   CHANNEL_LENGTH,
   CHANNEL_RADIUS,
-  EXPLODE_SPREAD,
   isDistalMouthId,
   MOUTH_BAR_SCALE,
   MOUTH_FAN_X_SCALE,
@@ -787,14 +787,45 @@ function leftMouthComplex(half: SceneBody): SceneBody[] {
     })
 }
 
-function explodePosition(body: SceneBody, spread: number): { x: number; y: number; z: number } {
-  const center = bodyCenter(body)
-  const pivot = bodyCenter({ ...body, nested: { x: 0, y: 0, z: 0 } })
-  return {
-    x: center.x * spread - pivot.x,
-    y: center.y * spread - pivot.y,
-    z: center.z * spread - pivot.z,
+function tfwRestBodies(): SceneBody[] {
+  const rested = sceneBodiesAtRest()
+  const half = leftHalfChannelBody(rested)
+  const extras = [
+    half,
+    leftHalfChannelJoin(half, rested),
+    ...leftMouthComplex(half),
+    ...leftRidgeComplex(half),
+  ]
+  const ground = extendWaterSlab(rested.find((body) => body.id === 'ecs')!, extras)
+  const wfOrdered = wfSceneAt(0).filter(
+    (body) =>
+      !body.taxonomyLabelOnly && !isDistalMouthId(body.id) && body.kind !== 'swale' && body.kind !== 'shale',
+  )
+  const rest: SceneBody[] = []
+  for (const item of wfOrdered) {
+    const body = item.id === 'ecs' ? ground : rested.find((entry) => entry.id === item.id)!
+    rest.push(body)
   }
+  const wfIds = new Set(wfOrdered.map((body) => body.id))
+  rest.push(...rested.filter((body) => !wfIds.has(body.id)))
+  rest.push(...extras)
+  const shape = deltaPlainShape('tfw', [ground, ...rested.filter((body) => body.kind !== 'ground'), ...extras])
+  const plain: SceneBody = {
+    id: 'e-deltaplain',
+    name: 'Delta plain',
+    rank: 'element',
+    parentId: 'ecs',
+    kind: 'delta-plain',
+    nested: {
+      x: shape.origin.x,
+      y: shape.y - DELTA_PLAIN_THICKNESS / 2,
+      z: shape.origin.z,
+    },
+  }
+  rest.push(plain)
+  const swaleSource = [ground, ...rested.filter((body) => body.kind !== 'ground'), ...extras]
+  rest.push(...swaleBodies('tfw', swaleSource), ...shaleBodies('tfw', swaleSource))
+  return rest
 }
 
 /**
@@ -833,78 +864,5 @@ function explodePosition(body: SceneBody, spread: number): { x: number; y: numbe
  */
 export function sceneAt(explode: number): PlacedBody[] {
   const t = Math.min(1, Math.max(0, explode))
-  const spread = 1 + (EXPLODE_SPREAD - 1) * t
-  const wfPlaced = wfSceneAt(t).filter((item) => !isDistalMouthId(item.id) && item.kind !== 'swale' && item.kind !== 'shale')
-  const rested = sceneBodiesAtRest()
-  const half = leftHalfChannelBody(rested)
-  const extras = [
-    half,
-    leftHalfChannelJoin(half, rested),
-    ...leftMouthComplex(half),
-    ...leftRidgeComplex(half),
-  ]
-  const ground = extendWaterSlab(rested.find((body) => body.id === 'ecs')!, extras)
-  const wfIds = new Set(wfSceneAt(0).map((body) => body.id))
-  const mouthExtras = rested.filter((body) => !wfIds.has(body.id))
-  const placed = wfPlaced.map((item) => {
-    const body = item.id === 'ecs' ? ground : rested.find((entry) => entry.id === item.id)!
-    const position = spread === 1 ? body.nested : explodePosition(body, spread)
-    return {
-      ...body,
-      position,
-      showLabel: item.showLabel,
-    }
-  })
-  for (const body of mouthExtras) {
-    const position = spread === 1 ? body.nested : explodePosition(body, spread)
-    const showLabel =
-      body.rank === 'element-complex'
-        ? t > 0
-        : body.rank === 'element-set'
-          ? t > 1 / 3
-          : t > 2 / 3 && body.id === 'e-mouth-sea-0'
-    placed.push({ ...body, position, showLabel })
-  }
-  for (const body of extras) {
-    const position = spread === 1 ? body.nested : explodePosition(body, spread)
-    const showLabel =
-      body.rank === 'element-complex'
-        ? t > 0
-        : body.rank === 'element-set'
-          ? t > 1 / 3
-          : t > 2 / 3 &&
-            (body.id === 'e-channel-l' ||
-              body.id === 'e-channel-l-join' ||
-              body.id === 'e-mouth-l-0' ||
-              body.id === 'e-mouth-l-dist-0' ||
-              body.id === 'e-ridge-hl-0')
-    placed.push({ ...body, position, showLabel })
-  }
-  const shape = deltaPlainShape('tfw', [ground, ...rested.filter((body) => body.kind !== 'ground'), ...extras])
-  const plain: SceneBody = {
-    id: 'e-deltaplain',
-    name: 'Delta plain',
-    rank: 'element',
-    parentId: 'ecs',
-    kind: 'delta-plain',
-    nested: {
-      x: shape.origin.x,
-      y: shape.y - DELTA_PLAIN_THICKNESS / 2,
-      z: shape.origin.z,
-    },
-  }
-  placed.push({
-    ...plain,
-    position: spread === 1 ? plain.nested : explodePosition(plain, spread),
-    showLabel: t > 2 / 3,
-  })
-  const swaleSource = [ground, ...rested.filter((body) => body.kind !== 'ground'), ...extras]
-  for (const body of [...swaleBodies('tfw', swaleSource), ...shaleBodies('tfw', swaleSource)]) {
-    placed.push({
-      ...body,
-      position: spread === 1 ? body.nested : explodePosition(body, spread),
-      showLabel: false,
-    })
-  }
-  return placed
+  return applyExplode(tfwRestBodies(), 'tfw', t, bodyCenter)
 }

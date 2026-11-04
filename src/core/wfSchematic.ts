@@ -3,6 +3,7 @@
  * Stored as latitude 18.601312, longitude −92.674937. A latitude of −92.67
  * cannot be plotted; 18.6°N, 92.67°W is the pair that sits on the map.
  */
+import { applyExplode } from './explode'
 import { shaleBodies } from './shale'
 import { swaleBodies } from './swale'
 
@@ -25,6 +26,8 @@ export interface SceneBody {
   channelLength?: number
   /** Plan size of a ground slab when it is larger than the default water slab. */
   groundSpan?: { width: number; depth: number }
+  /** Label-only taxonomy helper; omit from WebGL-failure text list. */
+  taxonomyLabelOnly?: boolean
 }
 
 export interface PlacedBody extends SceneBody {
@@ -187,20 +190,6 @@ export const WATER_SLAB_DEPTH = 6
 /** Diagram water line. Opacity is 30%. */
 export const WATER_COLOUR = 0x38bdf8
 export const WATER_OPACITY = 0.3
-
-/**
- * At full explode, each body's centre is this many times farther from the origin.
- * The direction is the centre itself, so the largest coordinate does most of the travel
- * and the smaller ones keep the same proportion.
- */
-export const EXPLODE_SPREAD = 5
-
-function labelVisible(body: SceneBody, t: number): boolean {
-  if (body.rank === 'element-complex-set') return true
-  if (body.rank === 'element-complex') return t > 0
-  if (body.rank === 'element-set') return t > 1 / 3
-  return t > 2 / 3 && (body.id === 'e-ridge-r-0' || body.id === 'e-mouth-0' || body.id === 'e-channel')
-}
 
 function rotateYaw(point: { x: number; y: number; z: number }, yaw: number): { x: number; y: number; z: number } {
   const cos = Math.cos(yaw)
@@ -740,35 +729,6 @@ const BODIES: SceneBody[] = [
 
 export function sceneAt(explode: number): PlacedBody[] {
   const t = Math.min(1, Math.max(0, explode))
-  const spread = 1 + (EXPLODE_SPREAD - 1) * t
-  const placed = BODIES.map((body) => {
-    if (spread === 1) return { ...body, position: body.nested, showLabel: labelVisible(body, t) }
-    const local = rotateYaw(localCenter(body), body.yaw ?? 0)
-    const center = bodyCenter(body)
-    return {
-      ...body,
-      position: {
-        x: center.x * spread - local.x,
-        y: center.y * spread - local.y,
-        z: center.z * spread - local.z,
-      },
-      showLabel: labelVisible(body, t),
-    }
-  })
-  const travel = spread - 1
-  const fill = (body: SceneBody) => {
-    const center = bodyCenter(body)
-    return {
-      ...body,
-      position: {
-        x: body.nested.x + travel * center.x,
-        y: body.nested.y + travel * center.y,
-        z: body.nested.z + travel * center.z,
-      },
-      showLabel: false,
-    }
-  }
-  const swales = swaleBodies('wf', BODIES).map(fill)
-  const shales = shaleBodies('wf', BODIES).map(fill)
-  return [...placed, ...swales, ...shales]
+  const rest = [...BODIES, ...swaleBodies('wf', BODIES), ...shaleBodies('wf', BODIES)]
+  return applyExplode(rest, 'wf', t, bodyCenter)
 }

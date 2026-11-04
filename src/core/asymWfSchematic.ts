@@ -5,6 +5,7 @@
  * stays at Sfântu Gheorghe.
  */
 import { asymmetricBeachRidgeStations } from './asymmetricBeachRidgePlan'
+import { applyExplode } from './explode'
 import { shaleBodies } from './shale'
 import { swaleBodies } from './swale'
 import { layDistalMouthFan } from './wfSchematic'
@@ -13,7 +14,15 @@ export const ASYM_WF_ANCHOR = { lat: 44.878674, lng: 29.515563 } as const
 
 export type Rank = 'element' | 'element-set' | 'element-complex' | 'element-complex-set'
 
-export type SolidKind = 'ground' | 'channel' | 'mouth-bar' | 'beach-ridge' | 'swale' | 'shale' | 'group'
+export type SolidKind =
+  | 'ground'
+  | 'channel'
+  | 'mouth-bar'
+  | 'beach-ridge'
+  | 'delta-plain'
+  | 'swale'
+  | 'shale'
+  | 'group'
 
 export interface SceneBody {
   id: string
@@ -24,6 +33,7 @@ export interface SceneBody {
   nested: { x: number; y: number; z: number }
   /** Yaw around Y, in radians. Positive swings the seaward end toward +X. */
   yaw?: number
+  taxonomyLabelOnly?: boolean
 }
 
 export interface PlacedBody extends SceneBody {
@@ -137,20 +147,6 @@ export const GROUND_THICKNESS = 0.05
 /** Diagram water line. Opacity is 30%. */
 export const WATER_COLOUR = 0x38bdf8
 export const WATER_OPACITY = 0.3
-
-/**
- * At full explode, each body's centre is this many times farther from the origin.
- * The direction is the centre itself, so the largest coordinate does most of the travel
- * and the smaller ones keep the same proportion.
- */
-export const EXPLODE_SPREAD = 5
-
-function labelVisible(body: SceneBody, t: number): boolean {
-  if (body.rank === 'element-complex-set') return true
-  if (body.rank === 'element-complex') return t > 0
-  if (body.rank === 'element-set') return t > 1 / 3
-  return t > 2 / 3 && (body.id === 'e-ridge-r-0' || body.id === 'e-mouth-0' || body.id === 'e-channel')
-}
 
 function rotateYaw(point: { x: number; y: number; z: number }, yaw: number): { x: number; y: number; z: number } {
   const cos = Math.cos(yaw)
@@ -582,36 +578,6 @@ const BODIES: SceneBody[] = [
 
 export function sceneAt(explode: number): PlacedBody[] {
   const t = Math.min(1, Math.max(0, explode))
-  const spread = 1 + (EXPLODE_SPREAD - 1) * t
-  const placed = BODIES.map((body) => {
-    if (spread === 1) return { ...body, position: body.nested, showLabel: labelVisible(body, t) }
-    const local = rotateYaw(localCenter(body), body.yaw ?? 0)
-    const center = bodyCenter(body)
-    return {
-      ...body,
-      position: {
-        x: center.x * spread - local.x,
-        y: center.y * spread - local.y,
-        z: center.z * spread - local.z,
-      },
-      showLabel: labelVisible(body, t),
-    }
-  })
-  const placedFill = (kind: 'swale' | 'shale') => (body: ReturnType<typeof swaleBodies>[number]): PlacedBody => ({
-    id: body.id,
-    name: body.name,
-    rank: 'element',
-    parentId: body.parentId,
-    kind,
-    nested: body.nested,
-    position: {
-      x: body.nested.x * spread,
-      y: body.nested.y * spread,
-      z: body.nested.z * spread,
-    },
-    showLabel: false,
-  })
-  const swales: PlacedBody[] = swaleBodies('asym', BODIES).map(placedFill('swale'))
-  const shales: PlacedBody[] = shaleBodies('asym', BODIES).map(placedFill('shale'))
-  return [...placed, ...swales, ...shales]
+  const rest = [...BODIES, ...swaleBodies('asym', BODIES), ...shaleBodies('asym', BODIES)]
+  return applyExplode(rest, 'asym', t, bodyCenter)
 }

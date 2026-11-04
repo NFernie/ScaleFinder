@@ -55,7 +55,9 @@ it('lists the Wf bodies when the panel is open', async () => {
   expect(within(dialog).queryByRole('button', { name: 'Zoom in' })).not.toBeInTheDocument()
   expect(within(dialog).queryByRole('button', { name: 'Zoom out' })).not.toBeInTheDocument()
   expect(dialog.querySelector('.overflow-hidden')).toBeNull()
-  expect(within(dialog).getAllByRole('listitem')).toHaveLength(sceneAt(0).length)
+  expect(within(dialog).getAllByRole('listitem')).toHaveLength(
+    sceneAt(0).filter((b) => !b.taxonomyLabelOnly).length,
+  )
   expect(
     within(dialog)
       .getAllByRole('listitem')
@@ -71,6 +73,11 @@ it('lists the Wf bodies when the panel is open', async () => {
   expect(resize.querySelector('svg')).toBeTruthy()
   const slider = within(dialog).getByRole('slider', { name: 'Explode' })
   expect(slider).toHaveClass(FOCUS_RING)
+  expect(slider).toHaveAttribute('aria-valuetext', 'Nested')
+  expect(within(dialog).getByText('ECS')).toBeInTheDocument()
+  expect(within(dialog).getByText('EC')).toBeInTheDocument()
+  expect(within(dialog).getByText('ES')).toBeInTheDocument()
+  expect(within(dialog).getByText('E')).toBeInTheDocument()
   frame.focus()
   await user.click(within(dialog).getByRole('button', { name: 'Resize schematic view' }))
   await user.keyboard('{ArrowLeft}')
@@ -162,11 +169,54 @@ it('keeps the caption, slider, and full list when the view cannot start', async 
   expect(within(dialog).getByText(/Type schematic/)).toBeInTheDocument()
   expect(within(dialog).getByRole('slider', { name: 'Explode' })).toBeInTheDocument()
   expect(within(dialog).queryByRole('button', { name: 'Zoom in' })).not.toBeInTheDocument()
-  expect(within(dialog).getAllByRole('listitem')).toHaveLength(sceneAt(0).length)
+  expect(within(dialog).getAllByRole('listitem')).toHaveLength(
+    sceneAt(0).filter((b) => !b.taxonomyLabelOnly).length,
+  )
   const before = within(dialog).getAllByRole('listitem').map((item) => item.textContent)
   fireEvent.change(within(dialog).getByRole('slider', { name: 'Explode' }), { target: { value: '1' } })
   expect(within(dialog).getAllByRole('listitem').map((item) => item.textContent)).toEqual(before)
   getContext.mockRestore()
   vi.doUnmock('./WfSchematicView')
   vi.resetModules()
+})
+
+it('shows four explode scale markers', async () => {
+  const user = userEvent.setup()
+  render(<Harness />)
+  await user.click(screen.getByRole('button', { name: 'Wf schematic' }))
+  const dialog = screen.getByRole('dialog', { name: 'Wf Schematic' })
+  expect(within(dialog).getByText('ECS')).toBeInTheDocument()
+  expect(within(dialog).getByText('EC')).toBeInTheDocument()
+  expect(within(dialog).getByText('ES')).toBeInTheDocument()
+  expect(within(dialog).getByText('E')).toBeInTheDocument()
+})
+
+it('reports explode stage in aria-valuetext', async () => {
+  const user = userEvent.setup()
+  render(<Harness />)
+  await user.click(screen.getByRole('button', { name: 'Wf schematic' }))
+  const dialog = screen.getByRole('dialog', { name: 'Wf Schematic' })
+  const slider = within(dialog).getByRole('slider', { name: 'Explode' })
+  expect(slider).toHaveAttribute('aria-valuetext', 'Nested')
+  fireEvent.change(slider, { target: { value: '0.16' } })
+  expect(slider).toHaveAttribute('aria-valuetext', 'Element complexes separating')
+  fireEvent.change(slider, { target: { value: String(1 / 3) } })
+  expect(slider).toHaveAttribute('aria-valuetext', 'Element complexes separated')
+  fireEvent.change(slider, { target: { value: '0.5' } })
+  expect(slider).toHaveAttribute('aria-valuetext', 'Element sets rising')
+  fireEvent.change(slider, { target: { value: String(2 / 3) } })
+  expect(slider).toHaveAttribute('aria-valuetext', 'Element sets risen')
+  fireEvent.change(slider, { target: { value: '0.9' } })
+  expect(slider).toHaveAttribute('aria-valuetext', 'Elements spreading')
+  fireEvent.change(slider, { target: { value: '1' } })
+  expect(slider).toHaveAttribute('aria-valuetext', 'Elements spread')
+})
+
+it('excludes taxonomy label-only bodies from the text list', async () => {
+  const user = userEvent.setup()
+  render(<Harness />)
+  await user.click(screen.getByRole('button', { name: 'Wf schematic' }))
+  const dialog = screen.getByRole('dialog', { name: 'Wf Schematic' })
+  const meshCount = sceneAt(0).filter((b) => !b.taxonomyLabelOnly).length
+  expect(await within(dialog).findAllByRole('listitem', {}, { timeout: 5000 })).toHaveLength(meshCount)
 })

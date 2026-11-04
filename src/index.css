@@ -250,3 +250,16 @@
     transform: none;
   }
 }
+
+/* Wf schematic Explode slider: fixed 16px thumb so taxonomy markers align. */
+.explode-range::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+}
+
+.explode-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+}

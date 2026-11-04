@@ -68,8 +68,9 @@ describe('tfwEcsSchematic', () => {
       'e-mouth-sea-7',
       'e-mouth-sea-8',
     ]
-    expect(tfw.map((body) => body.id)).toEqual([
+    expect(tfw.filter((body) => !body.taxonomyLabelOnly).map((body) => body.id)).toEqual([
       ...wf
+        .filter((body) => !body.taxonomyLabelOnly)
         .map((body) => body.id)
         .filter((id) => !isDistalMouthId(id) && !id.startsWith('e-swale-') && !id.startsWith('e-shale-')),
       ...mouthExtraIds,
@@ -176,7 +177,7 @@ describe('tfwEcsSchematic', () => {
     expect(leftSet.nested.z).toBeCloseTo(wfLeftSet.nested.z - meshWidth / 2)
     expect(leftSet.nested.x).toBeCloseTo(wfLeftSet.nested.x)
 
-    for (const body of tfw) {
+    for (const body of tfw.filter((item) => !item.taxonomyLabelOnly)) {
       const match = wf.find((item) => item.id === body.id)
       if (!match) continue
       if (body.kind === 'mouth-bar' || body.kind === 'swale' || body.kind === 'shale' || body.id === 'ec-mouth' || body.id === 'es-mouth') continue

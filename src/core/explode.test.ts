@@ -32,8 +32,14 @@ function xzDist(a: Vec3, b: Vec3): number {
   return Math.hypot(a.x - b.x, a.z - b.z)
 }
 
+function stripRest(placed: PlacedBody[]): SceneBody[] {
+  return placed
+    .filter((body) => !body.taxonomyLabelOnly)
+    .map(({ position: _p, showLabel: _s, ...body }) => body)
+}
+
 function restWf(): SceneBody[] {
-  return wfSceneAt(0).map(({ position: _p, showLabel: _s, ...body }) => body)
+  return stripRest(wfSceneAt(0))
 }
 
 function isRisenEs(ecKey: string, esIndex: number): boolean {
@@ -68,7 +74,7 @@ function placedCenter(body: SceneBody, position: Vec3): Vec3 {
 function restBodiesFor(scene: 'wf' | 'asym' | 'tfw'): SceneBody[] {
   const placed: PlacedBody[] =
     scene === 'wf' ? wfSceneAt(0) : scene === 'asym' ? asymSceneAt(0) : tfwSceneAt(0)
-  return placed.map(({ position: _p, showLabel: _s, ...body }) => body)
+  return stripRest(placed)
 }
 
 describe('explode classification', () => {
